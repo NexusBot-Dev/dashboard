@@ -27,7 +27,11 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${DASHBOARD_TOKEN}`,
       },
-      body: JSON.stringify({ guild_id: guildId, fields }),
+      body: JSON.stringify({
+        guild_id: guildId,
+        fields,
+        discord_access_token: session.accessToken,
+      }),
     });
 
     const data = await botResponse.json();

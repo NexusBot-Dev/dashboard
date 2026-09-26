@@ -396,7 +396,15 @@
     "locale_timezone_line": "Language: {locale} · Timezone: {tz}",
     "running_since": " · Running since {uptime}",
     "messages_12h_label": "Messages · 12h",
-    "live_activity_note": "Live activity data coming soon"
+    "live_activity_note": "Live activity data coming soon",
+    "stats_members": "Members",
+    "stats_boosts": "Boosts",
+    "stats_open_tickets": "Open tickets",
+    "stats_live": "Live now",
+    "stats_timeouts": "Active timeouts",
+    "nobody_live": "Nobody live",
+    "live_more": "+{count} more",
+    "manage_modules": "Manage →"
   },
   "landing": {
     "page_title": "Welcome | Nexus Hub",

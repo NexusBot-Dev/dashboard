@@ -1,0 +1,118 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary-50: #e6fffb;
+  --color-primary-100: #b3fff4;
+  --color-primary-200: #80ffed;
+  --color-primary-300: #4dffe7;
+  --color-primary-400: #1affdf;
+  --color-primary-500: #00F5D4;
+  --color-primary-600: #00cca1;
+  --color-primary-700: #00996e;
+  --color-primary-800: #00663c;
+  --color-primary-900: #312e81;
+  --color-primary-950: #042f2e;
+
+  --color-accent-50: #f0fdfa;
+  --color-accent-100: #ccfbf1;
+  --color-accent-200: #99f6e4;
+  --color-accent-300: #5eead4;
+  --color-accent-400: #2dd4bf;
+  --color-accent-500: #14b8a6;
+  --color-accent-600: #0d9488;
+  --color-accent-700: #0f766e;
+  --color-accent-800: #115e59;
+  --color-accent-900: #134e4a;
+
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Custom base layer for Dark Mode support and smooth transitions */
+@layer base {
+  :root {
+    --bg-color: #fafafa;
+    --text-color: #0f172a;
+    --border-color: #e2e8f0;
+  }
+  
+  .dark {
+    --bg-color: #09090b; /* True deep black/slate */
+    --text-color: #f8fafc;
+    --border-color: #1e293b;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: -0.02em; /* Gives that tight, premium modern feel */
+  }
+
+  /* Custom Scrollbar for a premium feel */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 5px;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+}
+
+/* Utility layer for custom complex visual effects */
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 shadow-xl;
+  }
+  
+  .text-gradient {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-accent-500 dark:from-primary-400 dark:to-accent-300;
+  }
+
+  .hover-glow {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+  
+  .hover-glow:hover {
+    box-shadow: 0 0 25px -5px theme('colors.primary.500 / 30%');
+    transform: translateY(-2px);
+  }
+  .scroll-fade {
+    mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
+  }
+  .btn-primary-surface {
+    @apply bg-primary-600 text-white dark:bg-primary-500 dark:text-slate-900;
+  }
+}
+
+/* Base styles for scroll animation classes */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-on-scroll.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}

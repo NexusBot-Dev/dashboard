@@ -1,0 +1,160 @@
+---
+import '@fontsource-variable/inter';
+import '@fontsource-variable/space-grotesk';
+import { ClientRouter } from 'astro:transitions';
+import { getSession } from '../lib/session';
+import { getLang, t } from '../i18n';
+import { getManageableGuilds } from '../lib/manageableGuilds';
+import { CLIENT_ID, OWNER_DISCORD_ID } from '../lib/secrets';
+import pool from '../lib/db';
+import '../styles/global.css';
+import Sidebar from '../components/Sidebar.astro';
+import { SITE_TITLE } from '../config';
+import TopHeader from '../components/TopHeader.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  guildName?: string;
+  guildIconUrl?: string;
+  guildId?: string;
+  premiumActive?: boolean;
+}
+const session = await getSession(Astro.cookies);
+const lang = Astro.locals.lang;
+
+const currentUser = session ? {
+  username: session.username || 'Benutzer',
+  globalName: session.globalName,
+  avatarUrl: session.avatarUrl,
+} : undefined;
+
+const isOwner = Boolean(session && OWNER_DISCORD_ID && session.discordUserId === OWNER_DISCORD_ID);
+
+const { title, guildName, guildIconUrl, premiumActive, guildId } = Astro.props;
+const currentPath = Astro.url.pathname;
+const fullTitle = `${title} | ${SITE_TITLE}`;
+
+async function getPremiumExpiry(id: string): Promise<Date | null> {
+  const [rows] = await pool.query(
+    `SELECT expires_at FROM premium WHERE guild_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    [id]
+  );
+  const row = (rows as any[])[0];
+  return row?.expires_at ? new Date(row.expires_at) : null; // NULL = unbefristet → keine Warnung
+}
+
+const [switchableGuilds, premiumExpiresAt] = await Promise.all([
+  (session && guildId)
+    ? getManageableGuilds(session.accessToken, CLIENT_ID).catch(() => [])
+    : Promise.resolve([]),
+  guildId ? getPremiumExpiry(guildId).catch(() => null) : Promise.resolve(null),
+]);
+
+const PREMIUM_WARN_DAYS = 7;
+let premiumExpiresInDays: number | null = null;
+if (premiumExpiresAt) {
+  const days = Math.ceil((premiumExpiresAt.getTime() - Date.now()) / 86_400_000);
+  if (days <= PREMIUM_WARN_DAYS) premiumExpiresInDays = Math.max(0, days);
+}
+---
+
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="noindex, nofollow" />
+
+    <title>{fullTitle}</title>
+
+    <ClientRouter />
+
+    <script is:inline data-astro-rerun>
+      (() => {
+        const getPreferredTheme = () => {
+          if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
+            return localStorage.getItem('theme');
+          }
+          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+          }
+          return 'light';
+        };
+
+        const applyTheme = (theme, root = document.documentElement) => {
+          root.classList.toggle('dark', theme === 'dark');
+          window.localStorage.setItem('theme', theme);
+        };
+
+        applyTheme(getPreferredTheme());
+
+        if (!window.__zenixThemeBound) {
+          window.__zenixThemeBound = true;
+
+          document.addEventListener('astro:before-swap', (event) => {
+            const theme = localStorage.getItem('theme') || getPreferredTheme();
+            event.newDocument.documentElement.classList.toggle('dark', theme === 'dark');
+          });
+
+          document.addEventListener('astro:after-swap', () => {
+            applyTheme(localStorage.getItem('theme') || getPreferredTheme());
+          });
+
+          document.addEventListener('astro:page-load', () => {
+            applyTheme(localStorage.getItem('theme') || getPreferredTheme());
+          });
+        }
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#09090b] dark:text-slate-100">
+    <noscript>
+      <div class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/95 text-white p-6 text-center">
+        <div>
+          <p class="text-lg font-semibold mb-2">JavaScript wird benötigt</p>
+          <p class="text-sm text-slate-300">Das Dashboard benötigt aktiviertes JavaScript, um zu funktionieren.</p>
+        </div>
+      </div>
+    </noscript>
+    {guildId && <Sidebar currentPath={currentPath} guildName={guildName} guildId={guildId} isOwner={isOwner} />}
+
+    <div class:list={["pt-14 md:pt-0 min-h-screen flex flex-col", { "md:ml-64": guildId }]}>
+        <TopHeader 
+            guildName={guildName} 
+            guildIconUrl={guildIconUrl}
+            guildId={guildId}
+            switchableGuilds={switchableGuilds}
+            user={currentUser} 
+            lang={lang}
+            premiumActive={premiumActive}
+            premiumExpiresInDays={premiumExpiresInDays}
+        />
+
+      <main class="flex-1">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <slot />
+        </div>
+      </main>
+      <Footer />
+    </div>
+    <script>
+      function setupMobileSidebar() {
+        const btn = document.getElementById('mobile-sidebar-btn');
+        const sidebar = document.querySelector('aside');
+        if (btn && sidebar) {
+          const newBtn = btn.cloneNode(true);
+          btn.parentNode?.replaceChild(newBtn, btn);
+          newBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('flex');
+          });
+        }
+      }
+      setupMobileSidebar();
+      document.addEventListener('astro:page-load', setupMobileSidebar);
+    </script>
+  </body>
+</html>

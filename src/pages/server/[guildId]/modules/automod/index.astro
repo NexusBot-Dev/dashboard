@@ -1,0 +1,346 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../../components/Badge.astro';
+import pool from '../../../../../lib/db';
+import { callGuildAction } from '../../../../../lib/botApi';
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+
+let guildName = `Server ${guildId}`;
+let guildIconUrl: string | null = null;
+let channels: { id: string; name: string }[] = [];
+let status: {
+  spam_enabled: boolean; mentions_enabled: boolean; keywords_enabled: boolean;
+  keywords: string[]; shield_enabled: boolean; honeypot_channel_id: string | null;
+} | null = null;
+let botOnline = true;
+let premiumActive = false;
+
+async function getPremiumInfo(id: string) {
+  const [rows] = await pool.query(
+    `SELECT expires_at FROM premium WHERE guild_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+
+try {
+  const [premium, info, channelsResult, statusResult] = await Promise.all([
+    getPremiumInfo(guildId!),
+    callGuildAction(Astro, 'guild', 'info', guildId!),
+    callGuildAction(Astro, 'guild', 'channels', guildId!),
+    callGuildAction(Astro, 'automod', 'status', guildId!),
+  ]);
+
+  premiumActive = Boolean(premium);
+  guildName = info.name;
+  guildIconUrl = info.icon_url;
+  channels = channelsResult.channels;
+  status = statusResult;
+} catch {
+  botOnline = false;
+}
+
+const honeypotChannelName = status?.honeypot_channel_id
+  ? channels.find((c) => c.id === status!.honeypot_channel_id)?.name ?? null
+  : null;
+
+const MENTION_LIMIT = 5;
+const SHIELD_WINDOW_SECONDS = 5;
+const SHIELD_SCORE_LIMIT = 3.0;
+const HONEYPOT_TIMEOUT_DAYS = 7;
+
+const i18n = {
+  noKeywords: t('automod.no_keywords'),
+  alertHoneypotRequired: t('automod.alert_honeypot_required'),
+  confirmDeleteHoneypot: t('automod.confirm_delete_honeypot'),
+  errorGeneric: t('common.error_generic'),
+  errorServerTemplate: t('common.error_server'),
+  unexpectedResponseTemplate: t('automod.unexpected_response'),
+};
+---
+
+<DashboardLayout title={t('automod.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('automod.title')}</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+    {t('automod.subtitle')}
+  </p>
+
+  {!botOnline && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-700 dark:text-amber-400">{t('common.bot_offline')}</p>
+    </div>
+  )}
+
+  {status && (
+    <div class="space-y-6">
+      <!-- Anti-Spam -->
+      <section class="rounded-xl glass-panel p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('automod.anti_spam_title')}</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{t('automod.anti_spam_desc')}</p>
+          </div>
+          <button type="button" role="switch" aria-checked={status.spam_enabled} data-automod-toggle="spam" disabled={!botOnline}
+            class:list={["relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50", status.spam_enabled ? "bg-primary-500" : "bg-slate-300 dark:bg-slate-700"]}>
+            <span class:list={["inline-block h-4 w-4 transform rounded-full bg-white transition-transform", status.spam_enabled ? "translate-x-6" : "translate-x-1"]}></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Mention-Spam -->
+      <section class="rounded-xl glass-panel p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('automod.mention_spam_title')}</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{t('automod.mention_spam_desc_prefix')} <strong>{MENTION_LIMIT}</strong> {t('automod.mention_spam_desc_suffix')}</p>
+          </div>
+          <button type="button" role="switch" aria-checked={status.mentions_enabled} data-automod-toggle="mentions" disabled={!botOnline}
+            class:list={["relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50", status.mentions_enabled ? "bg-primary-500" : "bg-slate-300 dark:bg-slate-700"]}>
+            <span class:list={["inline-block h-4 w-4 transform rounded-full bg-white transition-transform", status.mentions_enabled ? "translate-x-6" : "translate-x-1"]}></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Keyword-Filter -->
+      <section class="rounded-xl glass-panel p-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('automod.keyword_filter_title')}</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{t('automod.keyword_filter_desc')}</p>
+          </div>
+          <button type="button" role="switch" aria-checked={status.keywords_enabled} data-automod-toggle="keywords" disabled={!botOnline}
+            class:list={["relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50", status.keywords_enabled ? "bg-primary-500" : "bg-slate-300 dark:bg-slate-700"]}>
+            <span class:list={["inline-block h-4 w-4 transform rounded-full bg-white transition-transform", status.keywords_enabled ? "translate-x-6" : "translate-x-1"]}></span>
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-3" id="keywords-display">
+          {status.keywords.map((kw) => (
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">{kw}</span>
+          ))}
+          {status.keywords.length === 0 && <span class="text-xs text-slate-400">{t('automod.no_keywords')}</span>}
+        </div>
+
+        <button id="edit-keywords-btn" type="button" disabled={!botOnline} class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50">{t('automod.edit_keywords_btn')}</button>
+
+        <div id="keywords-form" class="hidden mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('automod.blocked_words_label')}</label>
+          <textarea id="keywords-textarea" rows="5" maxlength="1000" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none">{status.keywords.join('\n')}</textarea>
+          <div class="flex gap-2 mt-3">
+            <button id="confirm-keywords-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+            <button id="cancel-keywords-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Anti-Nuke Shield -->
+      <section class="rounded-xl glass-panel p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('automod.anti_nuke_title')}</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-2">{t('automod.anti_nuke_desc')}</p>
+            <p class="text-xs text-slate-400">{t('automod.shield_threshold', { score: SHIELD_SCORE_LIMIT, seconds: SHIELD_WINDOW_SECONDS })}</p>
+          </div>
+          <button type="button" role="switch" aria-checked={status.shield_enabled} id="shield-toggle" disabled={!botOnline}
+            class:list={["relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50", status.shield_enabled ? "bg-primary-500" : "bg-slate-300 dark:bg-slate-700"]}>
+            <span class:list={["inline-block h-4 w-4 transform rounded-full bg-white transition-transform", status.shield_enabled ? "translate-x-6" : "translate-x-1"]}></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Honeypot -->
+      <section class="rounded-xl glass-panel p-6">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('automod.honeypot_title')}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
+          {t('automod.honeypot_desc', { days: HONEYPOT_TIMEOUT_DAYS })}
+        </p>
+
+        <div id="honeypot-active" class={status.honeypot_channel_id ? '' : 'hidden'}>
+          <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+            <p class="text-sm font-medium text-slate-900 dark:text-white" id="honeypot-channel-label">
+              #{honeypotChannelName ?? status.honeypot_channel_id}
+            </p>
+            <button id="delete-honeypot-btn" type="button" disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline disabled:opacity-50">{t('common.delete')}</button>
+          </div>
+          <p class="mt-2 text-xs text-slate-400">{t('automod.delete_honeypot_note')}</p>
+        </div>
+
+        <div id="honeypot-inactive" class={status.honeypot_channel_id ? 'hidden' : ''}>
+          <button id="create-honeypot-btn" type="button" disabled={!botOnline} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50">+ {t('automod.create_honeypot_btn')}</button>
+
+          <div id="honeypot-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <div class="mb-3">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('automod.channel_name_label')}</label>
+              <input type="text" id="honeypot-name-input" maxlength="90" placeholder={t('automod.channel_name_placeholder')} class="w-full max-w-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+            <div class="mb-4">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('automod.warn_text_label')}</label>
+              <textarea id="honeypot-warntext-input" rows="2" maxlength="1000" placeholder="⚠️ Raid bot trap: Anyone posting here will be automatically timed out." class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+            </div>
+            <div class="flex gap-2">
+              <button id="confirm-honeypot-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.create')}</button>
+              <button id="cancel-honeypot-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  )}
+</DashboardLayout>
+
+<script define:vars={{ guildId, i18n }}>
+  async function callModuleAction(module, action, body = {}) {
+    const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }
+    if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
+    return data.data;
+  }
+
+  function toggleVisual(btn, next) {
+    btn.setAttribute('aria-checked', String(next));
+    btn.classList.toggle('bg-primary-500', next);
+    btn.classList.toggle('bg-slate-300', !next);
+    btn.classList.toggle('dark:bg-slate-700', !next);
+    const knob = btn.querySelector('span');
+    knob?.classList.toggle('translate-x-6', next);
+    knob?.classList.toggle('translate-x-1', !next);
+  }
+
+  function setupAutomod() {
+    document.querySelectorAll('[data-automod-toggle]').forEach((btn) => {
+      if (btn.dataset.bound === 'true') return;
+      btn.dataset.bound = 'true';
+
+      btn.addEventListener('click', async () => {
+        const key = btn.dataset.automodToggle;
+        const previous = btn.getAttribute('aria-checked') === 'true';
+        btn.disabled = true;
+        try {
+          await callModuleAction('automod', 'toggle-rule', { rule_key: key });
+          toggleVisual(btn, !previous);
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    const shieldToggle = document.getElementById('shield-toggle');
+    if (shieldToggle && shieldToggle.dataset.bound !== 'true') {
+      shieldToggle.dataset.bound = 'true';
+      shieldToggle.addEventListener('click', async () => {
+        shieldToggle.disabled = true;
+        try {
+          const result = await callModuleAction('automod', 'toggle-shield', {});
+          toggleVisual(shieldToggle, result.shield_enabled);
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          shieldToggle.disabled = false;
+        }
+      });
+    }
+
+    const editKeywordsBtn = document.getElementById('edit-keywords-btn');
+    const keywordsForm = document.getElementById('keywords-form');
+    const keywordsTextarea = document.getElementById('keywords-textarea');
+    const keywordsDisplay = document.getElementById('keywords-display');
+    const confirmKeywordsBtn = document.getElementById('confirm-keywords-btn');
+    const cancelKeywordsBtn = document.getElementById('cancel-keywords-btn');
+
+    if (editKeywordsBtn && editKeywordsBtn.dataset.bound !== 'true') {
+      editKeywordsBtn.dataset.bound = 'true';
+      editKeywordsBtn.addEventListener('click', () => keywordsForm.classList.remove('hidden'));
+      cancelKeywordsBtn.addEventListener('click', () => keywordsForm.classList.add('hidden'));
+
+      confirmKeywordsBtn.addEventListener('click', async () => {
+        const keywords = keywordsTextarea.value.split('\n').map((k) => k.trim().toLowerCase()).filter(Boolean);
+        confirmKeywordsBtn.disabled = true;
+        try {
+          await callModuleAction('automod', 'set-keywords', { keywords });
+
+          keywordsDisplay.innerHTML = '';
+          if (keywords.length === 0) {
+            keywordsDisplay.innerHTML = `<span class="text-xs text-slate-400">${i18n.noKeywords}</span>`;
+          } else {
+            keywords.forEach((kw) => {
+              const span = document.createElement('span');
+              span.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300';
+              span.textContent = kw;
+              keywordsDisplay.appendChild(span);
+            });
+          }
+          keywordsForm.classList.add('hidden');
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          confirmKeywordsBtn.disabled = false;
+        }
+      });
+    }
+
+    const createBtn = document.getElementById('create-honeypot-btn');
+    const honeypotForm = document.getElementById('honeypot-form');
+    const nameInput = document.getElementById('honeypot-name-input');
+    const warnTextInput = document.getElementById('honeypot-warntext-input');
+    const confirmHoneypotBtn = document.getElementById('confirm-honeypot-btn');
+    const cancelHoneypotBtn = document.getElementById('cancel-honeypot-btn');
+    const inactiveSection = document.getElementById('honeypot-inactive');
+    const activeSection = document.getElementById('honeypot-active');
+    const channelLabel = document.getElementById('honeypot-channel-label');
+    const deleteBtn = document.getElementById('delete-honeypot-btn');
+
+    if (createBtn && createBtn.dataset.bound !== 'true') {
+      createBtn.dataset.bound = 'true';
+      createBtn.addEventListener('click', () => honeypotForm.classList.remove('hidden'));
+      cancelHoneypotBtn.addEventListener('click', () => honeypotForm.classList.add('hidden'));
+
+      confirmHoneypotBtn.addEventListener('click', async () => {
+        const name = nameInput.value.trim();
+        const warnText = warnTextInput.value.trim();
+        if (!name || !warnText) { alert(i18n.alertHoneypotRequired); return; }
+
+        confirmHoneypotBtn.disabled = true;
+        try {
+          const result = await callModuleAction('automod', 'create-honeypot', { name, warn_text: warnText });
+          channelLabel.textContent = `#${result.channel_name}`;
+          inactiveSection.classList.add('hidden');
+          activeSection.classList.remove('hidden');
+          honeypotForm.classList.add('hidden');
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          confirmHoneypotBtn.disabled = false;
+        }
+      });
+    }
+
+    if (deleteBtn && deleteBtn.dataset.bound !== 'true') {
+      deleteBtn.dataset.bound = 'true';
+      deleteBtn.addEventListener('click', async () => {
+        if (!confirm(i18n.confirmDeleteHoneypot)) return;
+        deleteBtn.disabled = true;
+        try {
+          await callModuleAction('automod', 'delete-honeypot', {});
+          activeSection.classList.add('hidden');
+          inactiveSection.classList.remove('hidden');
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          deleteBtn.disabled = false;
+        }
+      });
+    }
+  }
+
+  setupAutomod();
+  document.addEventListener('astro:page-load', setupAutomod);
+</script>

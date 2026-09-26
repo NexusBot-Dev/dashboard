@@ -1,0 +1,33 @@
+---
+import { DASHBOARD_FOOTER_LINKS, BRAND_NAME } from '../config';
+
+const t = Astro.locals.t;
+const currentYear = new Date().getFullYear();
+
+const FOOTER_LABELS: Record<string, string> = {
+  imprint: t('footer.link_imprint'),
+  privacy: t('footer.link_privacy'),
+  terms: t('footer.link_terms'),
+};
+---
+
+<footer class="border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md mt-auto py-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-xs text-slate-500 dark:text-slate-400">
+      <span>&copy; {currentYear} {BRAND_NAME}. {t('footer.all_rights_reserved')}</span>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-center gap-6">
+      {DASHBOARD_FOOTER_LINKS.flatMap((group) => group.links).map((link) => (
+        <a
+          href={link.href}
+          target={link.href.startsWith('http') ? '_blank' : undefined}
+          rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+          class="text-xs text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 transition-colors"
+        >
+          {FOOTER_LABELS[link.key] ?? link.label}
+        </a>
+      ))}
+    </div>
+  </div>
+</footer>

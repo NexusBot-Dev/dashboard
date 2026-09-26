@@ -1,0 +1,494 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../../components/Badge.astro';
+import pool from '../../../../../lib/db';
+import { callGuildAction } from '../../../../../lib/botApi';
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+
+async function getGuildSettings(id: string) {
+  const [rows] = await pool.query(
+    `SELECT boost_channel_id, welcome_channel_id FROM guild_settings WHERE guild_id = ?`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+
+async function getPremiumInfo(id: string) {
+  const [rows] = await pool.query(
+    `SELECT expires_at FROM premium WHERE guild_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+
+const settingsPromise = getGuildSettings(guildId!);
+const premiumPromise = getPremiumInfo(guildId!);
+
+let guildName = `Server ${guildId}`;
+let guildIconUrl: string | null = null;
+let channels: { id: string; name: string }[] = [];
+let messages: { id: number; message: string }[] = [];
+let limitFree = 1;
+let limitPremium = 5;
+let boostTier = 0;
+let boostCount = 0;
+let botOnline = true;
+let welcomeChannelName: string | null = null;
+
+const botInfoPromise = (async () => {
+  try {
+    const [info, channelsResult, boostsResult] = await Promise.all([
+      callGuildAction(Astro, 'guild', 'info', guildId!),
+      callGuildAction(Astro, 'guild', 'channels', guildId!),
+      callGuildAction(Astro, 'boosts', 'list', guildId!),
+    ]);
+    return { ok: true as const, info, channels: channelsResult.channels, boostsResult };
+  } catch {
+    return { ok: false as const };
+  }
+})();
+
+// DB-Queries und Bot-Calls laufen ab hier gleichzeitig statt nacheinander —
+// die Gesamtwartezeit ist jetzt die des langsamsten einzelnen Calls, nicht die Summe aller fünf.
+const [settings, premium, botResult] = await Promise.all([settingsPromise, premiumPromise, botInfoPromise]);
+
+if (!settings) {
+  return Astro.redirect('/server');
+}
+
+const session = Astro.locals.session;
+const previewDisplayName = session?.globalName || session?.username || 'User';
+const premiumActive = Boolean(premium);
+
+if (botResult.ok) {
+  guildName = botResult.info.name;
+  guildIconUrl = botResult.info.icon_url;
+  boostTier = botResult.info.boost_tier;
+  boostCount = botResult.info.boost_count;
+  channels = botResult.channels;
+  welcomeChannelName = channels.find((c: any) => c.id === settings.welcome_channel_id)?.name ?? null;
+  messages = botResult.boostsResult.messages;
+  limitFree = botResult.boostsResult.limit_free;
+  limitPremium = botResult.boostsResult.limit_premium;
+} else {
+  botOnline = false;
+}
+
+const limit = premiumActive ? limitPremium : limitFree;
+
+function renderDiscordMarkdown(text: string): string {
+  let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const codeBlocks: string[] = [];
+  out = out.replace(/```([\s\S]*?)```/g, (_m, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
+  out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
+  out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
+  out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
+  out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
+  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/__(.+?)__/g, '<u>$1</u>');
+  out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
+  out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  out = out.split('\n').map((line) => {
+    if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
+    if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
+    if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
+    if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
+    return line;
+  }).join('\n');
+  out = out.replace(/%%CB(\d+)%%/g, (_m, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
+  return out.replace(/\n/g, '<br>');
+}
+
+function renderPreview(template: string) {
+  return renderDiscordMarkdown(
+    template
+      .replace(/{user}/g, `@${previewDisplayName}`)
+      .replace(/{username}/g, previewDisplayName)
+      .replace(/{server}/g, guildName)
+      .replace(/{count}/g, String(boostCount))
+  );
+}
+
+const DEFAULT_BOOST_MESSAGE = t('boost.default_message');
+
+const i18n = {
+  save: t('common.save'),
+  saving: t('common.saving'),
+  edit: t('common.edit'),
+  delete: t('common.delete'),
+  errorGeneric: t('common.error_generic'),
+  errorServerTemplate: t('common.error_server'),
+  unexpectedResponseTemplate: t('boost.unexpected_response'),
+  messageFormAddTitle: t('boost.message_form_add_title'),
+  messageFormEditTitle: t('boost.message_form_edit_title'),
+  previewLabel: t('boost.preview_label'),
+  alertMessageRequired: t('boost.alert_message_required'),
+  confirmDeleteMessage: t('boost.confirm_delete_message'),
+};
+---
+
+<DashboardLayout title={t('boost.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('boost.title')}</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+    {t('boost.subtitle')}
+  </p>
+
+  {!botOnline && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-700 dark:text-amber-400">{t('common.bot_offline')}</p>
+    </div>
+  )}
+
+  <!-- Boost-Status -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-primary-600 dark:text-primary-400">
+            <path d="M12 2 3 14h6l-1 8 10-14h-6z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-slate-900 dark:text-white">{boostCount} {boostCount === 1 ? t('boost.boost_singular') : t('boost.boost_plural')}</p>
+          <p class="text-sm text-slate-500 dark:text-slate-400">{t('boost.server_level', { tier: boostTier })}</p>
+        </div>
+      </div>
+      <Badge variant={boostTier > 0 ? 'primary' : 'neutral'}>{t('boost.level_badge', { tier: boostTier })}</Badge>
+    </div>
+  </section>
+
+  <!-- Boost-Channel -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+      <div class="flex-1 max-w-xs">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">{t('boost.boost_channel_label')}</label>
+          <select id="boost-channel-select" data-initial={settings.boost_channel_id ?? ''} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
+            {channels.map((ch) => (
+              <option value={ch.id} selected={ch.id === (settings.boost_channel_id ?? settings.welcome_channel_id)}>
+                #{ch.name}
+              </option>
+            ))}
+          </select>
+      </div>
+      <button id="save-boost-channel-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        {t('common.save')}
+      </button>
+    </div>
+  </section>
+
+  <!-- Nachrichten -->
+  <section class="rounded-xl glass-panel p-6">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('boost.messages_title')}</h2>
+      <button id="add-message-btn" type="button" disabled={!botOnline || messages.length >= limit} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        + {t('common.add')}
+      </button>
+    </div>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+      {t('boost.messages_count', { count: messages.length, limit })}
+      {!premiumActive && messages.length >= limitFree && (
+        <span class="ml-1">— <Badge variant="primary">Premium</Badge> {t('boost.premium_hint', { max: limitPremium })}</span>
+      )}
+    </p>
+
+    <div id="messages-list" class="space-y-3">
+      {messages.map((msg) => (
+        <div class="rounded-lg border border-slate-200 dark:border-slate-800 p-4" data-message-row={msg.id}>
+          <div class="flex items-start justify-between gap-4">
+            <p class="text-sm text-slate-700 dark:text-slate-300 flex-1" data-message-text>{msg.message}</p>
+            <div class="flex items-center gap-3 flex-shrink-0">
+              <button type="button" data-edit-message={msg.id} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">{t('common.edit')}</button>
+              <button type="button" data-remove-message={msg.id} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">{t('common.delete')}</button>
+            </div>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+            <p class="text-xs text-slate-400 mb-1">{t('boost.preview_label')}</p>
+            <p class="text-sm text-slate-600 dark:text-slate-400 italic" data-message-preview set:html={renderPreview(msg.message)} />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {messages.length === 0 && (
+      <div class="py-2">
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-2">
+          {t('boost.no_custom_messages')}
+        </p>
+        <div class="rounded-lg border border-slate-200 dark:border-slate-800 border-dashed p-4">
+          <p class="text-sm text-slate-600 dark:text-slate-400 italic" set:html={renderPreview(DEFAULT_BOOST_MESSAGE)} />
+        </div>
+      </div>
+    )}
+
+    <div id="message-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <p id="message-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('boost.message_form_add_title')}</p>
+
+      <div class="flex flex-wrap gap-1 mb-2" data-md-toolbar="message-textarea">
+        <button type="button" data-md="bold" title={t('tickets.md_bold')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold">B</button>
+        <button type="button" data-md="italic" title={t('tickets.md_italic')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm italic">I</button>
+        <button type="button" data-md="underline" title={t('tickets.md_underline')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm underline">U</button>
+        <button type="button" data-md="strike" title={t('tickets.md_strike')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm line-through">S</button>
+        <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+        <button type="button" data-md="h1" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold">H1</button>
+        <button type="button" data-md="h2" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold">H2</button>
+        <button type="button" data-md="h3" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold">H3</button>
+        <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+        <button type="button" data-md="list" class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm">•</button>
+        <button type="button" data-md="code" class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-mono">{'</>'}</button>
+        <button type="button" data-md="codeblock" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-mono">{'{ }'}</button>
+      </div>
+
+      <textarea id="message-textarea" rows="3" maxlength="1000" placeholder={t('boost.message_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+      <p class="mt-2 text-xs text-slate-400">
+        {t('boost.placeholders_label')} <code class="text-primary-600 dark:text-primary-400">{'{user}'}</code> <code class="text-primary-600 dark:text-primary-400">{'{username}'}</code> <code class="text-primary-600 dark:text-primary-400">{'{server}'}</code> <code class="text-primary-600 dark:text-primary-400">{'{count}'}</code>
+      </p>
+      <div class="mt-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+        <p class="text-xs text-slate-400 mb-1">{t('tickets.live_preview_label')}</p>
+        <p id="message-preview" class="text-sm text-slate-700 dark:text-slate-300 italic">—</p>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button id="confirm-message-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+        <button id="cancel-message-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+      </div>
+    </div>
+  </section>
+</DashboardLayout>
+
+<script define:vars={{ guildId, guildName, boostCount, previewDisplayName, i18n }}>
+  function renderDiscordMarkdown(text) {
+    let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const codeBlocks = [];
+    out = out.replace(/```([\s\S]*?)```/g, (_, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
+    out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
+    out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
+    out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
+    out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
+    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/__(.+?)__/g, '<u>$1</u>');
+    out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
+    out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    out = out.split('\n').map((line) => {
+      if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
+      if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
+      if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
+      if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
+      return line;
+    }).join('\n');
+    out = out.replace(/%%CB(\d+)%%/g, (_, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
+    return out.replace(/\n/g, '<br>');
+  }
+
+  function renderPreview(template) {
+    return renderDiscordMarkdown(
+      template.replaceAll('{user}', `@${previewDisplayName}`).replaceAll('{username}', previewDisplayName).replaceAll('{server}', guildName).replaceAll('{count}', String(boostCount))
+    );
+  }
+
+  async function callModuleAction(module, action, body = {}) {
+    const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }
+    if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
+    return data.data;
+  }
+
+  async function saveSettings(fields) {
+    const res = await fetch(`/api/server/${guildId}/settings/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }
+    if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
+    return data;
+  }
+
+  function wrapSelection(ta, before, after = before) {
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const val = ta.value;
+    const selected = val.slice(start, end);
+    ta.value = val.slice(0, start) + before + selected + after + val.slice(end);
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = start + before.length + selected.length;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.focus();
+  }
+  function prefixLines(ta, prefix) {
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const val = ta.value;
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = val.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = val.length;
+    const block = val.slice(lineStart, lineEnd);
+    const newBlock = block.split('\n').map((l) => prefix + l).join('\n');
+    ta.value = val.slice(0, lineStart) + newBlock + val.slice(lineEnd);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.focus();
+  }
+  function setupMarkdownToolbars() {
+    document.querySelectorAll('[data-md-toolbar]').forEach((toolbar) => {
+      if (toolbar.dataset.bound === 'true') return;
+      toolbar.dataset.bound = 'true';
+      const ta = document.getElementById(toolbar.dataset.mdToolbar);
+      if (!ta) return;
+      toolbar.querySelectorAll('[data-md]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          switch (btn.dataset.md) {
+            case 'bold': wrapSelection(ta, '**'); break;
+            case 'italic': wrapSelection(ta, '*'); break;
+            case 'underline': wrapSelection(ta, '__'); break;
+            case 'strike': wrapSelection(ta, '~~'); break;
+            case 'code': wrapSelection(ta, '`'); break;
+            case 'codeblock': wrapSelection(ta, '```\n', '\n```'); break;
+            case 'h1': prefixLines(ta, '# '); break;
+            case 'h2': prefixLines(ta, '## '); break;
+            case 'h3': prefixLines(ta, '### '); break;
+            case 'list': prefixLines(ta, '- '); break;
+          }
+        });
+      });
+    });
+  }
+
+  function setupBoostChannel() {
+    const select = document.getElementById('boost-channel-select');
+    const saveBtn = document.getElementById('save-boost-channel-btn');
+    if (!select || !saveBtn || select.dataset.bound === 'true') return;
+    select.dataset.bound = 'true';
+
+    select.addEventListener('change', () => { saveBtn.disabled = select.value === select.dataset.initial; });
+
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      saveBtn.textContent = i18n.saving;
+      try {
+        await saveSettings({ boost_channel_id: select.value });
+        select.dataset.initial = select.value;
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        saveBtn.textContent = i18n.save;
+        saveBtn.disabled = select.value === select.dataset.initial;
+      }
+    });
+  }
+
+  function setupBoostMessages() {
+    const addBtn = document.getElementById('add-message-btn');
+    const form = document.getElementById('message-form');
+    const formTitle = document.getElementById('message-form-title');
+    const textarea = document.getElementById('message-textarea');
+    const previewEl = document.getElementById('message-preview');
+    const confirmBtn = document.getElementById('confirm-message-btn');
+    const cancelBtn = document.getElementById('cancel-message-btn');
+    const list = document.getElementById('messages-list');
+
+    if (!addBtn || addBtn.dataset.bound === 'true') return;
+    addBtn.dataset.bound = 'true';
+
+    let editingId = null;
+
+    function updatePreview() {
+      const val = textarea.value.trim();
+      previewEl.innerHTML = val ? renderPreview(val) : '—';
+    }
+    textarea.addEventListener('input', updatePreview);
+
+    function openForm(mode, row) {
+      editingId = mode === 'edit' ? row.dataset.messageRow : null;
+      formTitle.textContent = mode === 'edit' ? i18n.messageFormEditTitle : i18n.messageFormAddTitle;
+      textarea.value = mode === 'edit' ? row.querySelector('[data-message-text]').textContent : '';
+      updatePreview();
+      form.classList.remove('hidden');
+      textarea.focus();
+    }
+    function closeForm() { form.classList.add('hidden'); editingId = null; }
+
+    addBtn.addEventListener('click', () => openForm('add'));
+    cancelBtn.addEventListener('click', closeForm);
+
+    confirmBtn.addEventListener('click', async () => {
+      const text = textarea.value.trim();
+      if (!text) { alert(i18n.alertMessageRequired); return; }
+
+      confirmBtn.disabled = true;
+      try {
+        if (editingId) {
+          await callModuleAction('boosts', 'edit-message', { message_id: editingId, message: text });
+          const row = list.querySelector(`[data-message-row="${editingId}"]`);
+          row.querySelector('[data-message-text]').textContent = text;
+          row.querySelector('[data-message-preview]').innerHTML = renderPreview(text);
+        } else {
+          const result = await callModuleAction('boosts', 'add-message', { message: text });
+          const row = document.createElement('div');
+          row.className = 'rounded-lg border border-slate-200 dark:border-slate-800 p-4';
+          row.dataset.messageRow = String(result.id);
+          row.innerHTML = `
+            <div class="flex items-start justify-between gap-4">
+              <p class="text-sm text-slate-700 dark:text-slate-300 flex-1" data-message-text></p>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <button type="button" data-edit-message="${result.id}" class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">${i18n.edit}</button>
+                <button type="button" data-remove-message="${result.id}" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">${i18n.delete}</button>
+              </div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+              <p class="text-xs text-slate-400 mb-1">${i18n.previewLabel}</p>
+              <p class="text-sm text-slate-600 dark:text-slate-400 italic" data-message-preview></p>
+            </div>
+          `;
+          row.querySelector('[data-message-text]').textContent = text;
+          row.querySelector('[data-message-preview]').innerHTML = renderPreview(text);
+          list.appendChild(row);
+          bindRowButtons(row);
+        }
+        closeForm();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        confirmBtn.disabled = false;
+      }
+    });
+
+    function bindRowButtons(row) {
+      const editBtn = row.querySelector('[data-edit-message]');
+      const removeBtn = row.querySelector('[data-remove-message]');
+      if (editBtn && editBtn.dataset.bound !== 'true') {
+        editBtn.dataset.bound = 'true';
+        editBtn.addEventListener('click', () => openForm('edit', row));
+      }
+      if (removeBtn && removeBtn.dataset.bound !== 'true') {
+        removeBtn.dataset.bound = 'true';
+        removeBtn.addEventListener('click', async () => {
+          if (!confirm(i18n.confirmDeleteMessage)) return;
+          try {
+            await callModuleAction('boosts', 'delete-message', { message_id: removeBtn.dataset.removeMessage });
+            row.remove();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
+    }
+    document.querySelectorAll('[data-message-row]').forEach(bindRowButtons);
+  }
+
+  setupBoostChannel();
+  setupBoostMessages();
+  setupMarkdownToolbars();
+  document.addEventListener('astro:page-load', () => {
+    setupBoostChannel();
+    setupBoostMessages();
+    setupMarkdownToolbars();
+  });
+</script>

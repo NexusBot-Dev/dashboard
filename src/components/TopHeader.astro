@@ -1,0 +1,513 @@
+---
+interface ManageableGuild {
+  guildId: string;
+  name: string;
+  iconUrl: string | null;
+  botPresent: boolean;
+  targetUrl: string;
+  isExternal: boolean;
+}
+
+interface Props {
+  guildName?: string;
+  guildIconUrl?: string;
+  guildId?: string;
+  switchableGuilds?: ManageableGuild[];
+  user?: {
+    username: string;
+    avatarUrl?: string;
+    globalName?: string;
+  };
+  premiumActive?: boolean;
+  premiumExpiresInDays?: number | null;
+  lang?: 'de' | 'en';
+}
+
+const { guildName, guildIconUrl, guildId, switchableGuilds = [], user, premiumActive = false, premiumExpiresInDays = null, lang = 'de' } = Astro.props;
+const t = Astro.locals.t;
+const displayName = user?.globalName || user?.username;
+const avatarLetter = displayName ? displayName.charAt(0).toUpperCase() : null;
+
+const otherGuilds = switchableGuilds.filter((g) => g.guildId !== guildId);
+
+const premiumNotice =
+  premiumExpiresInDays === null ? null
+  : premiumExpiresInDays === 0 ? t('notifications.premium_expires_today')
+  : premiumExpiresInDays === 1 ? t('notifications.premium_expires_tomorrow')
+  : t('notifications.premium_expires_soon', { days: premiumExpiresInDays });
+
+const LANG_LABELS: Record<string, { flag: string; short: string }> = {
+  de: { flag: '🇩🇪', short: 'DE' },
+  en: { flag: '🇬🇧', short: 'EN' },
+};
+---
+
+<header class="sticky top-0 z-[80] w-full glass-panel border-x-0 border-t-0 rounded-none bg-white/70 dark:bg-slate-900/70 backdrop-blur-md">
+  <div class="flex items-center justify-between h-16 px-6">
+    <!-- Linker Bereich: Server-Switcher / Zurück zur Homepage / Leer -->
+    <div class="flex items-center">
+      {guildName ? (
+        <div class="relative" id="server-switcher-container">
+          <button
+            type="button"
+            id="server-switcher-btn"
+            aria-expanded="false"
+            class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            title={t('common.switch_server')}
+          >
+            {guildIconUrl ? (
+              <img src={guildIconUrl} class="w-5 h-5 rounded-full object-cover" alt="" />
+            ) : (
+              <div class="w-5 h-5 rounded-full bg-primary-600 dark:bg-primary-500 flex items-center justify-center text-white dark:text-slate-900 text-[10px] font-bold">
+                {guildName.charAt(0)}
+              </div>
+            )}
+            <span class="truncate max-w-[160px]">{guildName}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
+
+          <div
+            id="server-switcher-dropdown"
+            class="hidden absolute left-0 mt-2 w-64 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-sm max-h-80 overflow-y-auto"
+          >
+            {otherGuilds.length > 0 ? (
+              otherGuilds.map((g) => (
+                <a
+                  href={g.targetUrl}
+                  target={g.isExternal ? '_blank' : undefined}
+                  rel={g.isExternal ? 'noopener noreferrer' : undefined}
+                  class="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                >
+                  {g.iconUrl ? (
+                    <img src={g.iconUrl} class="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                  ) : (
+                    <div class="w-5 h-5 rounded-full bg-primary-600 dark:bg-primary-500 flex items-center justify-center text-white dark:text-slate-900 text-[9px] font-bold flex-shrink-0">
+                      {g.name.charAt(0)}
+                    </div>
+                  )}
+                  <span class="truncate flex-1">{g.name}</span>
+                  {!g.botPresent && <span class="text-[10px] font-medium text-amber-500 flex-shrink-0">{t('server_picker.missing_badge')}</span>}
+                </a>
+              ))
+            ) : (
+              <p class="px-4 py-2 text-xs text-slate-400">{t('common.no_other_servers')}</p>
+            )}
+            <div class="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+              <a
+                href="/server/"
+                class="flex items-center gap-2 px-4 py-2 text-primary-600 dark:text-primary-400 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                {t('common.all_servers')}
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : !user ? (
+        <a
+          href="https://trynexus.de"
+          class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          <span>{t('common.back_to_site')}</span>
+        </a>
+      ) : null }
+    </div>
+
+    <!-- Rechte Aktionen -->
+    <div class="flex items-center gap-3">
+      <!-- Language Switcher -->
+      <div class="relative" id="lang-switcher-container">
+        <button
+          type="button"
+          id="lang-switcher-btn"
+          aria-expanded="false"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+        >
+          <span>{LANG_LABELS[lang]?.flag}</span>
+          <span class="hidden sm:inline">{LANG_LABELS[lang]?.short}</span>
+        </button>
+        <div
+          id="lang-dropdown"
+          class="hidden absolute right-0 mt-2 w-36 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-sm"
+        >
+          {Object.entries(LANG_LABELS).map(([code, meta]) => (
+            <button
+              type="button"
+              data-lang-option={code}
+              class:list={[
+                "w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors",
+                code === lang ? "text-primary-600 dark:text-primary-400 font-semibold" : "text-slate-700 dark:text-slate-300",
+              ]}
+            >
+              <span>{meta.flag}</span>
+              <span>{meta.short}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <!-- Premium Badge & Notifications (nur wenn eingeloggt) -->
+      {user && (
+        <>
+          {!premiumActive && (
+            <a
+              href="https://trynexus.de/#premium"
+              class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-900 dark:text-amber-100 bg-amber-200 dark:bg-amber-900/40 rounded-lg hover:bg-amber-300 dark:hover:bg-amber-900/60 transition-colors"
+            >
+              <span>{t('common.upgrade_premium')}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M5 16L3 6l5.5 4L12 4l3.5 6L21 6l-2 10H5zm2.7-2h8.6l.9-4.4-2.5 1.8L12 7.6 9.3 11.4l-2.5-1.8L7.7 14z"/>
+              </svg>
+            </a>
+          )}
+
+          <!-- Notifications (nur mit Guild-Kontext) -->
+          {guildId && (
+            <div
+              class="relative"
+              id="notifications-container"
+              data-guild-id={guildId}
+              data-lang={lang}
+              data-text-empty={t('notifications.empty')}
+              data-text-error={t('notifications.load_error')}
+            >
+              <button
+                type="button"
+                id="notifications-btn"
+                aria-expanded="false"
+                class="relative p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                aria-label={t('common.notifications')}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+                </svg>
+                <span
+                  id="notifications-badge"
+                  data-base-count={premiumNotice ? 1 : 0}
+                  style="display:none"
+                  class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center"
+                ></span>
+              </button>
+
+              <div
+                id="notifications-dropdown"
+                class="hidden absolute right-0 mt-2 w-80 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-sm max-h-96 overflow-y-auto"
+              >
+                <p class="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{t('notifications.title')}</p>
+
+                {premiumNotice && (
+                  <a
+                    href="https://trynexus.de/#premium"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex items-start gap-2.5 px-4 py-2 text-amber-700 dark:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <span class="flex-shrink-0">⏳</span>
+                    <span>{premiumNotice}</span>
+                  </a>
+                )}
+
+                <div id="notifications-list">
+                  <p class="px-4 py-2 text-xs text-slate-400">{t('notifications.loading')}</p>
+                </div>
+
+                <p class="border-t border-slate-100 dark:border-slate-800 mt-1 px-4 pt-2 pb-1 text-[11px] text-slate-400">{t('notifications.diagnose_hint')}</p>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <!-- User Dropdown ODER Login-Button -->
+      {user ? (
+        <div class="relative" id="user-menu-container">
+          <button
+            type="button"
+            id="user-menu-btn"
+            aria-expanded="false"
+            class="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+          >
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt={displayName} class="w-8 h-8 rounded-full object-cover pointer-events-none" />
+            ) : (
+              <div class="w-8 h-8 rounded-full bg-primary-600 dark:bg-primary-500 flex items-center justify-center text-white dark:text-slate-900 text-sm font-bold shadow-sm pointer-events-none">
+                {avatarLetter}
+              </div>
+            )}
+          </button>
+
+          <!-- Dropdown Menu für eingeloggte Nutzer -->
+          <div
+            id="user-dropdown"
+            class="hidden absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-sm"
+          >
+            <div class="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
+              <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">{t('common.logged_in_as')}</p>
+              <p class="font-semibold text-slate-900 dark:text-white truncate">{displayName}</p>
+            </div>
+
+            <div class="py-1">
+              <a
+                href="https://trynexus.de/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                <span>{t('common.main_page')}</span>
+              </a>
+
+              <a
+                href="https://trynexus.de/wiki/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
+                <span>{t('common.documentation')}</span>
+              </a>
+
+              <a
+                href="https://discord.gg/YFCrvBb6t3"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                <span>{t('common.support_server')}</span>
+              </a>
+            </div>
+
+            <div class="border-t border-slate-100 dark:border-slate-800 pt-1">
+              <a
+                href="/auth/logout"
+                class="flex items-center gap-2.5 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors font-medium"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                <span>{t('common.logout')}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <a
+          href="/auth/login"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-950 dark:text-slate-900 btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors shadow-sm"
+        >
+          <span>{t('common.login')}</span>
+        </a>
+      )}
+    </div>
+  </div>
+</header>
+
+<script is:inline>
+  function initUserDropdown() {
+    const btn = document.getElementById('user-menu-btn');
+    const dropdown = document.getElementById('user-dropdown');
+
+    if (!btn || !dropdown) return;
+
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    newBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && e.target !== newBtn) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        dropdown.classList.add('hidden');
+      }
+    });
+  }
+
+  function initLangSwitcher() {
+    const btn = document.getElementById('lang-switcher-btn');
+    const dropdown = document.getElementById('lang-dropdown');
+    if (!btn || !dropdown || btn.dataset.bound === 'true') return;
+    btn.dataset.bound = 'true';
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && e.target !== btn) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    dropdown.querySelectorAll('[data-lang-option]').forEach((opt) => {
+      opt.addEventListener('click', async () => {
+        const lang = opt.dataset.langOption;
+        try {
+          const res = await fetch('/api/set-lang/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lang }),
+          });
+          if (!res.ok) throw new Error('Sprache konnte nicht gesetzt werden');
+          window.location.reload();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    });
+  }
+
+  function initServerSwitcher() {
+    const btn = document.getElementById('server-switcher-btn');
+    const dropdown = document.getElementById('server-switcher-dropdown');
+    if (!btn || !dropdown || btn.dataset.bound === 'true') return;
+    btn.dataset.bound = 'true';
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        dropdown.classList.add('hidden');
+      }
+    });
+  }
+
+  function initNotifications() {
+    const container = document.getElementById('notifications-container');
+    if (!container || container.dataset.bound === 'true') return;
+    container.dataset.bound = 'true';
+
+    const btn = document.getElementById('notifications-btn');
+    const dropdown = document.getElementById('notifications-dropdown');
+    const list = document.getElementById('notifications-list');
+    const badge = document.getElementById('notifications-badge');
+    if (!btn || !dropdown || !list || !badge) return;
+
+    const guildId = container.dataset.guildId;
+    const lang = container.dataset.lang;
+    const baseCount = Number(badge.dataset.baseCount || 0); // z.B. Premium-Hinweis
+    const ICON = { error: '❌', warn: '⚠️', info: 'ℹ️' };
+    const CACHE_KEY = `nexus-health:${guildId}:${lang}`;
+    const CACHE_TTL_MS = 60_000;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') dropdown.classList.add('hidden');
+    });
+
+    function setBadge(n) {
+      if (n > 0) {
+        badge.textContent = n > 9 ? '9+' : String(n);
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // Backticks aus den Bot-Texten als <code> darstellen — ohne innerHTML, also XSS-sicher
+    function renderText(el, text) {
+      text.split('`').forEach((part, i) => {
+        if (i % 2) {
+          const code = document.createElement('code');
+          code.className = 'px-1 rounded bg-slate-100 dark:bg-slate-800 text-[11px]';
+          code.textContent = part;
+          el.appendChild(code);
+        } else if (part) {
+          el.appendChild(document.createTextNode(part));
+        }
+      });
+    }
+
+    function showMessage(text) {
+      const p = document.createElement('p');
+      p.className = 'px-4 py-2 text-xs text-slate-400';
+      p.textContent = text;
+      list.replaceChildren(p);
+    }
+
+    function render(issues) {
+      list.replaceChildren();
+      for (const issue of issues) {
+        const row = document.createElement('div');
+        row.className = 'flex items-start gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300';
+        const icon = document.createElement('span');
+        icon.className = 'flex-shrink-0';
+        icon.textContent = ICON[issue.severity] || '•';
+        const text = document.createElement('span');
+        renderText(text, issue.text);
+        row.append(icon, text);
+        list.appendChild(row);
+      }
+      if (issues.length === 0 && baseCount === 0) {
+        showMessage(container.dataset.textEmpty);
+      }
+      // "info" wird angezeigt, zählt aber nicht zum roten Zähler
+      setBadge(baseCount + issues.filter((i) => i.severity !== 'info').length);
+    }
+
+    async function load() {
+      try {
+        const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null');
+        if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+          render(cached.issues);
+          return;
+        }
+      } catch {}
+
+      try {
+        const res = await fetch(`/api/server/${guildId}/module/guild/health-issues/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lang }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error('health-issues failed');
+        const issues = data.data?.issues || [];
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), issues })); } catch {}
+        render(issues);
+      } catch {
+        showMessage(container.dataset.textError);
+        setBadge(baseCount);
+      }
+    }
+
+    setBadge(baseCount);
+    load();
+  }
+
+  document.addEventListener('astro:page-load', initUserDropdown);
+  document.addEventListener('astro:page-load', initLangSwitcher);
+  document.addEventListener('astro:page-load', initServerSwitcher);
+  document.addEventListener('astro:page-load', initNotifications);
+  initUserDropdown();
+  initLangSwitcher();
+  initServerSwitcher();
+  initNotifications();
+</script>

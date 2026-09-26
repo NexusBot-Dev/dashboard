@@ -1,0 +1,595 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../../components/Badge.astro';
+import pool from '../../../../../lib/db';
+import { callGuildAction } from '../../../../../lib/botApi';
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+const lang = Astro.locals.lang;
+
+async function getGuildSettings(id: string) {
+  const [rows] = await pool.query(
+    `SELECT rules_channel_id, timezone FROM guild_settings WHERE guild_id = ?`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+
+const settingsPromise = getGuildSettings(guildId!);
+
+let guildName = `Server ${guildId}`;
+let guildIconUrl: string | null = null;
+let channels: { id: string; name: string }[] = [];
+let embeds: { id: number; name: string; title: string; description: string; channel_id: string | null; scheduled_at: string | null }[] = [];
+let limitFree = 5;
+let limitPremium = 100;
+let premiumActive = false;
+let botOnline = true;
+let rulesChannelName: string | null = null;
+
+// Die 3 Bot-Calls sind unabhängig voneinander — parallel statt nacheinander.
+const botInfoPromise = (async () => {
+  try {
+    const [info, channelsResult, embedsResult] = await Promise.all([
+      callGuildAction(Astro, 'guild', 'info', guildId!),
+      callGuildAction(Astro, 'guild', 'channels', guildId!),
+      callGuildAction(Astro, 'embeds', 'list', guildId!),
+    ]);
+    return { ok: true as const, info, channels: channelsResult.channels, embedsResult };
+  } catch {
+    return { ok: false as const };
+  }
+})();
+
+// DB-Query und Bot-Calls laufen ab hier gleichzeitig statt nacheinander.
+const [settings, botResult] = await Promise.all([settingsPromise, botInfoPromise]);
+
+if (!settings) {
+  return Astro.redirect('/server');
+}
+
+const session = Astro.locals.session;
+const previewDisplayName = session?.globalName || session?.username || 'User';
+
+if (botResult.ok) {
+  guildName = botResult.info.name;
+  guildIconUrl = botResult.info.icon_url;
+  channels = botResult.channels;
+  rulesChannelName = channels.find((c: any) => c.id === settings.rules_channel_id)?.name ?? null;
+  embeds = botResult.embedsResult.embeds;
+  limitFree = botResult.embedsResult.limit_free;
+  limitPremium = botResult.embedsResult.limit_premium;
+  premiumActive = botResult.embedsResult.premium_active;
+} else {
+  botOnline = false;
+}
+
+const limit = premiumActive ? limitPremium : limitFree;
+
+function formatScheduled(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString(lang === 'en' ? 'en-US' : 'de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    timeZone: settings.timezone,
+  });
+}
+
+function renderDiscordMarkdown(text: string): string {
+  let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const codeBlocks: string[] = [];
+  out = out.replace(/```([\s\S]*?)```/g, (_m, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
+  out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
+  out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
+  out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
+  out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
+  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/__(.+?)__/g, '<u>$1</u>');
+  out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
+  out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  out = out.split('\n').map((line) => {
+    if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
+    if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
+    if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
+    if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
+    return line;
+  }).join('\n');
+  out = out.replace(/%%CB(\d+)%%/g, (_m, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
+  return out.replace(/\n/g, '<br>');
+}
+
+function renderPreview(text: string) {
+  return renderDiscordMarkdown(text.replace(/{user}/g, `@${previewDisplayName}`).replace(/{username}/g, previewDisplayName).replace(/{server}/g, guildName));
+}
+
+const i18n = {
+  save: t('common.save'),
+  cancel: t('common.cancel'),
+  edit: t('common.edit'),
+  delete: t('common.delete'),
+  errorGeneric: t('common.error_generic'),
+  errorServerTemplate: t('common.error_server'),
+  unexpectedResponseTemplate: t('embeds.unexpected_response'),
+  embedFormAddTitle: t('embeds.embed_form_add_title'),
+  embedFormEditTitle: t('embeds.embed_form_edit_title'),
+  noChannelInline: t('embeds.no_channel_inline'),
+  postNowBtn: t('embeds.post_now_btn'),
+  scheduleBtn: t('embeds.schedule_btn'),
+  alertNameContentRequired: t('embeds.alert_name_content_required'),
+  alertChannelRequired: t('embeds.alert_channel_required'),
+  alertDateTimeRequired: t('embeds.alert_date_time_required'),
+  confirmPostNow: t('embeds.confirm_post_now'),
+  alertPosted: t('embeds.alert_posted'),
+  confirmDeleteEmbed: t('embeds.confirm_delete_embed'),
+};
+---
+
+<DashboardLayout title={t('embeds.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('embeds.title')}</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+    {t('embeds.subtitle')}
+  </p>
+
+  {!botOnline && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-700 dark:text-amber-400">{t('common.bot_offline')}</p>
+    </div>
+  )}
+
+  <!-- Regel-Channel Info -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">{t('embeds.rules_channel_label')}</p>
+        {settings.rules_channel_id ? (
+          <p class="text-sm font-medium text-slate-900 dark:text-white">#{rulesChannelName ?? settings.rules_channel_id}</p>
+        ) : (
+          <p class="text-sm text-amber-600 dark:text-amber-400">{t('embeds.no_channel_set')}</p>
+        )}
+      </div>
+      <a href={`/server/${guildId}/settings/`} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">
+        {t('embeds.change_in_settings')}
+      </a>
+    </div>
+  </section>
+
+  <!-- Gespeicherte Embeds -->
+  <section class="rounded-xl glass-panel p-6">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('embeds.saved_embeds_title')}</h2>
+      <button id="add-embed-btn" type="button" disabled={!botOnline || embeds.length >= limit} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        + {t('common.create')}
+      </button>
+    </div>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+      {t('embeds.embeds_count', { count: embeds.length, limit })}
+      {!premiumActive && embeds.length >= limitFree && (
+        <span class="ml-1">— <Badge variant="primary">Premium</Badge> {t('embeds.premium_hint', { max: limitPremium })}</span>
+      )}
+    </p>
+
+    <div id="embeds-list" class="space-y-3">
+      {embeds.map((e) => {
+        const channelName = channels.find((c) => c.id === e.channel_id)?.name;
+        return (
+          <div class="rounded-lg border border-slate-200 dark:border-slate-800 p-4" data-embed-row={e.id} data-title={e.title} data-description={e.description} data-channel-id={e.channel_id ?? ''}>
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-semibold text-slate-900 dark:text-white">{e.name}</span>
+                  <span class="text-xs text-slate-400">→ {channelName ? `#${channelName}` : t('embeds.no_channel_inline')}</span>
+                </div>
+                <p class="text-sm font-medium text-slate-700 dark:text-slate-300">{e.title}</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{e.description}</p>
+                {e.scheduled_at && (
+                  <p class="mt-1.5 text-xs" data-schedule-badge>
+                    <Badge variant="warning">{t('embeds.scheduled_for', { date: formatScheduled(e.scheduled_at) })}</Badge>
+                    <button type="button" data-unschedule={e.id} class="ml-2 text-xs text-red-600 dark:text-red-400 hover:underline">{t('embeds.remove_schedule_btn')}</button>
+                  </p>
+                )}
+              </div>
+              <div class="flex flex-col items-end gap-1.5 flex-shrink-0 text-right">
+                <button type="button" data-post-now={e.id} class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">{t('embeds.post_now_btn')}</button>
+                <button type="button" data-schedule-btn={e.id} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">
+                  {t('embeds.schedule_btn')} {!premiumActive && '🔒'}
+                </button>
+                <button type="button" data-edit-embed={e.id} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">{t('common.edit')}</button>
+                <button type="button" data-remove-embed={e.id} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">{t('common.delete')}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {embeds.length === 0 && (
+      <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('embeds.no_embeds')}</p>
+    )}
+
+    <!-- Add/Edit-Form -->
+    <div id="embed-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <p id="embed-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('embeds.embed_form_add_title')}</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.internal_name_label')}</label>
+          <input type="text" id="embed-name-input" maxlength="100" placeholder={t('embeds.internal_name_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('tickets.target_channel_label')}</label>
+          <select id="embed-channel-select" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="">{t('common.please_select')}</option>
+            {channels.map((ch) => <option value={ch.id}>#{ch.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.title_optional_label')}</label>
+        <input type="text" id="embed-title-input" maxlength="256" placeholder={t('embeds.title_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+      </div>
+
+      <div class="flex flex-wrap gap-1 mb-2" data-md-toolbar="embed-description-input">
+        <button type="button" data-md="bold" title={t('tickets.md_bold')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold">B</button>
+        <button type="button" data-md="italic" title={t('tickets.md_italic')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm italic">I</button>
+        <button type="button" data-md="underline" title={t('tickets.md_underline')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm underline">U</button>
+        <button type="button" data-md="strike" title={t('tickets.md_strike')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm line-through">S</button>
+        <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+        <button type="button" data-md="h1" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold">H1</button>
+        <button type="button" data-md="h2" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold">H2</button>
+        <button type="button" data-md="h3" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold">H3</button>
+        <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+        <button type="button" data-md="list" class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm">•</button>
+        <button type="button" data-md="code" class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-mono">{'</>'}</button>
+        <button type="button" data-md="codeblock" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-mono">{'{ }'}</button>
+      </div>
+
+      <div class="mb-3">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.content_label')}</label>
+        <textarea id="embed-description-input" rows="4" maxlength="4000" placeholder={t('embeds.content_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+      </div>
+
+      <div class="mb-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+        <p class="text-xs text-slate-400 mb-1">{t('tickets.live_preview_label')}</p>
+        <p id="embed-preview" class="text-sm text-slate-700 dark:text-slate-300 italic">—</p>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="confirm-embed-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+        <button id="cancel-embed-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+      </div>
+    </div>
+
+    <!-- Zeitplan-Form -->
+    <div id="schedule-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <p class="text-sm font-semibold text-slate-900 dark:text-white mb-1">{t('embeds.schedule_embed_title')}</p>
+      <p class="text-xs text-slate-400 mb-3">{t('embeds.timezone_label', { tz: settings.timezone })}</p>
+
+      {premiumActive ? (
+        <div class="flex items-end gap-3 flex-wrap">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.date_label')}</label>
+            <input type="date" id="schedule-date-input" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.time_label')}</label>
+            <input type="time" id="schedule-time-input" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          </div>
+          <button id="confirm-schedule-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('embeds.schedule_confirm_btn')}</button>
+          <button id="cancel-schedule-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+        </div>
+      ) : (
+        <div class="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+          <p class="text-sm text-slate-500 dark:text-slate-400">{t('embeds.premium_scheduling_desc')}</p>
+          <Badge variant="primary">Premium</Badge>
+        </div>
+      )}
+    </div>
+  </section>
+</DashboardLayout>
+
+<script define:vars={{ guildId, guildName, previewDisplayName, i18n }}>
+  function renderDiscordMarkdown(text) {
+    let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const codeBlocks = [];
+    out = out.replace(/```([\s\S]*?)```/g, (_, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
+    out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
+    out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
+    out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
+    out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
+    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/__(.+?)__/g, '<u>$1</u>');
+    out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
+    out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    out = out.split('\n').map((line) => {
+      if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
+      if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
+      if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
+      if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
+      return line;
+    }).join('\n');
+    out = out.replace(/%%CB(\d+)%%/g, (_, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
+    return out.replace(/\n/g, '<br>');
+  }
+
+  function renderPreview(text) {
+    return renderDiscordMarkdown(
+      text.replaceAll('{user}', `@${previewDisplayName}`).replaceAll('{username}', previewDisplayName).replaceAll('{server}', guildName)
+    );
+  }
+
+  async function callModuleAction(module, action, body = {}) {
+    const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }
+    if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
+    return data.data;
+  }
+
+  function wrapSelection(ta, before, after = before) {
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const val = ta.value;
+    const selected = val.slice(start, end);
+    ta.value = val.slice(0, start) + before + selected + after + val.slice(end);
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = start + before.length + selected.length;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.focus();
+  }
+  function prefixLines(ta, prefix) {
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const val = ta.value;
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = val.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = val.length;
+    const block = val.slice(lineStart, lineEnd);
+    const newBlock = block.split('\n').map((l) => prefix + l).join('\n');
+    ta.value = val.slice(0, lineStart) + newBlock + val.slice(lineEnd);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.focus();
+  }
+  function setupMarkdownToolbars() {
+    document.querySelectorAll('[data-md-toolbar]').forEach((toolbar) => {
+      if (toolbar.dataset.bound === 'true') return;
+      toolbar.dataset.bound = 'true';
+      const ta = document.getElementById(toolbar.dataset.mdToolbar);
+      if (!ta) return;
+      toolbar.querySelectorAll('[data-md]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          switch (btn.dataset.md) {
+            case 'bold': wrapSelection(ta, '**'); break;
+            case 'italic': wrapSelection(ta, '*'); break;
+            case 'underline': wrapSelection(ta, '__'); break;
+            case 'strike': wrapSelection(ta, '~~'); break;
+            case 'code': wrapSelection(ta, '`'); break;
+            case 'codeblock': wrapSelection(ta, '```\n', '\n```'); break;
+            case 'h1': prefixLines(ta, '# '); break;
+            case 'h2': prefixLines(ta, '## '); break;
+            case 'h3': prefixLines(ta, '### '); break;
+            case 'list': prefixLines(ta, '- '); break;
+          }
+        });
+      });
+    });
+  }
+
+  function setupEmbeds() {
+    const addBtn = document.getElementById('add-embed-btn');
+    const form = document.getElementById('embed-form');
+    const formTitle = document.getElementById('embed-form-title');
+    const nameInput = document.getElementById('embed-name-input');
+    const channelSelect = document.getElementById('embed-channel-select');
+    const titleInput = document.getElementById('embed-title-input');
+    const descInput = document.getElementById('embed-description-input');
+    const previewEl = document.getElementById('embed-preview');
+    const confirmBtn = document.getElementById('confirm-embed-btn');
+    const cancelBtn = document.getElementById('cancel-embed-btn');
+    const list = document.getElementById('embeds-list');
+
+    const scheduleForm = document.getElementById('schedule-form');
+    const scheduleDateInput = document.getElementById('schedule-date-input');
+    const scheduleTimeInput = document.getElementById('schedule-time-input');
+    const confirmScheduleBtn = document.getElementById('confirm-schedule-btn');
+    const cancelScheduleBtn = document.getElementById('cancel-schedule-btn');
+
+    if (!addBtn || addBtn.dataset.bound === 'true') return;
+    addBtn.dataset.bound = 'true';
+
+    let editingId = null;
+    let schedulingId = null;
+
+    function updatePreview() {
+      const val = descInput.value.trim();
+      previewEl.innerHTML = val ? renderPreview(val) : '—';
+    }
+    descInput.addEventListener('input', updatePreview);
+
+    function openForm(mode, row) {
+      editingId = mode === 'edit' ? row.dataset.embedRow : null;
+      formTitle.textContent = mode === 'edit' ? i18n.embedFormEditTitle : i18n.embedFormAddTitle;
+      scheduleForm.classList.add('hidden');
+
+      if (mode === 'edit' && row) {
+        nameInput.value = row.querySelector('.embed-name-text')?.textContent || '';
+        titleInput.value = row.dataset.title || '';
+        descInput.value = row.dataset.description || '';
+        channelSelect.value = row.dataset.channelId || '';
+      } else {
+        nameInput.value = '';
+        titleInput.value = '';
+        descInput.value = '';
+        channelSelect.value = '';
+      }
+      updatePreview();
+      form.classList.remove('hidden');
+      nameInput.focus();
+    }
+    function closeForm() { form.classList.add('hidden'); editingId = null; }
+
+    addBtn.addEventListener('click', () => openForm('add'));
+    cancelBtn.addEventListener('click', closeForm);
+
+    confirmBtn.addEventListener('click', async () => {
+      const name = nameInput.value.trim();
+      const description = descInput.value.trim();
+      if (!name || !description) { alert(i18n.alertNameContentRequired); return; }
+
+      const channelId = channelSelect.value;
+      const title = titleInput.value.trim();
+      const channelName = channelSelect.selectedOptions[0]?.textContent?.replace('#', '') || '';
+
+      confirmBtn.disabled = true;
+      try {
+        if (editingId) {
+          await callModuleAction('embeds', 'edit', { embed_id: editingId, title, description, channel_id: channelId || null });
+          const row = list.querySelector(`[data-embed-row="${editingId}"]`);
+          row.dataset.title = title;
+          row.dataset.description = description;
+          row.dataset.channelId = channelId;
+          row.querySelector('.embed-name-text').textContent = name;
+          row.querySelector('.embed-title-text').textContent = title;
+          row.querySelector('.embed-desc-text').textContent = description;
+          row.querySelector('.embed-channel-text').textContent = channelId ? `#${channelName}` : i18n.noChannelInline;
+        } else {
+          if (!channelId) { alert(i18n.alertChannelRequired); confirmBtn.disabled = false; return; }
+          const result = await callModuleAction('embeds', 'add', { name, title, description, channel_id: channelId });
+          const row = document.createElement('div');
+          row.className = 'rounded-lg border border-slate-200 dark:border-slate-800 p-4';
+          row.dataset.embedRow = String(result.id);
+          row.dataset.title = title;
+          row.dataset.description = description;
+          row.dataset.channelId = channelId;
+          row.innerHTML = `
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-semibold text-slate-900 dark:text-white embed-name-text"></span>
+                  <span class="text-xs text-slate-400 embed-channel-text"></span>
+                </div>
+                <p class="text-sm font-medium text-slate-700 dark:text-slate-300 embed-title-text"></p>
+                <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 embed-desc-text"></p>
+              </div>
+              <div class="flex flex-col items-end gap-1.5 flex-shrink-0 text-right">
+                <button type="button" data-post-now="${result.id}" class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">${i18n.postNowBtn}</button>
+                <button type="button" data-schedule-btn="${result.id}" class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">${i18n.scheduleBtn}</button>
+                <button type="button" data-edit-embed="${result.id}" class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">${i18n.edit}</button>
+                <button type="button" data-remove-embed="${result.id}" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">${i18n.delete}</button>
+              </div>
+            </div>
+          `;
+          row.querySelector('.embed-name-text').textContent = name;
+          row.querySelector('.embed-title-text').textContent = title;
+          row.querySelector('.embed-desc-text').textContent = description;
+          row.querySelector('.embed-channel-text').textContent = `#${channelName}`;
+          list.appendChild(row);
+          bindRowButtons(row);
+        }
+        closeForm();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        confirmBtn.disabled = false;
+      }
+    });
+
+    if (cancelScheduleBtn) {
+      cancelScheduleBtn.addEventListener('click', () => { scheduleForm.classList.add('hidden'); schedulingId = null; });
+    }
+
+    if (confirmScheduleBtn) {
+      confirmScheduleBtn.addEventListener('click', async () => {
+        const date = scheduleDateInput.value;
+        const time = scheduleTimeInput.value;
+        if (!date || !time) { alert(i18n.alertDateTimeRequired); return; }
+
+        confirmScheduleBtn.disabled = true;
+        try {
+          const result = await callModuleAction('embeds', 'schedule', { embed_id: schedulingId, scheduled_at: `${date}T${time}` });
+          location.reload(); // einfachste zuverlässige Art, die neue Badge korrekt anzuzeigen
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          confirmScheduleBtn.disabled = false;
+        }
+      });
+    }
+
+    function bindRowButtons(row) {
+      const id = row.dataset.embedRow;
+
+      const postBtn = row.querySelector('[data-post-now]');
+      if (postBtn && postBtn.dataset.bound !== 'true') {
+        postBtn.dataset.bound = 'true';
+        postBtn.addEventListener('click', async () => {
+          if (!confirm(i18n.confirmPostNow)) return;
+          try {
+            await callModuleAction('embeds', 'post-now', { embed_id: id });
+            alert(i18n.alertPosted);
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
+
+      const scheduleBtn = row.querySelector('[data-schedule-btn]');
+      if (scheduleBtn && scheduleBtn.dataset.bound !== 'true') {
+        scheduleBtn.dataset.bound = 'true';
+        scheduleBtn.addEventListener('click', () => {
+          schedulingId = id;
+          form.classList.add('hidden');
+          scheduleForm.classList.remove('hidden');
+        });
+      }
+
+      const editBtn = row.querySelector('[data-edit-embed]');
+      if (editBtn && editBtn.dataset.bound !== 'true') {
+        editBtn.dataset.bound = 'true';
+        editBtn.addEventListener('click', () => openForm('edit', row));
+      }
+
+      const removeBtn = row.querySelector('[data-remove-embed]');
+      if (removeBtn && removeBtn.dataset.bound !== 'true') {
+        removeBtn.dataset.bound = 'true';
+        removeBtn.addEventListener('click', async () => {
+          if (!confirm(i18n.confirmDeleteEmbed)) return;
+          try {
+            await callModuleAction('embeds', 'delete', { embed_id: id });
+            row.remove();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
+
+      const unscheduleBtn = row.querySelector('[data-unschedule]');
+      if (unscheduleBtn && unscheduleBtn.dataset.bound !== 'true') {
+        unscheduleBtn.dataset.bound = 'true';
+        unscheduleBtn.addEventListener('click', async () => {
+          try {
+            await callModuleAction('embeds', 'unschedule', { embed_id: id });
+            location.reload();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
+    }
+
+    document.querySelectorAll('[data-embed-row]').forEach(bindRowButtons);
+  }
+
+  setupEmbeds();
+  setupMarkdownToolbars();
+  document.addEventListener('astro:page-load', () => {
+    setupEmbeds();
+    setupMarkdownToolbars();
+  });
+</script>

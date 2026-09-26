@@ -1,0 +1,414 @@
+---
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../components/Badge.astro';
+import pool from '../../../../lib/db';
+import { callGuildAction } from '../../../../lib/botApi';
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+const lang = Astro.locals.lang;
+
+async function getGuildSettings(id: string) {
+  const [rows] = await pool.query(
+    `SELECT guild_id, locale, timezone, color, log_channel_id, rules_channel_id,
+            welcome_channel_id, boost_channel_id, ticket_log_channel_id, announcements_enabled, announcement_channel_id
+     FROM guild_settings WHERE guild_id = ?`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+
+async function getPremiumInfo(id: string) {
+  const [rows] = await pool.query(
+    `SELECT expires_at FROM premium WHERE guild_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+
+const settingsPromise = getGuildSettings(guildId!);
+const premiumPromise = getPremiumInfo(guildId!);
+const timezones = Intl.supportedValuesOf('timeZone').sort();
+
+let channels: { id: string; name: string }[] = [];
+let guildName = `Server ${guildId}`;
+let guildIconUrl: string | null = null;
+let botNickname: string;
+
+const botInfoPromise = (async () => {
+  try {
+    const [info, channelsResult] = await Promise.all([
+      callGuildAction(Astro, 'guild', 'info', guildId!),
+      callGuildAction(Astro, 'guild', 'channels', guildId!),
+    ]);
+    return { ok: true as const, info, channels: channelsResult.channels };
+  } catch {
+    // Bot offline o.ä. — Fallback: Platzhalter-Name, Felder bleiben als rohe ID-Inputs nutzbar
+    return { ok: false as const };
+  }
+})();
+
+const [settings, premium, botResult] = await Promise.all([settingsPromise, premiumPromise, botInfoPromise]);
+
+if (botResult.ok) {
+  guildName = botResult.info.name;
+  guildIconUrl = botResult.info.icon_url;
+  botNickname = botResult.info.bot_nickname;
+  channels = botResult.channels;
+}
+
+if (!settings) {
+  return Astro.redirect('/server');
+}
+
+const premiumActive = Boolean(premium);
+const announcementsEnabled = Boolean(settings.announcements_enabled);
+
+function discordColorToHex(color: number | null): string {
+  if (color === null || color === 0) return '#00F5D4';
+  return '#' + color.toString(16).padStart(6, '0');
+}
+
+function daysUntil(date: Date | string): number {
+  const target = new Date(date).getTime();
+  const diffMs = target - Date.now();
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+const i18n = {
+  save: t('common.save'),
+  saving: t('common.saving'),
+  saveErrorPrefix: t('settings.save_error_prefix'),
+  unknown: t('settings.unknown'),
+  saved: t('settings.saved'),
+  botUnreachable: t('settings.bot_unreachable'),
+};
+---
+
+<DashboardLayout title={t('settings.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('settings.title')}</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+    {t('settings.subtitle')}
+  </p>
+
+  <!-- Save-Bar -->
+  <div id="save-bar" class="sticky top-0 z-[70] hidden mb-6">
+    <div class="rounded-xl glass-panel px-5 py-3 flex items-center justify-between shadow-lg">
+      <span id="save-status" class="text-sm font-medium text-slate-700 dark:text-slate-200">{t('settings.unsaved_changes')}</span>
+      <div class="flex items-center gap-3">
+        <button id="discard-btn" type="button" class="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('settings.discard')}</button>
+        <button id="save-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-form" class="space-y-6" data-guild-id={guildId}>
+
+    <!-- Premium-Status -->
+    <section class="rounded-xl glass-panel p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class:list={["w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0", premiumActive ? "bg-primary-100 dark:bg-primary-900/30" : "bg-slate-100 dark:bg-slate-800"]}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class:list={[premiumActive ? "text-primary-600 dark:text-primary-400" : "text-slate-400"]}>
+              <path d="M5 16L3 6l5.5 4L12 4l3.5 6L21 6l-2 10H5zm2.7-2h8.6l.9-4.4-2.5 1.8L12 7.6 9.3 11.4l-2.5-1.8L7.7 14z"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">{t('settings.premium_title', { status: premiumActive ? t('settings.active') : t('settings.inactive') })}</p>
+            {premiumActive ? (
+              <p class="text-sm text-slate-500 dark:text-slate-400">
+                {t('settings.source_discord_store')}
+                {premium?.expires_at ? (
+                  t('settings.expires_on', { date: new Date(premium.expires_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'de-DE'), days: daysUntil(premium.expires_at) })
+                ) : (
+                  t('settings.unlimited')
+                )}
+              </p>
+            ) : (
+              <p class="text-sm text-slate-500 dark:text-slate-400">{t('settings.no_active_premium')}</p>
+            )}
+          </div>
+        </div>
+        <Badge variant={premiumActive ? 'success' : 'neutral'}>{premiumActive ? t('settings.active_badge') : t('settings.inactive_badge')}</Badge>
+      </div>
+    </section>
+
+    <!-- Bot -->
+    <section class="rounded-xl glass-panel p-6">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white mb-4">{t('settings.bot_section_title')}</h2>
+
+      <div class="max-w-sm mb-5">
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+          {t('settings.nickname_label')}
+        </label>
+        <p class="text-sm font-medium text-slate-900 dark:text-white">
+          {botNickname}
+        </p>
+      </div>
+
+      <div class="max-w-sm mb-5">
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.accent_color_label')}</label>
+        <div class="flex items-center gap-2">
+          <div class="h-9 w-12 rounded-lg border border-slate-200 dark:border-slate-700" style={`background-color: ${discordColorToHex(settings.color)}`}></div>
+          <span class="text-sm font-mono text-slate-600 dark:text-slate-400">{discordColorToHex(settings.color)}</span>
+          {!premiumActive && <span class="text-xs text-slate-400">{t('settings.premium_custom_color_hint')}</span>}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.language_label')}</label>
+          <select name="locale" data-field data-initial={settings.locale} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="de" selected={settings.locale === 'de'}>Deutsch</option>
+            <option value="en" selected={settings.locale === 'en'}>English</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.timezone_label')}</label>
+          <select name="timezone" data-field data-initial={settings.timezone} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            {timezones.map((tz) => (
+              <option value={tz} selected={tz === settings.timezone}>{tz}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Channels -->
+    <section class="rounded-xl glass-panel p-6">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('settings.channels_section_title')}</h2>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+        {t('settings.channels_note')}
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.log_channel_label')}</label>
+          {channels.length > 0 ? (
+            <select name="log_channel_id" data-field data-initial={settings.log_channel_id ?? ''} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <option value="">{t('common.no_channel')}</option>
+              {channels.map((ch) => (
+                <option value={ch.id} selected={ch.id === settings.log_channel_id}>#{ch.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input type="text" name="log_channel_id" value={settings.log_channel_id ?? ''} data-field data-initial={settings.log_channel_id ?? ''} placeholder={t('common.channel_id_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          )}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.rules_channel_label')}</label>
+          {channels.length > 0 ? (
+            <select name="rules_channel_id" data-field data-initial={settings.rules_channel_id ?? ''} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <option value="">{t('common.no_channel')}</option>
+              {channels.map((ch) => (
+                <option value={ch.id} selected={ch.id === settings.rules_channel_id}>#{ch.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input type="text" name="rules_channel_id" value={settings.rules_channel_id ?? ''} data-field data-initial={settings.rules_channel_id ?? ''} placeholder={t('common.channel_id_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          )}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.welcome_channel_label')}</label>
+          {channels.length > 0 ? (
+            <select name="welcome_channel_id" data-field data-initial={settings.welcome_channel_id ?? ''} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <option value="">{t('common.no_channel')}</option>
+              {channels.map((ch) => (
+                <option value={ch.id} selected={ch.id === settings.welcome_channel_id}>#{ch.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input type="text" name="welcome_channel_id" value={settings.welcome_channel_id ?? ''} data-field data-initial={settings.welcome_channel_id ?? ''} placeholder={t('common.channel_id_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          )}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.boost_channel_label')}</label>
+          {channels.length > 0 ? (
+            <select name="boost_channel_id" data-field data-initial={settings.boost_channel_id ?? ''} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <option value="">{t('common.no_channel')}</option>
+              {channels.map((ch) => (
+                <option value={ch.id} selected={ch.id === settings.boost_channel_id}>#{ch.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input type="text" name="boost_channel_id" value={settings.boost_channel_id ?? ''} data-field data-initial={settings.boost_channel_id ?? ''} placeholder={t('common.channel_id_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          )}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.ticket_log_channel_label')}</label>
+          <select
+            name="ticket_log_channel_id"
+            data-field
+            data-initial={settings.ticket_log_channel_id ?? ''}
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            {channels.map((ch) => (
+              <option value={ch.id} selected={ch.id === settings.ticket_log_channel_id}>#{ch.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <!-- Announcements -->
+      <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
+        <div class="flex items-center justify-between gap-4 mb-4">
+          <div>
+            <p class="text-sm font-medium text-slate-900 dark:text-white">{t('settings.announcements_label')}</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{t('settings.announcements_desc')}</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            id="announcements-toggle"
+            name="announcements_enabled"
+            aria-checked={announcementsEnabled}
+            data-field
+            data-initial={String(announcementsEnabled)}
+            class:list={[
+              "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900",
+              announcementsEnabled ? "bg-primary-500" : "bg-slate-300 dark:bg-slate-700"
+            ]}
+          >
+            <span class:list={["inline-block h-4 w-4 transform rounded-full bg-white transition-transform", announcementsEnabled ? "translate-x-6" : "translate-x-1"]}></span>
+          </button>
+        </div>
+        <div class="max-w-xs">
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.announcements_channel_label')}</label>
+          {channels.length > 0 ? (
+            <select name="announcement_channel_id" data-field data-initial={settings.announcement_channel_id ?? ''} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <option value="">{t('common.no_channel')}</option>
+              {channels.map((ch) => (
+                <option value={ch.id} selected={ch.id === settings.announcement_channel_id}>#{ch.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input type="text" name="announcement_channel_id" value={settings.announcement_channel_id ?? ''} data-field data-initial={settings.announcement_channel_id ?? ''} placeholder={t('common.channel_id_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          )}
+        </div>
+      </div>
+    </section>
+
+  </div>
+</DashboardLayout>
+
+<script define:vars={{ guildId, i18n }}>
+  function setupSettingsForm() {
+    const form = document.getElementById('settings-form');
+    const saveBar = document.getElementById('save-bar');
+    const saveBtn = document.getElementById('save-btn');
+    const discardBtn = document.getElementById('discard-btn');
+    const announcementsToggle = document.getElementById('announcements-toggle');
+
+    if (!form || !saveBar || !saveBtn || !discardBtn) return;
+    if (form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+
+    function fieldValue(el) {
+      return el.getAttribute('role') === 'switch' ? el.getAttribute('aria-checked') : el.value;
+    }
+
+    function isDirty() {
+      return Array.from(form.querySelectorAll('[data-field]')).some(
+        (el) => fieldValue(el) !== el.dataset.initial
+      );
+    }
+
+    function refreshSaveBar() {
+      saveBar.classList.toggle('hidden', !isDirty());
+    }
+
+    form.querySelectorAll('input[data-field], select[data-field]').forEach((el) => {
+      el.addEventListener('input', refreshSaveBar);
+      el.addEventListener('change', refreshSaveBar);
+    });
+
+    if (announcementsToggle) {
+      announcementsToggle.addEventListener('click', () => {
+        const next = announcementsToggle.getAttribute('aria-checked') !== 'true';
+        announcementsToggle.setAttribute('aria-checked', String(next));
+        announcementsToggle.classList.toggle('bg-primary-500', next);
+        announcementsToggle.classList.toggle('bg-slate-300', !next);
+        announcementsToggle.classList.toggle('dark:bg-slate-700', !next);
+        const knob = announcementsToggle.querySelector('span');
+        knob?.classList.toggle('translate-x-6', next);
+        knob?.classList.toggle('translate-x-1', !next);
+        refreshSaveBar();
+      });
+    }
+
+    discardBtn.addEventListener('click', () => {
+      form.querySelectorAll('[data-field]').forEach((el) => {
+        if (el.getAttribute('role') === 'switch') {
+          const isEnabled = el.dataset.initial === 'true';
+          el.setAttribute('aria-checked', String(isEnabled));
+          el.classList.toggle('bg-primary-500', isEnabled);
+          el.classList.toggle('bg-slate-300', !isEnabled);
+          el.classList.toggle('dark:bg-slate-700', !isEnabled);
+          const knob = el.querySelector('span');
+          knob?.classList.toggle('translate-x-6', isEnabled);
+          knob?.classList.toggle('translate-x-1', !isEnabled);
+        } else {
+          el.value = el.dataset.initial;
+        }
+      });
+      refreshSaveBar();
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const fields = {};
+      form.querySelectorAll('[data-field]').forEach((el) => {
+        const current = fieldValue(el);
+        if (current !== el.dataset.initial) {
+          fields[el.name] = el.getAttribute('role') === 'switch' ? current === 'true' : current;
+        }
+      });
+
+      if (Object.keys(fields).length === 0) return;
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = i18n.saving;
+
+      try {
+        const res = await fetch(`/api/server/${guildId}/settings/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fields),
+        });
+        const data = await res.json();
+
+        if (!data.ok) {
+          alert(i18n.saveErrorPrefix + (data.error || i18n.unknown));
+          return;
+        }
+
+        form.querySelectorAll('[data-field]').forEach((el) => {
+          el.dataset.initial = fieldValue(el);
+        });
+
+        const saveStatus = document.getElementById('save-status');
+        const originalText = saveStatus.textContent;
+        saveStatus.textContent = i18n.saved;
+        saveStatus.classList.add('text-primary-600', 'dark:text-primary-400');
+
+        setTimeout(() => {
+          refreshSaveBar();
+          saveStatus.textContent = originalText;
+          saveStatus.classList.remove('text-primary-600', 'dark:text-primary-400');
+        }, 1200);
+        return;
+      } catch (err) {
+        console.error(err);
+        alert(i18n.botUnreachable);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = i18n.save;
+      }
+    });
+  }
+
+  setupSettingsForm();
+  document.addEventListener('astro:page-load', setupSettingsForm);
+</script>

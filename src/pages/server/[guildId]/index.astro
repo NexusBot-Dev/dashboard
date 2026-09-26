@@ -1,0 +1,202 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import Badge from '../../../components/Badge.astro';
+import pool from '../../../lib/db';
+import { callGuildAction } from '../../../lib/botApi';
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+const lang = Astro.locals.lang;
+
+const MODULE_KEYS = ['moderation', 'levels', 'welcome', 'reaction_roles', 'boosts', 'embeds', 'automod', 'stream_alerts', 'tickets'] as const;
+
+const MODULE_LABELS: Record<string, string> = {
+  moderation: t('moderation.title'),
+  levels: t('levels.title'),
+  welcome: t('nav.module_welcome'),
+  reaction_roles: t('reaction_roles.title'),
+  boosts: t('boost.title'),
+  embeds: t('embeds.title'),
+  automod: t('automod.title'),
+  stream_alerts: t('stream_alerts.title'),
+  tickets: t('tickets.title'),
+};
+const MODULE_DESCRIPTIONS: Record<string, string> = {
+  moderation: t('modules.desc_moderation'),
+  levels: t('modules.desc_levels'),
+  welcome: t('modules.desc_welcome'),
+  reaction_roles: t('modules.desc_reaction_roles'),
+  boosts: t('modules.desc_boosts'),
+  embeds: t('modules.desc_embeds'),
+  automod: t('modules.desc_automod'),
+  stream_alerts: t('modules.desc_stream_alerts'),
+  tickets: t('modules.desc_tickets'),
+};
+
+async function getGuildOverview(id: string) {
+  const [[settingsRows], [premiumRows]] = await Promise.all([
+    pool.query(
+      `SELECT guild_id, locale, timezone, color, modules, setup_complete
+       FROM guild_settings WHERE guild_id = ?`,
+      [id]
+    ),
+    pool.query(
+      `SELECT expires_at FROM premium WHERE guild_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+      [id]
+    ),
+  ]);
+
+  const settings = (settingsRows as any[])[0];
+  const premium = (premiumRows as any[])[0];
+
+  let moduleStates: Record<string, boolean> = {};
+  try {
+    moduleStates = typeof settings?.modules === 'string'
+      ? JSON.parse(settings.modules)
+      : (settings?.modules ?? {});
+  } catch {
+    moduleStates = {};
+  }
+
+  return {
+    settings,
+    premiumActive: Boolean(premium),
+    modules: MODULE_KEYS.map((key) => ({
+      key,
+      label: MODULE_LABELS[key],
+      description: MODULE_DESCRIPTIONS[key],
+      enabled: moduleStates[key] ?? false,
+      core: key === 'moderation',
+    })),
+  };
+}
+
+let guildName = 'Server ' + guildId;
+let guildIconUrl: string | null = null;
+let online = false;
+let hierarchyOk = true;
+let uptimeSince: Date | null = null;
+
+const [{ settings, premiumActive, modules }, botInfoResult] = await Promise.all([
+  getGuildOverview(guildId!),
+  callGuildAction(Astro, 'guild', 'info', guildId!).catch(() => null),
+]);
+
+if (!settings) {
+  return Astro.redirect('/server');
+}
+
+if (botInfoResult) {
+  guildName = botInfoResult.name;
+  guildIconUrl = botInfoResult.icon_url;
+  online = botInfoResult.online;
+  hierarchyOk = botInfoResult.hierarchy_ok;
+  uptimeSince = new Date(botInfoResult.uptime_since);
+}
+
+const activity = [4, 7, 5, 9, 12, 8, 14, 11, 16, 13, 18, 15];
+
+function formatUptime(since: Date) {
+    const diffMs = Date.now() - since.getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    return days > 0 ? `${days}d ${hours % 24}h` : `${hours}h`;
+}
+
+function discordColorToHex(color: number | null): string {
+  if (color === null || color === 0) return '#00F5D4';
+  return '#' + color.toString(16).padStart(6, '0');
+}
+
+const statusStyles: Record<string, { variant: 'success' | 'neutral' | 'warning'; label: string }> = {
+  active: { variant: 'success', label: t('settings.active_badge') },
+  inactive: { variant: 'neutral', label: t('settings.inactive_badge') },
+};
+
+const max = Math.max(...activity);
+const points = activity
+  .map((v, i) => {
+    const x = (i / (activity.length - 1)) * 280;
+    const y = 48 - (v / max) * 40;
+    return `${x},${y}`;
+  })
+  .join(' ');
+---
+
+<DashboardLayout title={t('nav.overview')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  {!hierarchyOk && (
+    <div class="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 p-4 mb-8 flex items-start gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+      <div>
+        <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('overview.hierarchy_warning_title')}</p>
+        <p class="text-sm text-amber-700 dark:text-amber-400 mt-0.5">
+          {t('overview.hierarchy_warning_desc')}
+        </p>
+      </div>
+    </div>
+  )}
+
+  {!settings.setup_complete && (
+    <div class="rounded-xl border border-primary-200 dark:border-primary-900/50 bg-primary-50/50 dark:bg-primary-950/10 p-4 mb-8">
+      <p class="text-sm font-semibold text-primary-800 dark:text-primary-300">{t('overview.setup_incomplete_title')}</p>
+      <p class="text-sm text-primary-700 dark:text-primary-400 mt-0.5">{t('overview.setup_incomplete_prefix')} <code>/setup</code> {t('overview.setup_incomplete_suffix')}</p>
+    </div>
+  )}
+
+  <!-- Hero-Status -->
+  <div class="rounded-2xl glass-panel p-6 md:p-8 mb-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="relative flex h-2.5 w-2.5">
+            <span class:list={["animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", online ? "bg-primary-500" : "bg-slate-400"]}></span>
+            <span class:list={["relative inline-flex rounded-full h-2.5 w-2.5", online ? "bg-primary-500" : "bg-slate-400"]}></span>
+          </span>
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            {online ? t('overview.bot_online') : t('overview.bot_offline_status')}
+          </span>
+          {premiumActive && <Badge variant="primary">Premium</Badge>}
+        </div>
+        <h1 class="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">{guildName}</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          {t('overview.locale_timezone_line', { locale: settings.locale.toUpperCase(), tz: settings.timezone })}
+          {uptimeSince && t('overview.running_since', { uptime: formatUptime(uptimeSince) })}
+        </p>
+      </div>
+
+      <div class="flex flex-col items-start md:items-end gap-1">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('overview.messages_12h_label')}</span>
+        <svg viewBox="0 0 280 48" class="w-48 h-12 overflow-visible">
+          <polyline points={points} fill="none" stroke={discordColorToHex(settings.color)} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="text-[10px] text-slate-400">{t('overview.live_activity_note')}</span>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4">{t('nav.modules')}</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {modules.map((mod) => (
+      <a
+        href={`/server/${guildId}/modules/${mod.key.replace('_', '-')}/`}
+        class="group rounded-xl glass-panel p-5 hover-glow transition-colors"
+      >
+        <div class="flex items-start justify-between mb-3">
+          <span class="font-semibold text-slate-900 dark:text-white">{mod.label}</span>
+          {mod.core ? (
+            <Badge variant="primary">{t('moderation.core_module_badge')}</Badge>
+          ) : (
+            <Badge variant={statusStyles[mod.enabled ? 'active' : 'inactive'].variant}>
+              {statusStyles[mod.enabled ? 'active' : 'inactive'].label}
+            </Badge>
+          )}
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400">{mod.description}</p>
+      </a>
+    ))}
+  </div>
+</DashboardLayout>

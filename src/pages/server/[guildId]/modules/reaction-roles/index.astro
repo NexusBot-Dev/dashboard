@@ -1,0 +1,687 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../../components/Badge.astro';
+import { callGuildAction } from '../../../../../lib/botApi';
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+
+let guildName = `Server ${guildId}`;
+let guildIconUrl: string | null = null;
+let channels: { id: string; name: string }[] = [];
+let allRoles: { id: string; name: string }[] = [];
+let groups: { id: number; name: string }[] = [];
+let messages: {
+  message_id: string; channel_id: string; channel_name: string | null;
+  title: string; description: string;
+  entries: { id: number; emoji: string; role_id: string; role_name: string; mode: string; group_id: number | null }[];
+}[] = [];
+let customEmojis: { name: string; id: string; animated: boolean; url: string }[] = [];
+let premiumActive = false;
+let botOnline = true;
+const session = Astro.locals.session;
+
+function renderDiscordMarkdown(text: string): string {
+  let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const codeBlocks: string[] = [];
+  out = out.replace(/```([\s\S]*?)```/g, (_m, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
+  out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
+  out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
+  out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
+  out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
+  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/__(.+?)__/g, '<u>$1</u>');
+  out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
+  out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  out = out.split('\n').map((line) => {
+    if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
+    if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
+    if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
+    if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
+    return line;
+  }).join('\n');
+  out = out.replace(/%%CB(\d+)%%/g, (_m, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
+  return out.replace(/\n/g, '<br>');
+}
+
+try {
+  const [info, channelsResult, rolesResult, emojisResult, groupsResult, messagesResult] = await Promise.all([
+    callGuildAction(Astro, 'guild', 'info', guildId!),
+    callGuildAction(Astro, 'guild', 'channels', guildId!),
+    callGuildAction(Astro, 'guild', 'roles', guildId!),
+    callGuildAction(Astro, 'guild', 'emojis', guildId!),
+    callGuildAction(Astro, 'reaction_roles', 'list-groups', guildId!),
+    callGuildAction(Astro, 'reaction_roles', 'list-messages', guildId!),
+  ]);
+
+  guildName = info.name;
+  guildIconUrl = info.icon_url;
+  channels = channelsResult.channels;
+  allRoles = rolesResult.roles;
+  customEmojis = emojisResult.emojis;
+  groups = groupsResult.groups;
+  messages = messagesResult.messages;
+  premiumActive = messagesResult.premium_active;
+} catch {
+  botOnline = false;
+}
+
+const i18n = {
+  save: t('common.save'),
+  cancel: t('common.cancel'),
+  create: t('common.create'),
+  remove: t('common.remove'),
+  errorGeneric: t('common.error_generic'),
+  errorServerTemplate: t('common.error_server'),
+  unexpectedResponseTemplate: t('reaction_roles.unexpected_response'),
+  roleCountTemplate: t('reaction_roles.role_count'), // enthält "{count}"
+  uniqueGroupBadgeTemplate: t('reaction_roles.unique_group_badge'), // enthält "{group}"
+  toggleOption: t('reaction_roles.toggle_option'),
+  uniqueOption: t('reaction_roles.unique_option'),
+  addEntryBtn: t('reaction_roles.add_entry_btn'),
+  deleteMessageBtn: t('reaction_roles.delete_message_btn'),
+  noEntries: t('reaction_roles.no_entries'),
+  alertGroupNameRequired: t('reaction_roles.alert_group_name_required'),
+  alertTitleDescRequired: t('reaction_roles.alert_title_desc_required'),
+  alertEmojiRequired: t('reaction_roles.alert_emoji_required'),
+  alertInvalidEmoji: t('reaction_roles.alert_invalid_emoji'),
+  confirmDeleteEntry: t('reaction_roles.confirm_delete_entry'),
+  confirmDeleteMessage: t('reaction_roles.confirm_delete_message'),
+  displayModeLabel: t('reaction_roles.display_mode_label'),
+  displayModeReactionOption: t('reaction_roles.display_mode_reaction_option'),
+  displayModeDropdownOption: t('reaction_roles.display_mode_dropdown_option')
+};
+---
+
+<DashboardLayout title={t('reaction_roles.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('reaction_roles.title')}</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+    {t('reaction_roles.subtitle')}
+  </p>
+
+  {!botOnline && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-700 dark:text-amber-400">{t('common.bot_offline')}</p>
+    </div>
+  )}
+
+  <!-- Gruppen -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('reaction_roles.groups_title')}</h2>
+      <button id="add-group-btn" type="button" disabled={!botOnline} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50">
+        + {t('reaction_roles.new_group_btn')}
+      </button>
+    </div>
+
+    <div id="groups-list" class="space-y-2">
+      {groups.map((g) => {
+        const roleCount = messages.flatMap((m) => m.entries).filter((e) => e.group_id === g.id).length;
+        return (
+          <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-group-row={g.id}>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-slate-900 dark:text-white">{g.name}</span>
+              <Badge variant="primary">{t('reaction_roles.unique_option')}</Badge>
+            </div>
+            <span class="text-xs text-slate-400" data-group-role-count>{t('reaction_roles.role_count', { count: roleCount })}</span>
+          </div>
+        );
+      })}
+    </div>
+    {groups.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-2">{t('reaction_roles.no_groups')}</p>}
+
+    <div id="group-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('reaction_roles.group_name_label')}</label>
+      <div class="flex gap-2">
+        <input type="text" id="new-group-name-input" maxlength="100" placeholder={t('reaction_roles.group_name_placeholder')} class="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+        <button id="confirm-group-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.create')}</button>
+        <button id="cancel-group-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Nachrichten -->
+  <section class="rounded-xl glass-panel p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('reaction_roles.messages_title')}</h2>
+      <button id="new-message-btn" type="button" disabled={!botOnline} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50">
+        + {t('reaction_roles.new_message_btn')}
+      </button>
+    </div>
+
+    <div id="messages-list">
+      {messages.map((msg) => (
+        <div class="mb-5 last:mb-0" data-message-block={msg.message_id}>
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">#{msg.channel_name ?? t('reaction_roles.channel_deleted')}</span>
+              <span class="text-xs text-slate-400 font-mono">{msg.message_id}</span>
+              <Badge variant={msg.display_mode === 'dropdown' ? 'primary' : 'neutral'}>
+                {msg.display_mode === 'dropdown' ? t('reaction_roles.display_mode_dropdown_option') : t('reaction_roles.display_mode_reaction_option')}
+              </Badge>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="button" data-add-entry-to={msg.message_id} data-channel-id={msg.channel_id} disabled={!botOnline} class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50">+ {t('reaction_roles.add_entry_btn')}</button>
+              <button type="button" data-delete-message={msg.message_id} data-channel-id={msg.channel_id} disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline disabled:opacity-50">{t('reaction_roles.delete_message_btn')}</button>
+            </div>
+          </div>
+          <div class="mb-2">
+            <p class="text-sm font-semibold text-slate-900 dark:text-white truncate" data-msg-title>{msg.title}</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 italic" data-msg-desc set:html={renderDiscordMarkdown(msg.description)} />
+          </div>
+          <div class="space-y-2" data-entries-list={msg.message_id}>
+            {msg.entries.map((entry) => (
+              <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-entry-row={entry.id} data-emoji={entry.emoji}>
+                <span class="text-lg flex-shrink-0 w-8 text-center">{entry.emoji.startsWith('<') ? '🔹' : entry.emoji}</span>
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                  <span class="text-sm font-medium text-slate-900 dark:text-white truncate">{entry.role_name}</span>
+                </div>
+                <Badge variant={entry.mode === 'unique' ? 'primary' : 'neutral'}>
+                  {entry.mode === 'unique' ? t('reaction_roles.unique_group_badge', { group: groups.find((g) => g.id === entry.group_id)?.name ?? '?' }) : t('reaction_roles.toggle_option')}
+                </Badge>
+                <button type="button" data-remove-entry={entry.id} data-message-id={msg.message_id} data-channel-id={msg.channel_id} disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline flex-shrink-0 disabled:opacity-50">{t('common.remove')}</button>
+              </div>
+            ))}
+          </div>
+          {msg.entries.length === 0 && <p class="text-sm text-slate-400 py-2">{t('reaction_roles.no_entries')}</p>}
+        </div>
+      ))}
+    </div>
+    {messages.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('reaction_roles.no_messages')}</p>}
+
+    <!-- Neue-Nachricht-Form -->
+    <div id="new-message-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <p class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('reaction_roles.new_message_form_title')}</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('reaction_roles.channel_label')}</label>
+          <select id="new-msg-channel" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            {channels.map((ch) => <option value={ch.id} data-channel-name={ch.name}>#{ch.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('reaction_roles.title_label')}</label>
+          <input type="text" id="new-msg-title" maxlength="256" placeholder={t('reaction_roles.title_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('reaction_roles.description_label')}</label>
+
+        <div class="flex flex-wrap gap-1 mb-2" data-md-toolbar="new-msg-desc">
+          <button type="button" data-md="bold" title={t('tickets.md_bold')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold">B</button>
+          <button type="button" data-md="italic" title={t('tickets.md_italic')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm italic">I</button>
+          <button type="button" data-md="underline" title={t('tickets.md_underline')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm underline">U</button>
+          <button type="button" data-md="strike" title={t('tickets.md_strike')} class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm line-through">S</button>
+          <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+          <button type="button" data-md="h1" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold">H1</button>
+          <button type="button" data-md="h2" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold">H2</button>
+          <button type="button" data-md="h3" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold">H3</button>
+          <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+          <button type="button" data-md="list" class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm">•</button>
+          <button type="button" data-md="code" class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-mono">{'</>'}</button>
+          <button type="button" data-md="codeblock" class="px-2 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-mono">{'{ }'}</button>
+        </div>
+
+        <textarea id="new-msg-desc" rows="2" maxlength="4000" placeholder={t('reaction_roles.description_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+
+        <div class="mt-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+          <p class="text-xs text-slate-400 mb-1">{t('tickets.live_preview_label')}</p>
+          <p id="new-msg-desc-preview" class="text-sm text-slate-700 dark:text-slate-300 italic">—</p>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+          {t('reaction_roles.display_mode_label')} {!premiumActive && <span class="text-xs font-normal text-slate-400">{t('reaction_roles.premium_dropdown_hint')}</span>}
+        </label>
+        <select id="new-msg-display-mode" class="w-full max-w-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <option value="reaction">{t('reaction_roles.display_mode_reaction_option')}</option>
+          <option value="dropdown" disabled={!premiumActive}>{t('reaction_roles.display_mode_dropdown_option')}</option>
+        </select>
+      </div>
+      <div class="flex gap-2">
+        <button id="confirm-new-message-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.create')}</button>
+        <button id="cancel-new-message-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+      </div>
+    </div>
+
+    <!-- Zuordnung-Form -->
+    <div id="entry-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <p class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('reaction_roles.new_entry_form_title')}</p>
+
+      <div class="mb-3">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('reaction_roles.role_label')}</label>
+        <select id="entry-role-select" class="w-full max-w-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+          {allRoles.map((r) => <option value={r.id} data-role-name={r.name}>{r.name}</option>)}
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+          {t('reaction_roles.emoji_label')} {!premiumActive && <span class="text-xs font-normal text-slate-400">{t('reaction_roles.premium_custom_emoji_hint')}</span>}
+        </label>
+        <input type="text" id="entry-emoji-input" maxlength="64" placeholder={t('reaction_roles.emoji_placeholder')} class="w-full max-w-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+
+        {customEmojis.length > 0 && (
+          <div class="mt-2">
+            <p class="text-xs text-slate-400 mb-1.5">{t('reaction_roles.server_emojis_label')} {!premiumActive && '🔒'}:</p>
+            <div class="flex flex-wrap gap-1.5" id="custom-emoji-picker">
+              {customEmojis.slice(0, 30).map((e) => (
+                <button
+                  type="button"
+                  data-custom-emoji={`<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`}
+                  disabled={!premiumActive}
+                  title={e.name}
+                  class="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <img src={e.url} alt={e.name} class="w-5 h-5" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+          {t('reaction_roles.mode_label')} {!premiumActive && <span class="text-xs font-normal text-slate-400">{t('reaction_roles.premium_unique_hint')}</span>}
+        </label>
+        <select id="entry-mode-select" class="w-full max-w-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <option value="toggle">{t('reaction_roles.toggle_option')}</option>
+          <option value="unique" disabled={!premiumActive}>{t('reaction_roles.unique_option')}</option>
+        </select>
+      </div>
+
+      <div id="entry-group-wrap" class="hidden mb-4">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('reaction_roles.group_label')}</label>
+        <select id="entry-group-select" class="w-full max-w-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <option value="">{t('reaction_roles.no_group_option')}</option>
+          {groups.map((g) => <option value={g.id}>{g.name}</option>)}
+        </select>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="confirm-entry-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+        <button id="cancel-entry-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+      </div>
+    </div>
+  </section>
+</DashboardLayout>
+
+<script define:vars={{ guildId, actingUserId: session?.discordUserId ?? null, i18n }}>
+  const EMOJI_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|[\u200d\uFE0F\u20E3])+$/u;
+  const CUSTOM_EMOJI_REGEX = /^<a?:\w+:\d+>$/;
+
+  function isValidEmojiInput(value) {
+    return CUSTOM_EMOJI_REGEX.test(value) || EMOJI_REGEX.test(value);
+  }
+
+  function renderDiscordMarkdown(text) {
+    let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const codeBlocks = [];
+    out = out.replace(/```([\s\S]*?)```/g, (_, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
+    out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
+    out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
+    out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
+    out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
+    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/__(.+?)__/g, '<u>$1</u>');
+    out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
+    out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    out = out.split('\n').map((line) => {
+      if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
+      if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
+      if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
+      if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
+      return line;
+    }).join('\n');
+    out = out.replace(/%%CB(\d+)%%/g, (_, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
+    return out.replace(/\n/g, '<br>');
+  }
+
+  function wrapSelection(ta, before, after = before) {
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const val = ta.value;
+    const selected = val.slice(start, end);
+    ta.value = val.slice(0, start) + before + selected + after + val.slice(end);
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = start + before.length + selected.length;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.focus();
+  }
+  function prefixLines(ta, prefix) {
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const val = ta.value;
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = val.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = val.length;
+    const block = val.slice(lineStart, lineEnd);
+    const newBlock = block.split('\n').map((l) => prefix + l).join('\n');
+    ta.value = val.slice(0, lineStart) + newBlock + val.slice(lineEnd);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.focus();
+  }
+  function setupMarkdownToolbars() {
+    document.querySelectorAll('[data-md-toolbar]').forEach((toolbar) => {
+      if (toolbar.dataset.bound === 'true') return;
+      toolbar.dataset.bound = 'true';
+      const ta = document.getElementById(toolbar.dataset.mdToolbar);
+      if (!ta) return;
+      toolbar.querySelectorAll('[data-md]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          switch (btn.dataset.md) {
+            case 'bold': wrapSelection(ta, '**'); break;
+            case 'italic': wrapSelection(ta, '*'); break;
+            case 'underline': wrapSelection(ta, '__'); break;
+            case 'strike': wrapSelection(ta, '~~'); break;
+            case 'code': wrapSelection(ta, '`'); break;
+            case 'codeblock': wrapSelection(ta, '```\n', '\n```'); break;
+            case 'h1': prefixLines(ta, '# '); break;
+            case 'h2': prefixLines(ta, '## '); break;
+            case 'h3': prefixLines(ta, '### '); break;
+            case 'list': prefixLines(ta, '- '); break;
+          }
+        });
+      });
+    });
+  }
+
+  function setupDescPreview() {
+    const descInput = document.getElementById('new-msg-desc');
+    const previewEl = document.getElementById('new-msg-desc-preview');
+    if (!descInput || !previewEl || descInput.dataset.previewBound === 'true') return;
+    descInput.dataset.previewBound = 'true';
+    descInput.addEventListener('input', () => {
+      const val = descInput.value.trim();
+      previewEl.innerHTML = val ? renderDiscordMarkdown(val) : '—';
+    });
+  }
+
+  async function callModuleAction(module, action, body = {}) {
+    const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, acting_user_id: actingUserId }),
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }
+    if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
+    return data.data;
+  }
+
+  function setupGroups() {
+    const addGroupBtn = document.getElementById('add-group-btn');
+    const groupForm = document.getElementById('group-form');
+    const newGroupNameInput = document.getElementById('new-group-name-input');
+    const confirmGroupBtn = document.getElementById('confirm-group-btn');
+    const cancelGroupBtn = document.getElementById('cancel-group-btn');
+    const groupsList = document.getElementById('groups-list');
+    const entryGroupSelect = document.getElementById('entry-group-select');
+
+    if (!addGroupBtn || addGroupBtn.dataset.bound === 'true') return;
+    addGroupBtn.dataset.bound = 'true';
+
+    addGroupBtn.addEventListener('click', () => { groupForm.classList.remove('hidden'); newGroupNameInput.focus(); });
+    cancelGroupBtn.addEventListener('click', () => { groupForm.classList.add('hidden'); newGroupNameInput.value = ''; });
+
+    confirmGroupBtn.addEventListener('click', async () => {
+      const name = newGroupNameInput.value.trim();
+      if (!name) { alert(i18n.alertGroupNameRequired); return; }
+
+      confirmGroupBtn.disabled = true;
+      try {
+        const result = await callModuleAction('reaction_roles', 'create-group', { name });
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800';
+        row.dataset.groupRow = result.id;
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-900 dark:text-white"></span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300 border border-primary-200 dark:border-primary-800">${i18n.uniqueOption ?? 'Unique'}</span>
+          </div>
+          <span class="text-xs text-slate-400" data-group-role-count>${i18n.roleCountTemplate.replace('{count}', '0')}</span>
+        `;
+        row.querySelector('span.text-sm').textContent = name;
+        groupsList.appendChild(row);
+
+        const opt = document.createElement('option');
+        opt.value = result.id;
+        opt.textContent = name;
+        entryGroupSelect.appendChild(opt);
+
+        groupForm.classList.add('hidden');
+        newGroupNameInput.value = '';
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        confirmGroupBtn.disabled = false;
+      }
+    });
+  }
+
+  function setupNewMessage() {
+    const newMsgBtn = document.getElementById('new-message-btn');
+    const form = document.getElementById('new-message-form');
+    const channelSelect = document.getElementById('new-msg-channel');
+    const titleInput = document.getElementById('new-msg-title');
+    const descInput = document.getElementById('new-msg-desc');
+    const displayModeSelect = document.getElementById('new-msg-display-mode');
+    const confirmBtn = document.getElementById('confirm-new-message-btn');
+    const cancelBtn = document.getElementById('cancel-new-message-btn');
+    const list = document.getElementById('messages-list');
+
+    if (!newMsgBtn || newMsgBtn.dataset.bound === 'true') return;
+    newMsgBtn.dataset.bound = 'true';
+
+    newMsgBtn.addEventListener('click', () => form.classList.remove('hidden'));
+    cancelBtn.addEventListener('click', () => form.classList.add('hidden'));
+
+    confirmBtn.addEventListener('click', async () => {
+      const title = titleInput.value.trim();
+      const description = descInput.value.trim();
+      if (!title || !description) { alert(i18n.alertTitleDescRequired); return; }
+
+      confirmBtn.disabled = true;
+      try {
+        const channelId = channelSelect.value;
+        const channelName = channelSelect.selectedOptions[0].dataset.channelName;
+        const displayMode = displayModeSelect.value;
+        const result = await callModuleAction('reaction_roles', 'create-message', {
+          channel_id: channelId, title, description, display_mode: displayMode,
+        });
+
+        const modeLabel = displayMode === 'dropdown' ? i18n.displayModeDropdownOption : i18n.displayModeReactionOption;
+        const modeBadgeClass = displayMode === 'dropdown'
+          ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300 border border-primary-200 dark:border-primary-800'
+          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700';
+
+        const block = document.createElement('div');
+        block.className = 'mb-5 last:mb-0';
+        block.dataset.messageBlock = result.message_id;
+        block.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">#${channelName}</span>
+              <span class="text-xs text-slate-400 font-mono">${result.message_id}</span>
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase ${modeBadgeClass}">${modeLabel}</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="button" data-add-entry-to="${result.message_id}" data-channel-id="${channelId}" class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">+ ${i18n.addEntryBtn}</button>
+              <button type="button" data-delete-message="${result.message_id}" data-channel-id="${channelId}" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">${i18n.deleteMessageBtn}</button>
+            </div>
+          </div>
+          <div class="mb-2">
+            <p class="text-sm font-semibold text-slate-900 dark:text-white truncate" data-msg-title></p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 italic" data-msg-desc></p>
+          </div>
+          <div class="space-y-2" data-entries-list="${result.message_id}"></div>
+          <p class="text-sm text-slate-400 py-2">${i18n.noEntries}</p>
+        `;
+        block.querySelector('[data-msg-title]').textContent = title;
+        block.querySelector('[data-msg-desc]').innerHTML = renderDiscordMarkdown(description);
+        list.appendChild(block);
+        bindMessageBlockButtons(block);
+
+        titleInput.value = '';
+        descInput.value = '';
+        const descPreview = document.getElementById('new-msg-desc-preview');
+        if (descPreview) descPreview.innerHTML = '—';
+        form.classList.add('hidden');
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        confirmBtn.disabled = false;
+      }
+    });
+  }
+
+  let currentEntryTarget = null; // { messageId, channelId }
+
+  function setupEntries() {
+    const entryForm = document.getElementById('entry-form');
+    const roleSelect = document.getElementById('entry-role-select');
+    const emojiInput = document.getElementById('entry-emoji-input');
+    const modeSelect = document.getElementById('entry-mode-select');
+    const groupWrap = document.getElementById('entry-group-wrap');
+    const groupSelect = document.getElementById('entry-group-select');
+    const confirmBtn = document.getElementById('confirm-entry-btn');
+    const cancelBtn = document.getElementById('cancel-entry-btn');
+
+    if (!entryForm || entryForm.dataset.bound === 'true') return;
+    entryForm.dataset.bound = 'true';
+
+    modeSelect.addEventListener('change', () => {
+      groupWrap.classList.toggle('hidden', modeSelect.value !== 'unique');
+    });
+
+    document.querySelectorAll('[data-custom-emoji]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        emojiInput.value = btn.dataset.customEmoji;
+      });
+    });
+
+    document.body.addEventListener('click', (e) => {
+      const addBtn = e.target.closest('[data-add-entry-to]');
+      if (!addBtn) return;
+      currentEntryTarget = { messageId: addBtn.dataset.addEntryTo, channelId: addBtn.dataset.channelId };
+      emojiInput.value = '';
+      modeSelect.value = 'toggle';
+      groupWrap.classList.add('hidden');
+      entryForm.classList.remove('hidden');
+      entryForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    cancelBtn.addEventListener('click', () => { entryForm.classList.add('hidden'); currentEntryTarget = null; });
+
+    confirmBtn.addEventListener('click', async () => {
+      if (!currentEntryTarget) return;
+      const emoji = emojiInput.value.trim();
+      if (!emoji) { alert(i18n.alertEmojiRequired); return; }
+      if (!isValidEmojiInput(emoji)) {
+        alert(i18n.alertInvalidEmoji);
+        return;
+      }
+
+      const roleOpt = roleSelect.selectedOptions[0];
+      const mode = modeSelect.value;
+      const groupId = mode === 'unique' ? groupSelect.value || null : null;
+
+      confirmBtn.disabled = true;
+      try {
+        const result = await callModuleAction('reaction_roles', 'add-entry', {
+          channel_id: currentEntryTarget.channelId,
+          message_id: currentEntryTarget.messageId,
+          role_id: roleOpt.value,
+          emoji, mode, group_id: groupId,
+        });
+
+        const entriesList = document.querySelector(`[data-entries-list="${currentEntryTarget.messageId}"]`);
+        const emptyMsg = entriesList.nextElementSibling;
+        if (emptyMsg && emptyMsg.tagName === 'P') emptyMsg.remove();
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800';
+        row.dataset.entryRow = result.entry_id ?? Date.now();
+        row.dataset.emoji = emoji;
+        const modeLabel = mode === 'unique' ? i18n.uniqueGroupBadgeTemplate.replace('{group}', groupSelect.selectedOptions[0]?.textContent ?? '?') : i18n.toggleOption;
+        row.innerHTML = `
+          <span class="text-lg flex-shrink-0 w-8 text-center">${emoji.startsWith('<') ? '🔹' : emoji}</span>
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <span class="text-sm font-medium text-slate-900 dark:text-white truncate"></span>
+          </div>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase ${mode === 'unique' ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300 border border-primary-200 dark:border-primary-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}">${modeLabel}</span>
+          <button type="button" data-remove-entry data-message-id="${currentEntryTarget.messageId}" data-channel-id="${currentEntryTarget.channelId}" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline flex-shrink-0">${i18n.remove}</button>
+        `;
+        row.querySelector('.text-sm.font-medium').textContent = result.role_name;
+        entriesList.appendChild(row);
+        bindEntryRemove(row);
+
+        entryForm.classList.add('hidden');
+        currentEntryTarget = null;
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        confirmBtn.disabled = false;
+      }
+    });
+  }
+
+  function bindEntryRemove(row) {
+    const btn = row.querySelector('[data-remove-entry]');
+    if (!btn || btn.dataset.bound === 'true') return;
+    btn.dataset.bound = 'true';
+    btn.addEventListener('click', async () => {
+      if (!confirm(i18n.confirmDeleteEntry)) return;
+      try {
+        await callModuleAction('reaction_roles', 'delete-entry', {
+          entry_id: row.dataset.entryRow,
+          message_id: btn.dataset.messageId,
+          channel_id: btn.dataset.channelId,
+          emoji: row.dataset.emoji,
+        });
+        row.remove();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  }
+
+  function bindMessageBlockButtons(block) {
+    const deleteBtn = block.querySelector('[data-delete-message]');
+    if (deleteBtn && deleteBtn.dataset.bound !== 'true') {
+      deleteBtn.dataset.bound = 'true';
+      deleteBtn.addEventListener('click', async () => {
+        if (!confirm(i18n.confirmDeleteMessage)) return;
+        try {
+          await callModuleAction('reaction_roles', 'delete-message', {
+            message_id: deleteBtn.dataset.deleteMessage,
+            channel_id: deleteBtn.dataset.channelId,
+          });
+          block.remove();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    }
+    block.querySelectorAll('[data-entry-row]').forEach(bindEntryRemove);
+  }
+
+  document.querySelectorAll('[data-message-block]').forEach(bindMessageBlockButtons);
+
+  setupGroups();
+  setupNewMessage();
+  setupEntries();
+  setupMarkdownToolbars();
+  setupDescPreview();
+  document.addEventListener('astro:page-load', () => {
+    setupGroups();
+    setupNewMessage();
+    setupEntries();
+    setupMarkdownToolbars();
+    setupDescPreview();
+  });
+</script>

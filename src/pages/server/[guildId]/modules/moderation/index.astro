@@ -1,0 +1,262 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../../components/Badge.astro';
+import pool from '../../../../../lib/db';
+import { callGuildAction } from '../../../../../lib/botApi';
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+
+let guildName = `Server ${guildId}`;
+let guildIconUrl: string | null = null;
+let bans: { user_id: string; username: string; avatar_url: string | null; reason: string | null }[] = [];
+let timeouts: { user_id: string; username: string; avatar_url: string | null; until: string }[] = [];
+let botOnline = true;
+let premiumActive = false;
+
+async function getPremiumInfo(id: string) {
+  const [rows] = await pool.query(
+    `SELECT expires_at FROM premium WHERE guild_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+try {
+  const [premium, info, bansResult, timeoutsResult] = await Promise.all([
+    getPremiumInfo(guildId!),
+    callGuildAction(Astro, 'guild', 'info', guildId!),
+    callGuildAction(Astro, 'moderation', 'list-bans', guildId!),
+    callGuildAction(Astro, 'moderation', 'list-timeouts', guildId!),
+  ]);
+
+  premiumActive = Boolean(premium);
+  guildName = info.name;
+  guildIconUrl = info.icon_url;
+  bans = bansResult.bans;
+  timeouts = timeoutsResult.timeouts;
+} catch {
+  botOnline = false;
+}
+
+function formatRemaining(iso: string) {
+  const diffMs = new Date(iso).getTime() - Date.now();
+  if (diffMs <= 0) return t('moderation.expired');
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 60) return t('moderation.remaining_minutes', { mins });
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return t('moderation.remaining_hours', { hours });
+  return t('moderation.remaining_days', { days: Math.floor(hours / 24) });
+}
+
+function avatarFallback(userId: string) {
+  const idx = Number(BigInt(userId) % 6n);
+  return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
+}
+
+const i18n = {
+  errorGeneric: t('common.error_generic'),
+  errorServerTemplate: t('common.error_server'),
+  unexpectedResponseTemplate: t('moderation.unexpected_response'),
+  confirmUnban: t('moderation.confirm_unban'),
+  confirmRemoveTimeout: t('moderation.confirm_remove_timeout'),
+};
+---
+
+<DashboardLayout title={t('moderation.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  <div class="flex items-center gap-3 mb-1">
+    <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{t('moderation.title')}</h1>
+    <Badge variant="primary">{t('moderation.core_module_badge')}</Badge>
+  </div>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-8">
+    {t('moderation.subtitle')}
+  </p>
+
+  {!botOnline && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-700 dark:text-amber-400">{t('moderation.data_unavailable')}</p>
+    </div>
+  )}
+
+  <!-- Bans -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('moderation.banned_members_title')}</h2>
+      <span class="text-sm text-slate-500 dark:text-slate-400">{bans.length} {bans.length === 1 ? t('moderation.entry_singular') : t('moderation.entry_plural')}</span>
+    </div>
+
+    <div class="relative mb-5">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"></path>
+      </svg>
+      <input
+        type="text"
+        data-search="bans"
+        placeholder={t('moderation.search_placeholder')}
+        class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+      />
+    </div>
+
+    {bans.length === 0 ? (
+      <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('moderation.no_bans')}</p>
+    ) : (
+      <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1" data-list="bans">
+        {bans.map((ban) => (
+          <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-search-value={`${ban.username} ${ban.user_id}`.toLowerCase()}>
+            <img src={ban.avatar_url || avatarFallback(ban.user_id)} alt="" class="w-10 h-10 rounded-full flex-shrink-0" />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="font-medium text-slate-900 dark:text-white truncate">{ban.username}</span>
+                <span class="text-xs text-slate-400 font-mono">{ban.user_id}</span>
+              </div>
+              <p class="text-sm text-slate-500 dark:text-slate-400 truncate">{ban.reason || t('moderation.no_reason')}</p>
+            </div>
+            <div class="flex-shrink-0 text-right">
+              <button type="button" data-unban={ban.user_id} class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">{t('moderation.unban_btn')}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+    <p class="text-sm text-slate-500 dark:text-slate-400 py-4 hidden" data-empty-search="bans">{t('moderation.no_search_results')}</p>
+  </section>
+
+  <!-- Timeouts -->
+  <section class="rounded-xl glass-panel p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('moderation.active_timeouts_title')}</h2>
+      <span class="text-sm text-slate-500 dark:text-slate-400">{timeouts.length} {timeouts.length === 1 ? t('moderation.entry_singular') : t('moderation.entry_plural')}</span>
+    </div>
+
+    <div class="relative mb-5">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"></path>
+      </svg>
+      <input
+        type="text"
+        data-search="timeouts"
+        placeholder={t('moderation.search_placeholder')}
+        class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+      />
+    </div>
+
+    {timeouts.length === 0 ? (
+      <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('moderation.no_timeouts')}</p>
+    ) : (
+      <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1" data-list="timeouts">
+        {timeouts.map((to) => (
+          <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-search-value={`${to.username} ${to.user_id}`.toLowerCase()}>
+            <img src={to.avatar_url || avatarFallback(to.user_id)} alt="" class="w-10 h-10 rounded-full flex-shrink-0" />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="font-medium text-slate-900 dark:text-white truncate">{to.username}</span>
+                <span class="text-xs text-slate-400 font-mono">{to.user_id}</span>
+              </div>
+            </div>
+            <div class="flex-shrink-0 text-right">
+              <Badge variant="warning">{formatRemaining(to.until)}</Badge>
+              <button type="button" data-remove-timeout={to.user_id} class="block mt-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline ml-auto">{t('moderation.remove_timeout_btn')}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+    <p class="text-sm text-slate-500 dark:text-slate-400 py-4 hidden" data-empty-search="timeouts">{t('moderation.no_search_results')}</p>
+  </section>
+</DashboardLayout>
+
+<script define:vars={{ guildId, i18n }}>
+  async function callModuleAction(module, action, body = {}) {
+    const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }
+    if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
+    return data.data;
+  }
+
+  function setupModerationActions() {
+    document.querySelectorAll('[data-unban]').forEach((btn) => {
+      if (btn.dataset.bound === 'true') return;
+      btn.dataset.bound = 'true';
+      btn.addEventListener('click', async () => {
+        const userId = btn.dataset.unban;
+        if (!confirm(i18n.confirmUnban)) return;
+        btn.disabled = true;
+        try {
+          await callModuleAction('moderation', 'unban', { user_id: userId });
+          btn.closest('[data-search-value]')?.remove();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-remove-timeout]').forEach((btn) => {
+      if (btn.dataset.bound === 'true') return;
+      btn.dataset.bound = 'true';
+      btn.addEventListener('click', async () => {
+        const userId = btn.dataset.removeTimeout;
+        if (!confirm(i18n.confirmRemoveTimeout)) return;
+        btn.disabled = true;
+        try {
+          await callModuleAction('moderation', 'remove-timeout', { user_id: userId });
+          btn.closest('[data-search-value]')?.remove();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  function setupSearch() {
+    document.querySelectorAll('[data-search]').forEach((input) => {
+      if (input.dataset.bound === 'true') return;
+      input.dataset.bound = 'true';
+
+      const key = input.dataset.search;
+      const list = document.querySelector(`[data-list="${key}"]`);
+      const emptyState = document.querySelector(`[data-empty-search="${key}"]`);
+      if (!list) return;
+
+      const items = Array.from(list.querySelectorAll('[data-search-value]'));
+
+      input.addEventListener('input', () => {
+        const query = input.value.trim().toLowerCase();
+        let visibleCount = 0;
+        items.forEach((item) => {
+          const matches = item.dataset.searchValue.includes(query);
+          item.classList.toggle('hidden', !matches);
+          if (matches) visibleCount++;
+        });
+        emptyState?.classList.toggle('hidden', visibleCount > 0);
+      });
+    });
+  }
+
+  function setupScrollFade() {
+    document.querySelectorAll('[data-list]').forEach((list) => {
+      const updateFade = () => {
+        const hasOverflow = list.scrollHeight > list.clientHeight + 4;
+        const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
+        list.classList.toggle('scroll-fade', hasOverflow && !atBottom);
+      };
+      updateFade();
+      list.addEventListener('scroll', updateFade);
+      new ResizeObserver(updateFade).observe(list);
+    });
+  }
+
+  setupModerationActions();
+  setupSearch();
+  setupScrollFade();
+  document.addEventListener('astro:page-load', () => {
+    setupModerationActions();
+    setupSearch();
+    setupScrollFade();
+  });
+</script>

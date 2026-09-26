@@ -1,0 +1,327 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../../components/Badge.astro';
+import { callBotModuleAction } from '../../../../../lib/botApi';
+
+const { guildId } = Astro.params;
+
+let guildName = `Server ${guildId}`;
+let guildIconUrl: string | null = null;
+let channels: { id: string; name: string }[] = [];
+let allRoles: { id: string; name: string }[] = [];
+let categories: { id: number; name: string; role_ids: string[]; roles: { id: string; name: string }[] }[] = [];
+let openTickets: { id: number; ticket_number: number; status: string; category_name: string; user_tag: string; channel_id: string }[] = [];
+let limitFree = 2;
+let limitPremium = 10;
+let premiumActive = false;
+let botOnline = true;
+
+try {
+  const info = await callBotModuleAction('guild', 'info', guildId!);
+  guildName = info.name;
+  guildIconUrl = info.icon_url;
+
+  const channelsResult = await callBotModuleAction('guild', 'channels', guildId!);
+  channels = channelsResult.channels;
+
+  const rolesResult = await callBotModuleAction('guild', 'roles', guildId!);
+  allRoles = rolesResult.roles;
+
+  const catResult = await callBotModuleAction('tickets', 'list-categories', guildId!);
+  categories = catResult.categories;
+  limitFree = catResult.limit_free;
+  limitPremium = catResult.limit_premium;
+  premiumActive = catResult.premium_active;
+
+  const openResult = await callBotModuleAction('tickets', 'list-open', guildId!);
+  openTickets = openResult.tickets;
+} catch {
+  botOnline = false;
+}
+
+const limit = premiumActive ? limitPremium : limitFree;
+const statusLabel: Record<string, string> = { open: 'Offen', pending_closure: 'Wird geschlossen' };
+const statusVariant: Record<string, 'success' | 'warning'> = { open: 'success', pending_closure: 'warning' };
+---
+
+<DashboardLayout title="Tickets" guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} guildId={guildId}>
+  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">Tickets</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+    Ticket-Kategorien verwalten, Panels posten und offene Tickets einsehen.
+  </p>
+
+  {!botOnline && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-700 dark:text-amber-400">⚠️ Bot ist gerade nicht erreichbar — Bearbeiten ist vorübergehend nicht möglich.</p>
+    </div>
+  )}
+
+  <!-- Ticket-Log-Channel -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">Ticket-Log-Channel</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Ohne Auswahl wird der allgemeine Log-Channel aus den Einstellungen verwendet.</p>
+    <a href={`/server/${guildId}/settings/`} class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">In Einstellungen konfigurieren →</a>
+  </section>
+
+  <!-- Kategorien -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">Kategorien</h2>
+      <button id="add-category-btn" type="button" disabled={!botOnline || categories.length >= limit} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        + Erstellen
+      </button>
+    </div>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+      {categories.length} / {limit} Kategorien
+      {!premiumActive && categories.length >= limitFree && (
+        <span class="ml-1">— <Badge variant="primary">Premium</Badge> für bis zu {limitPremium} Kategorien</span>
+      )}
+    </p>
+
+    <div id="categories-list" class="space-y-2">
+      {categories.map((cat) => (
+        <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-category-row={cat.id} data-role-ids={JSON.stringify(cat.role_ids)}>
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-sm font-medium text-slate-900 dark:text-white" data-category-name>{cat.name}</span>
+            <div class="flex items-center gap-3 flex-shrink-0">
+              <button type="button" data-edit-category={cat.id} disabled={!botOnline} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline disabled:opacity-50">Bearbeiten</button>
+              <button type="button" data-remove-category={cat.id} disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline disabled:opacity-50">Löschen</button>
+            </div>
+          </div>
+          <p class="mt-1 text-xs text-slate-400" data-category-roles-label>
+            {cat.roles.length > 0 ? `Zugriff: ${cat.roles.map((r) => r.name).join(', ')}` : 'Nur Server-Admins haben Zugriff'}
+          </p>
+        </div>
+      ))}
+    </div>
+    {categories.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">Noch keine Kategorien angelegt.</p>}
+
+    <div id="category-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <p id="category-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">Kategorie erstellen</p>
+      <div class="mb-3">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Name</label>
+        <input type="text" id="category-name-input" maxlength="100" placeholder="z.B. 🐞 Bug Reports" class="w-full max-w-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Berechtigte Rollen (optional)</label>
+        <div class="flex flex-wrap gap-2" id="role-checkboxes">
+          {allRoles.map((r) => (
+            <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-950 text-sm">
+              <input type="checkbox" data-role-checkbox value={r.id} class="accent-primary-600" />
+              {r.name}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button id="confirm-category-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">Speichern</button>
+        <button id="cancel-category-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">Abbrechen</button>
+      </div>
+      <p class="mt-2 text-xs text-slate-400">Der Bot erstellt automatisch die zugehörige Discord-Kategorie. Name kann nach dem Erstellen nur direkt umbenannt werden, nicht die Rollen-Auswahl in diesem Formular (dafür "Bearbeiten" bei bestehenden Kategorien nutzen).</p>
+    </div>
+  </section>
+
+  <!-- Panel posten -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">Panel posten</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-2">Postet eine Nachricht mit Buttons für alle aktuellen Kategorien in einen Channel.</p>
+    <p class="text-xs text-amber-600 dark:text-amber-400 mb-4">
+      ⚠️ Änderst du später eine Kategorie (Name/Löschen), aktualisiert sich ein bereits gepostetes Panel nicht automatisch — poste es in dem Fall neu.
+    </p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Ziel-Channel</label>
+        <select id="panel-channel-select" disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
+          {channels.map((ch) => <option value={ch.id}>#{ch.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Titel</label>
+        <input type="text" id="panel-title-input" maxlength="256" value="🎫 Support" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Beschreibung</label>
+      <textarea id="panel-desc-input" rows="2" maxlength="1000" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none">Wähle unten eine Kategorie, um ein Ticket zu erstellen.</textarea>
+    </div>
+    <button id="post-panel-btn" type="button" disabled={!botOnline || categories.length === 0} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+      Panel posten
+    </button>
+  </section>
+
+  <!-- Offene Tickets -->
+  <section class="rounded-xl glass-panel p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">Offene Tickets</h2>
+      <span class="text-sm text-slate-500 dark:text-slate-400">{openTickets.length} {openTickets.length === 1 ? 'Ticket' : 'Tickets'}</span>
+    </div>
+    <div class="space-y-2">
+      {openTickets.map((t) => (
+        <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+          <span class="text-sm font-mono text-slate-400 flex-shrink-0">#{t.ticket_number}</span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{t.user_tag}</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{t.category_name}</p>
+          </div>
+          <Badge variant={statusVariant[t.status] ?? 'neutral'}>{statusLabel[t.status] ?? t.status}</Badge>
+        </div>
+      ))}
+    </div>
+    {openTickets.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">Aktuell keine offenen Tickets.</p>}
+  </section>
+</DashboardLayout>
+
+<script define:vars={{ guildId }}>
+  async function callModuleAction(module, action, body = {}) {
+    const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error(`Unerwartete Antwort (Status ${res.status})`); }
+    if (!res.ok || !data.ok) throw new Error(data.error ? `Fehler: ${data.error}` : `Serverfehler (Status ${res.status})`);
+    return data.data;
+  }
+
+  function setupCategories() {
+    const addBtn = document.getElementById('add-category-btn');
+    const form = document.getElementById('category-form');
+    const formTitle = document.getElementById('category-form-title');
+    const nameInput = document.getElementById('category-name-input');
+    const confirmBtn = document.getElementById('confirm-category-btn');
+    const cancelBtn = document.getElementById('cancel-category-btn');
+    const list = document.getElementById('categories-list');
+
+    if (!addBtn || addBtn.dataset.bound === 'true') return;
+    addBtn.dataset.bound = 'true';
+
+    let editingId = null;
+
+    function currentCount() { return list.querySelectorAll('[data-category-row]').length; }
+
+    function openForm(mode, row) {
+      editingId = mode === 'edit' ? row.dataset.categoryRow : null;
+      formTitle.textContent = mode === 'edit' ? 'Kategorie bearbeiten' : 'Kategorie erstellen';
+      nameInput.value = mode === 'edit' ? row.querySelector('[data-category-name]').textContent : '';
+      nameInput.disabled = mode === 'edit'; // Umbenennen läuft separat, hier nur Rollen bei "edit"
+
+      const checkedIds = mode === 'edit' ? JSON.parse(row.dataset.roleIds || '[]') : [];
+      form.querySelectorAll('[data-role-checkbox]').forEach((cb) => { cb.checked = checkedIds.includes(cb.value); });
+
+      form.classList.remove('hidden');
+      nameInput.focus();
+    }
+    function closeForm() { form.classList.add('hidden'); editingId = null; nameInput.disabled = false; }
+
+    addBtn.addEventListener('click', () => { if (currentCount() >= addBtn.dataset.limit) return; openForm('add'); });
+    cancelBtn.addEventListener('click', closeForm);
+
+    confirmBtn.addEventListener('click', async () => {
+      const roleIds = Array.from(form.querySelectorAll('[data-role-checkbox]:checked')).map((cb) => cb.value);
+
+      confirmBtn.disabled = true;
+      try {
+        if (editingId) {
+          const result = await callModuleAction('tickets', 'set-category-roles', { category_id: Number(editingId), role_ids: roleIds });
+          const row = list.querySelector(`[data-category-row="${editingId}"]`);
+          row.dataset.roleIds = JSON.stringify(result.roles.map((r) => r.id));
+          row.querySelector('[data-category-roles-label]').textContent = result.roles.length > 0
+            ? `Zugriff: ${result.roles.map((r) => r.name).join(', ')}`
+            : 'Nur Server-Admins haben Zugriff';
+        } else {
+          const name = nameInput.value.trim();
+          if (!name) { alert('Bitte einen Namen angeben.'); confirmBtn.disabled = false; return; }
+
+          const result = await callModuleAction('tickets', 'create-category', { name, role_ids: roleIds });
+          const row = document.createElement('div');
+          row.className = 'p-3 rounded-lg border border-slate-200 dark:border-slate-800';
+          row.dataset.categoryRow = String(result.id);
+          row.dataset.roleIds = JSON.stringify(roleIds);
+
+          const roleNames = Array.from(form.querySelectorAll('[data-role-checkbox]:checked')).map((cb) => cb.parentElement.textContent.trim());
+          row.innerHTML = `
+            <div class="flex items-center justify-between gap-4">
+              <span class="text-sm font-medium text-slate-900 dark:text-white" data-category-name></span>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <button type="button" data-edit-category="${result.id}" class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">Bearbeiten</button>
+                <button type="button" data-remove-category="${result.id}" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Löschen</button>
+              </div>
+            </div>
+            <p class="mt-1 text-xs text-slate-400" data-category-roles-label></p>
+          `;
+          row.querySelector('[data-category-name]').textContent = name;
+          row.querySelector('[data-category-roles-label]').textContent = roleNames.length > 0 ? `Zugriff: ${roleNames.join(', ')}` : 'Nur Server-Admins haben Zugriff';
+          list.appendChild(row);
+          bindRowButtons(row);
+
+          const panelSelectOption = document.createElement('option');
+          // Kategorien für das Panel werden serverseitig beim Posten live neu geladen — kein Zusatzcode nötig
+        }
+        closeForm();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        confirmBtn.disabled = false;
+      }
+    });
+
+    function bindRowButtons(row) {
+      const editBtn = row.querySelector('[data-edit-category]');
+      const removeBtn = row.querySelector('[data-remove-category]');
+      if (editBtn && editBtn.dataset.bound !== 'true') {
+        editBtn.dataset.bound = 'true';
+        editBtn.addEventListener('click', () => openForm('edit', row));
+      }
+      if (removeBtn && removeBtn.dataset.bound !== 'true') {
+        removeBtn.dataset.bound = 'true';
+        removeBtn.addEventListener('click', async () => {
+          if (!confirm('Kategorie wirklich löschen? Dies löscht auch die zugehörige Discord-Kategorie.')) return;
+          try {
+            await callModuleAction('tickets', 'delete-category', { category_id: Number(row.dataset.categoryRow) });
+            row.remove();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
+    }
+    document.querySelectorAll('[data-category-row]').forEach(bindRowButtons);
+  }
+
+  function setupPanel() {
+    const btn = document.getElementById('post-panel-btn');
+    const channelSelect = document.getElementById('panel-channel-select');
+    const titleInput = document.getElementById('panel-title-input');
+    const descInput = document.getElementById('panel-desc-input');
+    if (!btn || btn.dataset.bound === 'true') return;
+    btn.dataset.bound = 'true';
+
+    btn.addEventListener('click', async () => {
+      const title = titleInput.value.trim();
+      const description = descInput.value.trim();
+      if (!title || !description) { alert('Bitte Titel und Beschreibung angeben.'); return; }
+
+      const channelOpt = channelSelect.selectedOptions[0];
+      if (!confirm(`Panel in #${channelOpt.textContent.replace('#', '')} posten?`)) return;
+
+      btn.disabled = true;
+      try {
+        await callModuleAction('tickets', 'post-panel', { channel_id: channelSelect.value, title, description });
+        alert('Panel wurde gepostet.');
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  setupCategories();
+  setupPanel();
+  document.addEventListener('astro:page-load', () => {
+    setupCategories();
+    setupPanel();
+  });
+</script>

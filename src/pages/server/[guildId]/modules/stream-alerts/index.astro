@@ -1,0 +1,541 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../../components/Badge.astro';
+import PlatformIcon from '../../../../../components/icons/PlatformIcon.astro';
+import { callGuildAction } from '../../../../../lib/botApi';
+
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+
+const PLATFORM_META: Record<string, { label: string; colorClass: string }> = {
+  twitch: { label: 'Twitch', colorClass: 'text-[#9146FF]' },
+  youtube: { label: 'YouTube', colorClass: 'text-[#FF0000]' },
+  kick: { label: 'Kick', colorClass: 'text-[#53FC18]' },
+};
+
+let guildName = `Server ${guildId}`;
+let guildIconUrl: string | null = null;
+let channels: { id: string; name: string }[] = [];
+let roles: { id: string; name: string }[] = [];
+let subscriptions: Record<string, any[]> = { twitch: [], youtube: [], kick: [] };
+let pingRoles: Record<string, string | null> = { all: null, twitch: null, youtube: null, kick: null };
+let limits: Record<string, { free: number; premium: number }> = {
+  twitch: { free: 1, premium: 5 },
+  youtube: { free: 1, premium: 3 },
+  kick: { free: 1, premium: 5 },
+};
+let premiumActive = false;
+let botOnline = true;
+let links: { id: number; a: { subscription_id: number; platform: string; streamer_name: string }; b: { subscription_id: number; platform: string; streamer_name: string } }[] = [];
+
+const mainDataPromise = (async () => {
+  try {
+    const [info, channelsResult, rolesResult, alertsResult] = await Promise.all([
+      callGuildAction(Astro, 'guild', 'info', guildId!),
+      callGuildAction(Astro, 'guild', 'channels', guildId!),
+      callGuildAction(Astro, 'guild', 'roles', guildId!),
+      callGuildAction(Astro, 'stream_alerts', 'list', guildId!),
+    ]);
+    return { ok: true as const, info, channels: channelsResult.channels, roles: rolesResult.roles, alertsResult };
+  } catch {
+    return { ok: false as const };
+  }
+})();
+
+const linksPromise = callGuildAction(Astro, 'stream_alerts', 'list-links', guildId!).catch(() => null);
+
+const [mainData, linksResult] = await Promise.all([mainDataPromise, linksPromise]);
+
+if (mainData.ok) {
+  guildName = mainData.info.name;
+  guildIconUrl = mainData.info.icon_url;
+  channels = mainData.channels;
+  roles = mainData.roles;
+  subscriptions = mainData.alertsResult.subscriptions;
+  limits = mainData.alertsResult.limits;
+  premiumActive = mainData.alertsResult.premium_active;
+  pingRoles = mainData.alertsResult.ping_roles;
+} else {
+  botOnline = false;
+}
+
+if (linksResult) {
+  links = linksResult.links;
+}
+
+const session = Astro.locals.session;
+const previewDisplayName = session?.globalName || session?.username || 'User';
+
+const totalSubs = Object.values(subscriptions).reduce((sum, arr) => sum + arr.length, 0);
+const totalCapacity = Object.values(limits).reduce(
+  (sum, l) => sum + (premiumActive ? l.premium : l.free),
+  0
+);
+
+const i18n = {
+  save: t('common.save'),
+  saving: t('common.saving'),
+  edit: t('common.edit'),
+  remove: t('common.remove'),
+  errorGeneric: t('common.error_generic'),
+  errorServerTemplate: t('common.error_server'), // enthält "{status}"
+  unexpectedResponseTemplate: t('stream_alerts.unexpected_response'), // enthält "{status}"
+  subFormAddTitle: t('stream_alerts.sub_form_add_title'),
+  subFormEditTitle: t('stream_alerts.sub_form_edit_title'),
+  channelDeleted: t('stream_alerts.channel_deleted'),
+  alertUsernameRequired: t('stream_alerts.alert_username_required'),
+  confirmRemoveSub: t('stream_alerts.confirm_remove_sub'),
+  alertBothChannels: t('stream_alerts.alert_both_channels'),
+  alertDifferentChannels: t('stream_alerts.alert_different_channels'),
+  confirmRemoveLink: t('stream_alerts.confirm_remove_link'),
+  disconnectBtn: t('stream_alerts.disconnect_btn'),
+};
+---
+
+<DashboardLayout title={t('stream_alerts.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('stream_alerts.title')}</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+    {t('stream_alerts.subtitle')}
+  </p>
+
+  {!botOnline && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-700 dark:text-amber-400">{t('common.bot_offline')}</p>
+    </div>
+  )}
+
+  <!-- Ping-Rollen -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('stream_alerts.ping_roles_title')}</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
+      {premiumActive ? t('stream_alerts.ping_roles_desc_premium') : t('stream_alerts.ping_roles_desc_free')}
+    </p>
+
+    {premiumActive ? (
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {Object.entries(PLATFORM_META).map(([key, meta]) => (
+          <div>
+            <label class="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              <PlatformIcon platform={key} class={`w-4 h-4 ${meta.colorClass}`} />
+              <span>{meta.label}</span>
+            </label>
+            <select data-ping-role={key} data-initial={pingRoles[key] ?? ''} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
+              <option value="">{t('common.none')}</option>
+              {roles.map((r) => <option value={r.id} selected={r.id === pingRoles[key]}>{r.name}</option>)}
+            </select>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div class="max-w-xs">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.role_all_platforms_label')}</label>
+        <select data-ping-role="all" data-initial={pingRoles.all ?? ''} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
+          <option value="">{t('common.none')}</option>
+          {roles.map((r) => <option value={r.id} selected={r.id === pingRoles.all}>{r.name}</option>)}
+        </select>
+      </div>
+    )}
+
+    <button id="save-ping-roles-btn" type="button" disabled class="mt-4 px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+      {t('common.save')}
+    </button>
+  </section>
+
+  <!-- Überwachte Kanäle -->
+  <section class="rounded-xl glass-panel p-6">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('stream_alerts.monitored_channels_title')}</h2>
+      <button id="add-sub-btn" type="button" disabled={!botOnline || totalSubs >= totalCapacity} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        + {t('common.add')}
+      </button>
+    </div>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5 flex flex-wrap gap-x-4 gap-y-1">
+      {Object.entries(PLATFORM_META).map(([key, meta]) => (
+        <span class="inline-flex items-center gap-1">
+          <PlatformIcon platform={key} class={`w-3.5 h-3.5 ${meta.colorClass}`} />
+          {meta.label}: {subscriptions[key]?.length ?? 0}/{premiumActive ? limits[key].premium : limits[key].free}
+          {!premiumActive && limits[key].premium > limits[key].free && (
+            <span class="text-slate-400">(Premium: {limits[key].premium})</span>
+          )}
+        </span>
+      ))}
+    </p>
+
+    <div id="subs-list">
+      {Object.entries(PLATFORM_META).map(([key, meta]) => (
+        <div class="mb-5 last:mb-0" data-platform-section={key} style={subscriptions[key]?.length ? '' : 'display:none'}>
+          <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+            <PlatformIcon platform={key} class={`w-3.5 h-3.5 ${meta.colorClass}`} />
+            <span>{meta.label}</span>
+          </p>
+          <div class="space-y-2" data-platform-group={key}>
+            {subscriptions[key]?.map((s: any) => (
+              <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-sub-row={s.monitored_channel_id} data-platform={key} data-channel-id={s.channel_id} data-message={s.message ?? ''}>
+                <span class={`w-2 h-2 rounded-full flex-shrink-0 ${s.live ? 'bg-primary-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{s.streamer_name}</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">
+                    → {s.channel_name ? `#${s.channel_name}` : t('stream_alerts.channel_deleted')}{s.message && ` · "${s.message}"`}
+                  </p>
+                </div>
+                {!s.active && <Badge variant="warning">{t('stream_alerts.inactive_limit')}</Badge>}
+                <Badge variant={s.live ? 'success' : 'neutral'}>{s.live ? t('stream_alerts.live') : t('stream_alerts.offline')}</Badge>
+                <button type="button" data-edit-sub={s.monitored_channel_id} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline flex-shrink-0">{t('common.edit')}</button>
+                <button type="button" data-remove-sub={s.monitored_channel_id} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline flex-shrink-0">{t('common.remove')}</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {totalSubs === 0 && (
+      <p class="text-sm text-slate-500 dark:text-slate-400 py-4" id="no-subs-msg">{t('stream_alerts.no_subs')}</p>
+    )}
+
+    <!-- Add/Edit-Form -->
+    <div id="sub-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <p id="sub-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('stream_alerts.sub_form_add_title')}</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.platform_label')}</label>
+          <select id="new-sub-platform" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            {Object.entries(PLATFORM_META).map(([key, meta]) => <option value={key}>{meta.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.username_label')}</label>
+          <input type="text" id="new-sub-username" maxlength="200" placeholder={t('stream_alerts.username_placeholder', { name: previewDisplayName })} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.target_channel_label')}</label>
+          <select id="new-sub-channel" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            {channels.map((ch) => <option value={ch.id} data-channel-name={ch.name}>#{ch.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.message_label')}</label>
+        <input type="text" id="new-sub-message" maxlength="200" placeholder={t('stream_alerts.message_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+      </div>
+
+      <div class="flex gap-2">
+        <button id="confirm-sub-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+        <button id="cancel-sub-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+      </div>
+      <p class="mt-2 text-xs text-slate-400">{t('stream_alerts.sub_form_note')}</p>
+    </div>
+  </section>
+  <!-- Verknüpfungen -->
+  <section class="rounded-xl glass-panel p-6 mt-6">
+    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('stream_alerts.links_title')}</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+      {t('stream_alerts.links_desc')}
+    </p>
+
+    <div id="links-list" class="space-y-2 mb-4">
+      {links.map((link) => (
+        <div class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-link-row={link.id}>
+          <span class="inline-flex items-center gap-1.5 text-sm text-slate-900 dark:text-white">
+            <PlatformIcon platform={link.a.platform} class={`w-4 h-4 ${PLATFORM_META[link.a.platform]?.colorClass}`} />
+            {link.a.streamer_name}
+          </span>
+          <span class="text-slate-400">↔</span>
+          <span class="inline-flex items-center gap-1.5 text-sm text-slate-900 dark:text-white">
+            <PlatformIcon platform={link.b.platform} class={`w-4 h-4 ${PLATFORM_META[link.b.platform]?.colorClass}`} />
+            {link.b.streamer_name}
+          </span>
+          <button type="button" data-remove-link={link.id} class="ml-auto text-xs font-medium text-red-600 dark:text-red-400 hover:underline">{t('stream_alerts.disconnect_btn')}</button>
+        </div>
+      ))}
+    </div>
+    {links.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('stream_alerts.no_links')}</p>}
+
+    <button id="add-link-btn" type="button" disabled={!botOnline} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50">
+      + {t('stream_alerts.create_link')}
+    </button>
+
+    <div id="link-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.channel_a_label')}</label>
+          <select id="link-sub-a" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            {Object.entries(subscriptions).flatMap(([platform, subs]: [string, any]) =>
+              subs.map((s: any) => <option value={s.subscription_id}>{s.streamer_name}</option>)
+            )}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.channel_b_label')}</label>
+          <select id="link-sub-b" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            {Object.entries(subscriptions).flatMap(([platform, subs]: [string, any]) =>
+              subs.map((s: any) => <option value={s.subscription_id}>{s.streamer_name}</option>)
+            )}
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button id="confirm-link-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('stream_alerts.link_confirm_btn')}</button>
+        <button id="cancel-link-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+      </div>
+    </div>
+  </section>
+</DashboardLayout>
+
+<script define:vars={{ guildId, i18n }}>
+  async function callModuleAction(module, action, body = {}) {
+    const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }
+    if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
+    return data.data;
+  }
+
+  function setupPingRoles() {
+    const saveBtn = document.getElementById('save-ping-roles-btn');
+    const selects = document.querySelectorAll('[data-ping-role]');
+    if (!saveBtn || selects.length === 0 || saveBtn.dataset.bound === 'true') return;
+    saveBtn.dataset.bound = 'true';
+
+    function isDirty() { return Array.from(selects).some((s) => s.value !== s.dataset.initial); }
+    selects.forEach((s) => s.addEventListener('change', () => { saveBtn.disabled = !isDirty(); }));
+
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      saveBtn.textContent = i18n.saving;
+      try {
+        for (const s of selects) {
+          if (s.value !== s.dataset.initial) {
+            await callModuleAction('stream_alerts', 'set-ping-role', { platform: s.dataset.pingRole, role_id: s.value || null });
+            s.dataset.initial = s.value;
+          }
+        }
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        saveBtn.textContent = i18n.save;
+        saveBtn.disabled = !isDirty();
+      }
+    });
+  }
+
+  function setupSubscriptions() {
+    const addBtn = document.getElementById('add-sub-btn');
+    const form = document.getElementById('sub-form');
+    const formTitle = document.getElementById('sub-form-title');
+    const platformSelect = document.getElementById('new-sub-platform');
+    const usernameInput = document.getElementById('new-sub-username');
+    const channelSelect = document.getElementById('new-sub-channel');
+    const messageInput = document.getElementById('new-sub-message');
+    const confirmBtn = document.getElementById('confirm-sub-btn');
+    const cancelBtn = document.getElementById('cancel-sub-btn');
+    const noSubsMsg = document.getElementById('no-subs-msg');
+
+    if (!addBtn || addBtn.dataset.bound === 'true') return;
+    addBtn.dataset.bound = 'true';
+
+    let editingId = null;
+
+    function openAddForm() {
+      editingId = null;
+      formTitle.textContent = i18n.subFormAddTitle;
+      platformSelect.disabled = false;
+      usernameInput.disabled = false;
+      usernameInput.value = '';
+      channelSelect.value = channelSelect.options[0]?.value || '';
+      messageInput.value = '';
+      form.classList.remove('hidden');
+      usernameInput.focus();
+    }
+
+    function openEditForm(row) {
+      editingId = row.dataset.subRow;
+      formTitle.textContent = i18n.subFormEditTitle;
+      platformSelect.value = row.dataset.platform;
+      platformSelect.disabled = true;
+      usernameInput.value = row.querySelector('.text-sm.font-medium')?.textContent || '';
+      usernameInput.disabled = true;
+      channelSelect.value = row.dataset.channelId;
+      messageInput.value = row.dataset.message || '';
+      form.classList.remove('hidden');
+    }
+
+    addBtn.addEventListener('click', openAddForm);
+    cancelBtn.addEventListener('click', () => { form.classList.add('hidden'); platformSelect.disabled = false; usernameInput.disabled = false; });
+
+    confirmBtn.addEventListener('click', async () => {
+      const channelId = channelSelect.value;
+      const message = messageInput.value.trim();
+
+      confirmBtn.disabled = true;
+      try {
+        if (editingId) {
+          await callModuleAction('stream_alerts', 'edit', { monitored_channel_id: editingId, channel_id: channelId, message: message || null });
+          const row = document.querySelector(`[data-sub-row="${editingId}"]`);
+          const channelOpt = channelSelect.selectedOptions[0];
+          row.dataset.channelId = channelId;
+          row.dataset.message = message;
+          row.querySelector('.text-xs.text-slate-500').textContent = `→ #${channelOpt.dataset.channelName}${message ? ` · "${message}"` : ''}`;
+        } else {
+          const username = usernameInput.value.trim();
+          if (!username) { alert(i18n.alertUsernameRequired); confirmBtn.disabled = false; return; }
+
+          const platform = platformSelect.value;
+          const result = await callModuleAction('stream_alerts', 'add', {
+            platform, username, channel_id: channelId, message: message || null,
+          });
+
+          const channelOpt = channelSelect.selectedOptions[0];
+          const section = document.querySelector(`[data-platform-section="${platform}"]`);
+          const group = document.querySelector(`[data-platform-group="${platform}"]`);
+          section.style.display = '';
+          noSubsMsg?.remove();
+
+          const row = document.createElement('div');
+          row.className = 'flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800';
+          row.dataset.subRow = result.monitored_channel_id;
+          row.dataset.platform = platform;
+          row.dataset.channelId = channelId;
+          row.dataset.message = message;
+          row.innerHTML = `
+            <span class="w-2 h-2 rounded-full flex-shrink-0 bg-slate-300 dark:bg-slate-600"></span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-slate-900 dark:text-white truncate"></p>
+              <p class="text-xs text-slate-500 dark:text-slate-400"></p>
+            </div>
+            <span class="badge-offline"></span>
+            <button type="button" data-edit-sub="${result.monitored_channel_id}" class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline flex-shrink-0">${i18n.edit}</button>
+            <button type="button" data-remove-sub="${result.monitored_channel_id}" class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline flex-shrink-0">${i18n.remove}</button>
+          `;
+          row.querySelector('.text-sm.font-medium').textContent = result.streamer_name;
+          row.querySelector('.text-xs.text-slate-500').textContent = `→ #${channelOpt.dataset.channelName}${message ? ` · "${message}"` : ''}`;
+          group.appendChild(row);
+          bindRowButtons(row);
+        }
+        form.classList.add('hidden');
+        platformSelect.disabled = false;
+        usernameInput.disabled = false;
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        confirmBtn.disabled = false;
+      }
+    });
+
+    function bindRowButtons(row) {
+      const editBtn = row.querySelector('[data-edit-sub]');
+      const removeBtn = row.querySelector('[data-remove-sub]');
+      if (editBtn && editBtn.dataset.bound !== 'true') {
+        editBtn.dataset.bound = 'true';
+        editBtn.addEventListener('click', () => openEditForm(row));
+      }
+      if (removeBtn && removeBtn.dataset.bound !== 'true') {
+        removeBtn.dataset.bound = 'true';
+        removeBtn.addEventListener('click', async () => {
+          if (!confirm(i18n.confirmRemoveSub)) return;
+          try {
+            await callModuleAction('stream_alerts', 'remove', { monitored_channel_id: removeBtn.dataset.removeSub });
+            const section = row.closest('[data-platform-section]');
+            row.remove();
+            if (section && section.querySelector('[data-sub-row]') === null) {
+              section.style.display = 'none';
+            }
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
+    }
+    document.querySelectorAll('[data-sub-row]').forEach(bindRowButtons);
+  }
+
+  function setupLinks() {
+    const addLinkBtn = document.getElementById('add-link-btn');
+    const linkForm = document.getElementById('link-form');
+    const subASelect = document.getElementById('link-sub-a');
+    const subBSelect = document.getElementById('link-sub-b');
+    const confirmLinkBtn = document.getElementById('confirm-link-btn');
+    const cancelLinkBtn = document.getElementById('cancel-link-btn');
+    const linksList = document.getElementById('links-list');
+
+    if (!addLinkBtn || addLinkBtn.dataset.bound === 'true') return;
+    addLinkBtn.dataset.bound = 'true';
+
+    addLinkBtn.addEventListener('click', () => linkForm.classList.remove('hidden'));
+    cancelLinkBtn.addEventListener('click', () => linkForm.classList.add('hidden'));
+
+    confirmLinkBtn.addEventListener('click', async () => {
+      const subA = subASelect.value;
+      const subB = subBSelect.value;
+      if (!subA || !subB) { alert(i18n.alertBothChannels); return; }
+      if (subA === subB) { alert(i18n.alertDifferentChannels); return; }
+
+      confirmLinkBtn.disabled = true;
+      try {
+        const result = await callModuleAction('stream_alerts', 'create-link', {
+          subscription_a_id: subA,
+          subscription_b_id: subB,
+        });
+
+        const optA = subASelect.selectedOptions[0];
+        const optB = subBSelect.selectedOptions[0];
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-800';
+        row.dataset.linkRow = result.id;
+        row.innerHTML = `
+          <span class="text-sm text-slate-900 dark:text-white"></span>
+          <span class="text-slate-400">↔</span>
+          <span class="text-sm text-slate-900 dark:text-white"></span>
+          <button type="button" data-remove-link="${result.id}" class="ml-auto text-xs font-medium text-red-600 dark:text-red-400 hover:underline">${i18n.disconnectBtn}</button>
+        `;
+        row.querySelectorAll('.text-sm.text-slate-900')[0].textContent = optA.textContent;
+        row.querySelectorAll('.text-sm.text-slate-900')[1].textContent = optB.textContent;
+        linksList.appendChild(row);
+        bindRemoveLink(row);
+
+        const emptyMsg = linksList.nextElementSibling;
+        if (emptyMsg && emptyMsg.tagName === 'P') emptyMsg.remove();
+
+        linkForm.classList.add('hidden');
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        confirmLinkBtn.disabled = false;
+      }
+    });
+
+    function bindRemoveLink(row) {
+      const btn = row.querySelector('[data-remove-link]');
+      if (!btn || btn.dataset.bound === 'true') return;
+      btn.dataset.bound = 'true';
+      btn.addEventListener('click', async () => {
+        if (!confirm(i18n.confirmRemoveLink)) return;
+        try {
+          await callModuleAction('stream_alerts', 'delete-link', { link_id: btn.dataset.removeLink });
+          row.remove();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    }
+
+    document.querySelectorAll('[data-link-row]').forEach(bindRemoveLink);
+  }
+
+  setupPingRoles();
+  setupSubscriptions();
+  setupLinks();
+  document.addEventListener('astro:page-load', () => {
+    setupPingRoles();
+    setupSubscriptions();
+    setupLinks();
+  });
+</script>

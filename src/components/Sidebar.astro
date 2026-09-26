@@ -1,0 +1,131 @@
+---
+import { Image } from 'astro:assets';
+import logoImg from '../assets/logo.png';
+import { DASHBOARD_NAV_LINKS, OWNER_ONLY_MODULE_KEYS, BRAND_NAME, BRAND_LOGO_TEXT } from '../config';
+
+interface Props {
+  currentPath: string;
+  guildName?: string;
+  guildId?: string;
+  isOwner?: boolean;
+}
+const { currentPath, guildId, isOwner = false } = Astro.props;
+const t = Astro.locals.t;
+
+// Anzeige-Label kommt jetzt aus t(), aber die Verzweigungslogik unten läuft
+// über link.key statt über den übersetzten Text (sonst bricht der Vergleich bei EN).
+const NAV_LABELS: Record<string, string> = {
+  overview: t('nav.overview'),
+  modules: t('nav.modules'),
+  settings: t('settings.title'),
+};
+
+const navLinks = DASHBOARD_NAV_LINKS.map(link => ({
+  ...link,
+  label: NAV_LABELS[link.key] ?? link.label,
+  resolvedHref: guildId ? link.href.replace(':guildId', guildId) : link.href,
+}));
+
+const MODULES = [
+  { key: 'moderation', label: t('nav.module_moderation') },
+  { key: 'levels', label: t('levels.title') },
+  { key: 'welcome', label: t('nav.module_welcome') },
+  { key: 'reaction-roles', label: t('nav.module_reaction_roles') },
+  { key: 'boosts', label: t('boost.title') },
+  { key: 'embeds', label: t('nav.module_embeds') },
+  { key: 'automod', label: t('nav.module_automod') },
+  { key: 'stream-alerts', label: t('stream_alerts.title') },
+  { key: 'tickets', label: t('tickets.title') },
+  { key: 'giveaways', label: t('nav.module_giveaways') },
+];
+
+const visibleModules = MODULES.filter(mod => !OWNER_ONLY_MODULE_KEYS.includes(mod.key) || isOwner);
+
+const moduleHref = (key: string) => (guildId ? `/server/${guildId}/modules/${key}/` : '#');
+const modulesRootHref = guildId ? `/server/${guildId}/modules/` : '/';
+const isOnModulesSection = currentPath.includes('/modules/');
+---
+
+<aside class="hidden md:flex fixed top-0 left-0 h-screen w-64 flex-col glass-panel border-y-0 border-l-0 z-[90]">
+  <!-- Logo -->
+  <div class="flex-shrink-0 px-4 h-16 flex items-center border-b border-slate-200 dark:border-slate-800">
+    <a href="/" class="flex items-center gap-2 group">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 overflow-hidden">
+        <Image
+          src={logoImg}
+          alt={`${BRAND_NAME} Logo`}
+          width={32}
+          height={32}
+          class="rounded-xl object-contain"
+        />
+      </div>
+      <span class="font-heading font-bold text-xl text-slate-900 dark:text-white">{BRAND_NAME}</span>
+    </a>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+    {navLinks.map(link => (
+      link.key === 'modules' ? (
+        <div>
+          <a
+            href={modulesRootHref}
+            class:list={[
+              "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+              isOnModulesSection
+                ? "bg-primary-500/10 text-primary-600 dark:text-primary-400 font-semibold"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+            ]}
+          >
+            <Fragment set:html={link.icon} />
+            <span>{link.label}</span>
+          </a>
+
+          {isOnModulesSection && (
+            <div class="mt-1 ml-4 pl-4 border-l border-slate-200 dark:border-slate-800 space-y-0.5">
+              {visibleModules.map(mod => {
+                const isActive = currentPath === moduleHref(mod.key);
+                return (
+                  <a
+                    href={moduleHref(mod.key)}
+                    class:list={[
+                      "block px-3 py-1.5 rounded-lg text-sm transition-colors",
+                      isActive
+                        ? "bg-primary-500/15 text-primary-600 dark:text-primary-300 font-semibold"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                    ]}
+                  >
+                    {mod.label}
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        <a
+          href={link.resolvedHref}
+          class:list={[
+            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+            currentPath === link.resolvedHref
+              ? "bg-primary-500/15 text-primary-600 dark:text-primary-400 font-semibold"
+              : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+          ]}
+        >
+          <Fragment set:html={link.icon} />
+          <span>{link.label}</span>
+        </a>
+      )
+    ))}
+  </nav>
+</aside>
+
+<!-- Mobile: Top-Bar mit Hamburger-Trigger -->
+<div class="md:hidden fixed top-0 left-0 right-0 h-14 glass-panel z-[100] flex items-center justify-between px-4">
+  <span class="font-heading font-bold text-xl text-slate-900 dark:text-white">{BRAND_NAME}</span>
+  <button id="mobile-sidebar-btn" class="p-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('nav.open_navigation')}>
+    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  </button>
+</div>

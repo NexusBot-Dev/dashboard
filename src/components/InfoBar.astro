@@ -1,0 +1,18 @@
+---
+interface Props {
+  userName: string;
+  userAvatarUrl?: string;
+}
+const { userName, userAvatarUrl } = Astro.props;
+---
+
+<div class="glass-panel rounded-xl px-6 py-4 mb-6 flex flex-wrap items-center gap-4">
+  <div class="flex items-center gap-2">
+    {userAvatarUrl && <img src={userAvatarUrl} class="w-6 h-6 rounded-full" alt="" />}
+    <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{userName}</span>
+  </div>
+  <div class="w-px h-4 bg-slate-300 dark:bg-slate-700"></div>
+  <div class="flex-1 text-sm text-slate-500 dark:text-slate-400">
+    <slot name="context" />
+  </div>
+</div>

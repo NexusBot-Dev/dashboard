@@ -395,8 +395,6 @@
     "bot_offline_status": "Bot offline",
     "locale_timezone_line": "Language: {locale} · Timezone: {tz}",
     "running_since": " · Running since {uptime}",
-    "messages_12h_label": "Messages · 12h",
-    "live_activity_note": "Live activity data coming soon",
     "stats_members": "Members",
     "stats_boosts": "Boosts",
     "stats_open_tickets": "Open tickets",
@@ -404,7 +402,14 @@
     "stats_timeouts": "Active timeouts",
     "nobody_live": "Nobody live",
     "live_more": "+{count} more",
-    "manage_modules": "Manage →"
+    "manage_modules": "Manage →",
+    "modules_active": "Modules active",
+    "view_all": "View all →",
+    "top_levels_title": "Top levels",
+    "no_open_tickets": "No open tickets 🎉",
+    "no_levels": "No levels earned yet.",
+    "unknown_user": "Unknown",
+    "deleted_category": "Deleted category"
   },
   "landing": {
     "page_title": "Welcome | Nexus Hub",

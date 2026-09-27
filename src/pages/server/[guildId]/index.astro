@@ -11,18 +11,6 @@ const numberLocale = lang === 'en' ? 'en-US' : 'de-DE';
 
 const MODULE_KEYS = ['moderation', 'levels', 'welcome', 'reaction_roles', 'boosts', 'embeds', 'automod', 'stream_alerts', 'tickets'] as const;
 
-const MODULE_LABELS: Record<string, string> = {
-  moderation: t('moderation.title'),
-  levels: t('levels.title'),
-  welcome: t('nav.module_welcome'),
-  reaction_roles: t('reaction_roles.title'),
-  boosts: t('boost.title'),
-  embeds: t('embeds.title'),
-  automod: t('automod.title'),
-  stream_alerts: t('stream_alerts.title'),
-  tickets: t('tickets.title'),
-};
-
 async function getGuildData(id: string) {
   const [[settingsRows], [premiumRows]] = await Promise.all([
     pool.query(
@@ -48,14 +36,10 @@ async function getGuildData(id: string) {
     moduleStates = {};
   }
 
-  return {
-    settings,
-    premiumActive: Boolean(premium),
-    moduleStates,
-  };
+  return { settings, premiumActive: Boolean(premium), moduleStates };
 }
 
-// DB und Bot parallel — der Bot liefert Guild-Infos UND Kennzahlen in einem Aufruf
+// DB und Bot parallel — der Bot liefert Guild-Infos, Kennzahlen, Tickets und Top-Level in einem Aufruf
 const [{ settings, premiumActive, moduleStates }, overview] = await Promise.all([
   getGuildData(guildId!),
   callGuildAction(Astro, 'guild', 'overview', guildId!).catch(() => null),
@@ -66,6 +50,7 @@ if (!settings) {
 }
 
 const isEnabled = (key: string) => key === 'moderation' || Boolean(moduleStates[key]);
+const activeModules = MODULE_KEYS.filter(isEnabled).length;
 
 const guildName: string = overview?.name ?? `Server ${guildId}`;
 const guildIconUrl: string | null = overview?.icon_url ?? null;
@@ -73,12 +58,30 @@ const online: boolean = overview?.online ?? false;
 const hierarchyOk: boolean = overview?.hierarchy_ok ?? true;
 const uptimeSince: Date | null = overview?.uptime_since ? new Date(overview.uptime_since) : null;
 const stats = overview?.stats ?? null;
+const recentTickets: any[] = overview?.recent_tickets ?? [];
+const topLevels: any[] = overview?.top_levels ?? [];
 
 function formatUptime(since: Date) {
   const diffMs = Date.now() - since.getTime();
   const hours = Math.floor(diffMs / (1000 * 60 * 60));
   const days = Math.floor(hours / 24);
   return days > 0 ? `${days}d ${hours % 24}h` : `${hours}h`;
+}
+
+// "vor 2 Stunden" / "2 hours ago" — über Intl, dafür braucht's keine eigenen Übersetzungen
+const relativeTime = new Intl.RelativeTimeFormat(numberLocale, { numeric: 'auto' });
+function formatAge(iso: string | null): string | null {
+  if (!iso) return null;
+  const diffMin = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+  if (Math.abs(diffMin) < 60) return relativeTime.format(diffMin, 'minute');
+  const diffHours = Math.round(diffMin / 60);
+  if (Math.abs(diffHours) < 24) return relativeTime.format(diffHours, 'hour');
+  return relativeTime.format(Math.round(diffHours / 24), 'day');
+}
+
+function avatarFallback(userId: string) {
+  const idx = Number(BigInt(userId) % 6n);
+  return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
 }
 
 const fmt = (n: number | null | undefined) => (typeof n === 'number' ? n.toLocaleString(numberLocale) : '–');
@@ -98,6 +101,16 @@ const tiles = [
   { key: 'live', label: t('overview.stats_live'), value: stats ? fmt(liveNames.length) : '–', sub: stats ? liveSub : undefined, href: moduleHref('stream_alerts'), show: isEnabled('stream_alerts') },
   { key: 'timeouts', label: t('overview.stats_timeouts'), value: fmt(stats?.active_timeouts), href: moduleHref('moderation'), show: true },
 ].filter((tile) => tile.show);
+
+const showTickets = isEnabled('tickets');
+const showLevels = isEnabled('levels');
+const panelCount = Number(showTickets) + Number(showLevels);
+
+const statusLabel: Record<string, string> = {
+  open: t('tickets.status_open'),
+  pending_closure: t('tickets.status_pending_closure'),
+};
+const statusVariant: Record<string, 'success' | 'warning'> = { open: 'success', pending_closure: 'warning' };
 ---
 
 <DashboardLayout title={t('nav.overview')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
@@ -124,25 +137,39 @@ const tiles = [
 
   <!-- Hero-Status -->
   <div class="rounded-2xl glass-panel p-6 md:p-8 mb-6">
-    <div class="flex items-center gap-2 mb-2">
-      <span class="relative flex h-2.5 w-2.5">
-        <span class:list={["animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", online ? "bg-primary-500" : "bg-slate-400"]}></span>
-        <span class:list={["relative inline-flex rounded-full h-2.5 w-2.5", online ? "bg-primary-500" : "bg-slate-400"]}></span>
-      </span>
-      <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-        {online ? t('overview.bot_online') : t('overview.bot_offline_status')}
-      </span>
-      {premiumActive && <Badge variant="primary">Premium</Badge>}
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="relative flex h-2.5 w-2.5">
+            <span class:list={["animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", online ? "bg-primary-500" : "bg-slate-400"]}></span>
+            <span class:list={["relative inline-flex rounded-full h-2.5 w-2.5", online ? "bg-primary-500" : "bg-slate-400"]}></span>
+          </span>
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            {online ? t('overview.bot_online') : t('overview.bot_offline_status')}
+          </span>
+          {premiumActive && <Badge variant="primary">Premium</Badge>}
+        </div>
+        <h1 class="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">{guildName}</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          {t('overview.locale_timezone_line', { locale: settings.locale.toUpperCase(), tz: settings.timezone })}
+          {uptimeSince && t('overview.running_since', { uptime: formatUptime(uptimeSince) })}
+        </p>
+      </div>
+
+      <div class="flex flex-col items-start md:items-end gap-1">
+        <p class="text-2xl font-bold text-slate-900 dark:text-white">
+          {activeModules} <span class="text-base font-medium text-slate-400">/ {MODULE_KEYS.length}</span>
+        </p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('overview.modules_active')}</p>
+        <a href={`/server/${guildId}/modules/`} class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">
+          {t('overview.manage_modules')}
+        </a>
+      </div>
     </div>
-    <h1 class="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">{guildName}</h1>
-    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-      {t('overview.locale_timezone_line', { locale: settings.locale.toUpperCase(), tz: settings.timezone })}
-      {uptimeSince && t('overview.running_since', { uptime: formatUptime(uptimeSince) })}
-    </p>
   </div>
 
   <!-- Kennzahlen -->
-  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
     {tiles.map((tile) => (
       <a href={tile.href} class="group rounded-xl glass-panel p-4 hover-glow transition-colors">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{tile.label}</p>
@@ -152,27 +179,67 @@ const tiles = [
     ))}
   </div>
 
-  <!-- Module kompakt -->
-  <div class="flex items-center justify-between mb-3">
-    <h2 class="text-lg font-bold text-slate-900 dark:text-white">{t('nav.modules')}</h2>
-    <a href={`/server/${guildId}/modules/`} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-      {t('overview.manage_modules')}
-    </a>
-  </div>
-  <div class="flex flex-wrap gap-2">
-    {MODULE_KEYS.map((key) => (
-      <a
-        href={moduleHref(key)}
-        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg glass-panel text-sm text-slate-700 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-      >
-        <span
-          class:list={["w-2 h-2 rounded-full flex-shrink-0", isEnabled(key) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"]}
-          title={isEnabled(key) ? t('settings.active_badge') : t('settings.inactive_badge')}
-        ></span>
-        {MODULE_LABELS[key]}
-      </a>
-    ))}
-  </div>
+  <!-- Tickets & Top Level -->
+  {panelCount > 0 && (
+    <div class:list={["grid grid-cols-1 gap-4", { "md:grid-cols-2": panelCount === 2 }]}>
+      {showTickets && (
+        <section class="rounded-xl glass-panel p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('tickets.open_tickets_title')}</h2>
+            <a href={moduleHref('tickets')} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{t('overview.view_all')}</a>
+          </div>
+          {!overview ? (
+            <p class="text-sm text-slate-400">{t('common.bot_offline')}</p>
+          ) : recentTickets.length === 0 ? (
+            <p class="text-sm text-slate-500 dark:text-slate-400">{t('overview.no_open_tickets')}</p>
+          ) : (
+            <div class="space-y-2">
+              {recentTickets.map((ticket) => (
+                <div class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                  <span class="text-sm font-mono text-slate-400 flex-shrink-0">#{ticket.ticket_number}</span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{ticket.user_name ?? t('overview.unknown_user')}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {[ticket.category_name ?? t('overview.deleted_category'), formatAge(ticket.created_at)].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <Badge variant={statusVariant[ticket.status] ?? 'neutral'}>{statusLabel[ticket.status] ?? ticket.status}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {showLevels && (
+        <section class="rounded-xl glass-panel p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('overview.top_levels_title')}</h2>
+            <a href={moduleHref('levels')} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{t('overview.view_all')}</a>
+          </div>
+          {!overview ? (
+            <p class="text-sm text-slate-400">{t('common.bot_offline')}</p>
+          ) : topLevels.length === 0 ? (
+            <p class="text-sm text-slate-500 dark:text-slate-400">{t('overview.no_levels')}</p>
+          ) : (
+            <div class="space-y-2">
+              {topLevels.map((entry, i) => (
+                <div class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                  <span class="w-6 text-center flex-shrink-0">{['🥇', '🥈', '🥉'][i] ?? `#${i + 1}`}</span>
+                  <img src={entry.avatar_url || avatarFallback(entry.user_id)} alt="" class="w-8 h-8 rounded-full flex-shrink-0" />
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{entry.username ?? t('overview.unknown_user')}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">{fmt(entry.xp)} XP</p>
+                  </div>
+                  <Badge variant="neutral">{t('levels.level_badge', { level: entry.level })}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+    </div>
+  )}
 
   <!-- "Letzte Aktivität" folgt mit dem Audit-Log -->
 </DashboardLayout>

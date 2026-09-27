@@ -12,6 +12,18 @@ export const DASHBOARD_NAV_LINKS = [
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>`
   },
   {
+    key: "moderation",
+    label: "Moderation",
+    href: "/server/:guildId/modules/moderation/",
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`
+  },
+  {
+    key: "embeds",
+    label: "Embeds",
+    href: "/server/:guildId/embeds/",
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="M3 9h18"/><path d="M7 13h6"/></svg>`
+  },
+  {
     key: "settings",
     label: "Einstellungen",
     href: "/server/:guildId/settings/",
@@ -25,6 +37,7 @@ export const OWNER_ONLY_MODULE_KEYS: string[] = [
 
 export const SITE_TITLE = 'Nexus Hub';
 export const SITE_URL = 'https://dashboard.trynexus.de';
+export const BASE_URL = 'https://trynexus.de'
 export const BRAND_NAME = 'Nexus';
 export const BRAND_LOGO_TEXT = 'N';
 
@@ -32,9 +45,9 @@ export const DASHBOARD_FOOTER_LINKS = [
   {
     title: 'Rechtliches',
     links: [
-      { key: 'imprint', label: 'Impressum', href: 'https://trynexus.de/imprint/' },
-      { key: 'privacy', label: 'Datenschutzerklärung', href: 'https://trynexus.de/privacy/' },
-      { key: 'terms', label: 'Nutzungsbedingungen', href: 'https://trynexus.de/terms/' },
+      { key: 'imprint', label: 'Impressum', path: '/imprint/' },
+      { key: 'privacy', label: 'Datenschutzerklärung', path: '/privacy/' },
+      { key: 'terms', label: 'Nutzungsbedingungen', path: '/terms/' },
     ],
   }
 ];

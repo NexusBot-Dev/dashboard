@@ -9,7 +9,7 @@ const t = Astro.locals.t;
 const lang = Astro.locals.lang;
 const numberLocale = lang === 'en' ? 'en-US' : 'de-DE';
 
-const MODULE_KEYS = ['moderation', 'levels', 'welcome', 'reaction_roles', 'boosts', 'embeds', 'automod', 'stream_alerts', 'tickets'] as const;
+const MODULE_KEYS = ['levels', 'welcome', 'reaction_roles', 'boosts', 'automod', 'stream_alerts', 'tickets'] as const;
 
 async function getGuildData(id: string) {
   const [[settingsRows], [premiumRows]] = await Promise.all([
@@ -49,7 +49,7 @@ if (!settings) {
   return Astro.redirect('/server');
 }
 
-const isEnabled = (key: string) => key === 'moderation' || Boolean(moduleStates[key]);
+const isEnabled = (key: string) => Boolean(moduleStates[key]);
 const activeModules = MODULE_KEYS.filter(isEnabled).length;
 
 const guildName: string = overview?.name ?? `Server ${guildId}`;

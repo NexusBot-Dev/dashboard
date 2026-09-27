@@ -1,8 +1,8 @@
 ---
-import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
-import Badge from '../../../../../components/Badge.astro';
-import pool from '../../../../../lib/db';
-import { callGuildAction } from '../../../../../lib/botApi';
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../components/Badge.astro';
+import pool from '../../../../lib/db';
+import { callGuildAction } from '../../../../lib/botApi';
 
 const { guildId } = Astro.params;
 const t = Astro.locals.t;

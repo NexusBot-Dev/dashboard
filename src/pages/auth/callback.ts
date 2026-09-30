@@ -1,13 +1,19 @@
 import type { APIRoute } from 'astro';
-import { exchangeCodeForToken, getDiscordUser, verifyState } from '../../lib/oauth';
+import { timingSafeEqual } from 'node:crypto';
+import { exchangeCodeForToken, getDiscordUser } from '../../lib/oauth';
 import { createSession } from '../../lib/session';
 
 export const GET: APIRoute = async ({ url, cookies, redirect }) => {
   const code = url.searchParams.get('code');
-  const returnedState = url.searchParams.get('state');
+  const urlState = url.searchParams.get('state');
+  const cookieState = cookies.get('oauth_state')?.value;
   cookies.delete('oauth_state', { path: '/' });
 
-  if (!verifyState(returnedState)) {
+  if (
+    !cookieState || !urlState ||
+    cookieState.length !== urlState.length ||
+    !timingSafeEqual(Buffer.from(cookieState), Buffer.from(urlState))
+  ) {
     return new Response('Ungültiger OAuth-State — bitte den Login erneut starten.', { status: 400 });
   }
 

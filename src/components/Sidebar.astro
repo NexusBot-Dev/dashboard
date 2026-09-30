@@ -12,11 +12,11 @@ interface Props {
 const { currentPath, guildId, isOwner = false } = Astro.props;
 const t = Astro.locals.t;
 
-// Anzeige-Label kommt jetzt aus t(), aber die Verzweigungslogik unten läuft
-// über link.key statt über den übersetzten Text (sonst bricht der Vergleich bei EN).
 const NAV_LABELS: Record<string, string> = {
   overview: t('nav.overview'),
   modules: t('nav.modules'),
+  moderation: t('moderation.title'),
+  embeds: t('embeds.title'),
   settings: t('settings.title'),
 };
 
@@ -27,12 +27,10 @@ const navLinks = DASHBOARD_NAV_LINKS.map(link => ({
 }));
 
 const MODULES = [
-  { key: 'moderation', label: t('nav.module_moderation') },
   { key: 'levels', label: t('levels.title') },
   { key: 'welcome', label: t('nav.module_welcome') },
   { key: 'reaction-roles', label: t('nav.module_reaction_roles') },
   { key: 'boosts', label: t('boost.title') },
-  { key: 'embeds', label: t('nav.module_embeds') },
   { key: 'automod', label: t('nav.module_automod') },
   { key: 'stream-alerts', label: t('stream_alerts.title') },
   { key: 'tickets', label: t('tickets.title') },
@@ -43,7 +41,7 @@ const visibleModules = MODULES.filter(mod => !OWNER_ONLY_MODULE_KEYS.includes(mo
 
 const moduleHref = (key: string) => (guildId ? `/server/${guildId}/modules/${key}/` : '#');
 const modulesRootHref = guildId ? `/server/${guildId}/modules/` : '/';
-const isOnModulesSection = currentPath.includes('/modules/');
+const isOnModulesSection = currentPath.includes('/modules/') && !currentPath.includes('/modules/moderation/') && !currentPath.includes('/modules/embeds/');
 ---
 
 <aside class="hidden md:flex fixed top-0 left-0 h-screen w-64 flex-col glass-panel border-y-0 border-l-0 z-[90]">

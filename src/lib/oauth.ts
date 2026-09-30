@@ -1,23 +1,6 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { CLIENT_ID, CLIENT_SECRET } from './secrets';
 
 export const REDIRECT_URI = 'https://dashboard.trynexus.de/auth/callback';
-
-export function generateState(): string {
-  const nonce = randomBytes(16).toString('hex');
-  const sig = createHmac('sha256', CLIENT_SECRET).update(nonce).digest('hex');
-  return `${nonce}.${sig}`;
-}
-
-export function verifyState(state: string | null): boolean {
-  if (!state) return false;
-  const [nonce, sig] = state.split('.');
-  if (!nonce || !sig) return false;
-  const expected = createHmac('sha256', CLIENT_SECRET).update(nonce).digest('hex');
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 export function getDiscordAuthUrl(state: string): string {
   const params = new URLSearchParams({

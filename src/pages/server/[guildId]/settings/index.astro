@@ -33,7 +33,7 @@ const timezones = Intl.supportedValuesOf('timeZone').sort();
 let channels: { id: string; name: string }[] = [];
 let guildName = `Server ${guildId}`;
 let guildIconUrl: string | null = null;
-let botNickname: string;
+let botNickname: string | null = null;
 
 const botInfoPromise = (async () => {
   try {
@@ -142,7 +142,7 @@ const i18n = {
           {t('settings.nickname_label')}
         </label>
         <p class="text-sm font-medium text-slate-900 dark:text-white">
-          {botNickname}
+          {botNickname ?? t('settings.unknown')}
         </p>
       </div>
 

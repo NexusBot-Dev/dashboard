@@ -14,6 +14,7 @@ let groups: { id: number; name: string }[] = [];
 let messages: {
   message_id: string; channel_id: string; channel_name: string | null;
   title: string; description: string;
+  display_mode: 'reaction' | 'dropdown';
   entries: { id: number; emoji: string; role_id: string; role_name: string; mode: string; group_id: number | null }[];
 }[] = [];
 let customEmojis: { name: string; id: string; animated: boolean; url: string }[] = [];

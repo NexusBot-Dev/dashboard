@@ -20,7 +20,6 @@ let messages: {
 let customEmojis: { name: string; id: string; animated: boolean; url: string }[] = [];
 let premiumActive = false;
 let botOnline = true;
-const session = Astro.locals.session;
 
 function renderDiscordMarkdown(text: string): string {
   let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -310,7 +309,7 @@ const i18n = {
   </section>
 </DashboardLayout>
 
-<script define:vars={{ guildId, actingUserId: session?.discordUserId ?? null, i18n }}>
+<script define:vars={{ guildId, i18n }}>
   const EMOJI_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|[\u200d\uFE0F\u20E3])+$/u;
   const CUSTOM_EMOJI_REGEX = /^<a?:\w+:\d+>$/;
 
@@ -405,7 +404,7 @@ const i18n = {
     const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, acting_user_id: actingUserId }),
+      body: JSON.stringify(body),
     });
     let data;
     try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }

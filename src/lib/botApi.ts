@@ -14,7 +14,7 @@ export async function callBotModuleAction(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${DASHBOARD_TOKEN}`,
     },
-    body: JSON.stringify({ guild_id: guildId, acting_user_id: actingUserId, discord_access_token: accessToken, ...extra }),
+    body: JSON.stringify({ ...extra, guild_id: guildId, acting_user_id: actingUserId, discord_access_token: accessToken }),
   });
 
   const data = await res.json();

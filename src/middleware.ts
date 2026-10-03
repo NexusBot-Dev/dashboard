@@ -20,8 +20,11 @@ function extractGuildId(pathname: string): string | null {
 }
 
 function extractModuleKey(pathname: string): string | null {
-  const match = pathname.match(/^\/(?:api\/)?server\/\d+\/modules\/([a-z0-9-]+)\//);
-  return match ? match[1] : null;
+  const match =
+    pathname.match(/^\/server\/\d+\/modules\/([a-z0-9-]+)\//) ||     // Seiten unter /modules/<key>/
+    pathname.match(/^\/server\/\d+\/([a-z0-9-]+)\//) ||               // Top-Level-Seiten, z. B. /giveaways/
+    pathname.match(/^\/api\/server\/\d+\/module\/([a-z0-9_-]+)\//);   // Modul-API
+  return match ? match[1].replace(/_/g, '-') : null;
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {

@@ -20,11 +20,13 @@ const NAV_LABELS: Record<string, string> = {
   settings: t('settings.title'),
 };
 
-const navLinks = DASHBOARD_NAV_LINKS.map(link => ({
-  ...link,
-  label: NAV_LABELS[link.key] ?? link.label,
-  resolvedHref: guildId ? link.href.replace(':guildId', guildId) : link.href,
-}));
+const navLinks = DASHBOARD_NAV_LINKS
+  .filter(link => !OWNER_ONLY_MODULE_KEYS.includes(link.key) || isOwner)
+  .map(link => ({
+    ...link,
+    label: NAV_LABELS[link.key] ?? link.label,
+    resolvedHref: guildId ? link.href.replace(':guildId', guildId) : link.href,
+  }));
 
 const MODULES = [
   { key: 'levels', label: t('levels.title') },
@@ -34,7 +36,6 @@ const MODULES = [
   { key: 'automod', label: t('nav.module_automod') },
   { key: 'stream-alerts', label: t('stream_alerts.title') },
   { key: 'tickets', label: t('tickets.title') },
-  { key: 'giveaways', label: t('nav.module_giveaways') },
 ];
 
 const visibleModules = MODULES.filter(mod => !OWNER_ONLY_MODULE_KEYS.includes(mod.key) || isOwner);

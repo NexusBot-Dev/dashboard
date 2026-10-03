@@ -1,0 +1,397 @@
+---
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../components/Badge.astro';
+import pool from '../../../../lib/db';
+import { callGuildAction } from '../../../../lib/botApi';
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+const lang = Astro.locals.lang;
+
+type Giveaway = {
+  id: number;
+  prize: string;
+  status: 'running' | 'ended' | 'cancelled';
+  winners_count: number;
+  participant_count: number;
+  end_time: string;
+  channel_id: string;
+  channel_name: string | null;
+  message_url: string;
+};
+
+async function getGuildSettings(id: string) {
+  const [rows] = await pool.query(
+    `SELECT timezone FROM guild_settings WHERE guild_id = ?`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+
+async function getPremiumInfo(id: string) {
+  const [rows] = await pool.query(
+    `SELECT expires_at FROM premium WHERE guild_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+
+const settingsPromise = getGuildSettings(guildId!);
+const premiumPromise = getPremiumInfo(guildId!);
+
+let guildName = `Server ${guildId}`;
+let guildIconUrl: string | null = null;
+let active: Giveaway[] = [];
+let history: Giveaway[] = [];
+let channels: { id: string; name: string }[] = [];
+let limits = { max_prize: 200, max_description: 2000, max_winners: 20 };
+let botOnline = true;
+
+const botInfoPromise = (async () => {
+  try {
+    const [info, list, channelsResult] = await Promise.all([
+      callGuildAction(Astro, 'guild', 'info', guildId!),
+      callGuildAction(Astro, 'giveaways', 'list', guildId!),
+      callGuildAction(Astro, 'guild', 'channels', guildId!),
+    ]);
+    return { ok: true as const, info, list, channels: channelsResult.channels };
+  } catch {
+    return { ok: false as const };
+  }
+})();
+
+const [settings, premium, botResult] = await Promise.all([settingsPromise, premiumPromise, botInfoPromise]);
+
+if (!settings) {
+  return Astro.redirect('/server');
+}
+
+const premiumActive = Boolean(premium);
+const timezone: string = settings.timezone || 'Europe/Berlin';
+
+if (botResult.ok) {
+  guildName = botResult.info.name;
+  guildIconUrl = botResult.info.icon_url;
+  active = botResult.list.active;
+  history = botResult.list.history;
+  limits = botResult.list.limits;
+  channels = botResult.channels;
+} else {
+  botOnline = false;
+}
+
+// Anzeige in der Server-Zeitzone, passend zur Eingabe der Endzeit (wie auf der Embeds-Seite)
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString(lang === 'en' ? 'en-US' : 'de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    timeZone: timezone,
+  });
+}
+
+const i18n = {
+  errorGeneric: t('common.error_generic'),
+  errorServerTemplate: t('common.error_server'),
+  unexpectedResponseTemplate: t('giveaways.unexpected_response'),
+  confirmCancel: t('giveaways.confirm_cancel'),
+};
+
+const inputClass =
+  'w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
+const labelClass = 'block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5';
+const mdBtnClass = 'h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm';
+---
+
+<DashboardLayout title={t('giveaways.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('giveaways.title')}</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-8">
+    {t('giveaways.subtitle')}
+  </p>
+
+  {!botOnline && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-700 dark:text-amber-400">{t('giveaways.data_unavailable')}</p>
+    </div>
+  )}
+
+  <!-- Neues Giveaway -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5">{t('giveaways.create_title')}</h2>
+
+    <form data-giveaway-form class="grid gap-4 md:grid-cols-2">
+      <div class="md:col-span-2">
+        <label class={labelClass} for="gw-prize">{t('giveaways.prize_label')}</label>
+        <input id="gw-prize" name="prize" type="text" required maxlength={limits.max_prize} placeholder={t('giveaways.prize_placeholder')} class={inputClass} />
+      </div>
+
+      <div class="md:col-span-2">
+        <label class={labelClass} for="gw-description">{t('giveaways.description_label')}</label>
+        <div class="flex flex-wrap gap-1 mb-2" data-md-toolbar="gw-description">
+          <button type="button" data-md="bold" title={t('tickets.md_bold')} class={`${mdBtnClass} w-8 font-bold`}>B</button>
+          <button type="button" data-md="italic" title={t('tickets.md_italic')} class={`${mdBtnClass} w-8 italic`}>I</button>
+          <button type="button" data-md="underline" title={t('tickets.md_underline')} class={`${mdBtnClass} w-8 underline`}>U</button>
+          <button type="button" data-md="strike" title={t('tickets.md_strike')} class={`${mdBtnClass} w-8 line-through`}>S</button>
+          <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+          <button type="button" data-md="h1" class={`${mdBtnClass} px-2 text-xs font-bold`}>H1</button>
+          <button type="button" data-md="h2" class={`${mdBtnClass} px-2 text-xs font-bold`}>H2</button>
+          <button type="button" data-md="h3" class={`${mdBtnClass} px-2 text-xs font-bold`}>H3</button>
+          <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+          <button type="button" data-md="code" class={`${mdBtnClass} px-2 text-xs font-mono`}>{'</>'}</button>
+          <button type="button" data-md="codeblock" class={`${mdBtnClass} px-2 text-xs font-mono`}>{'{ }'}</button>
+          <button type="button" data-md="list" class={`${mdBtnClass} w-8`}>•</button>
+        </div>
+        <textarea id="gw-description" name="description" rows="4" maxlength={limits.max_description} placeholder={t('giveaways.description_placeholder')} class={inputClass}></textarea>
+        <p class="text-xs text-slate-400 mt-2 mb-1">{t('boost.preview_label')}</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400 italic" id="gw-description-preview">—</p>
+      </div>
+
+      <div>
+        <label class={labelClass} for="gw-channel">{t('giveaways.channel_label')}</label>
+        <select id="gw-channel" name="channel_id" required disabled={channels.length === 0} class={inputClass}>
+          <option value="" disabled selected>{t('giveaways.channel_placeholder')}</option>
+          {channels.map((ch) => (
+            <option value={ch.id}>#{ch.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label class={labelClass} for="gw-winners">{t('giveaways.winners_label')}</label>
+        <input id="gw-winners" name="winners_count" type="number" required min="1" max={limits.max_winners} value="1" class={inputClass} />
+      </div>
+
+      <div class="md:col-span-2">
+        <label class={labelClass} for="gw-end">{t('giveaways.end_time_label')}</label>
+        <input id="gw-end" name="end_time" type="datetime-local" required class={inputClass} />
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5">{t('giveaways.end_time_hint', { timezone })}</p>
+      </div>
+
+      <div class="md:col-span-2 flex items-center gap-4">
+        <button type="submit" disabled={!botOnline} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          {t('giveaways.create_btn')}
+        </button>
+        <p class="text-sm text-red-600 dark:text-red-400 hidden" data-form-error></p>
+      </div>
+    </form>
+  </section>
+
+  <!-- Laufende Giveaways -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('giveaways.active_title')}</h2>
+      <span class="text-sm text-slate-500 dark:text-slate-400">{active.length}</span>
+    </div>
+
+    {active.length === 0 ? (
+      <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('giveaways.no_active')}</p>
+    ) : (
+      <div class="space-y-3">
+        {active.map((g) => (
+          <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-giveaway>
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-slate-900 dark:text-white truncate">🎉 {g.prize}</p>
+              <p class="text-sm text-slate-500 dark:text-slate-400">
+                {g.channel_name ? `#${g.channel_name}` : '–'} · {t('giveaways.ends')} {formatDate(g.end_time)}
+              </p>
+              <p class="text-sm text-slate-500 dark:text-slate-400">
+                {t('giveaways.participants')}: {g.participant_count} · {t('giveaways.winners')}: {g.winners_count}
+              </p>
+            </div>
+            <div class="flex-shrink-0 text-right">
+              <a href={g.message_url} target="_blank" rel="noopener noreferrer" class="block text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">{t('giveaways.open_in_discord')}</a>
+              <button type="button" data-cancel-giveaway={g.id} class="block mt-1 text-xs font-medium text-red-600 dark:text-red-400 hover:underline ml-auto">{t('giveaways.cancel_btn')}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </section>
+
+  <!-- Verlauf -->
+  <section class="rounded-xl glass-panel p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('giveaways.history_title')}</h2>
+      <span class="text-sm text-slate-500 dark:text-slate-400">{history.length}</span>
+    </div>
+
+    {history.length === 0 ? (
+      <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('giveaways.no_history')}</p>
+    ) : (
+      <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1" data-list="history">
+        {history.map((g) => (
+          <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-slate-900 dark:text-white truncate">{g.prize}</p>
+              <p class="text-sm text-slate-500 dark:text-slate-400">
+                {formatDate(g.end_time)} · {t('giveaways.participants')}: {g.participant_count} · {t('giveaways.winners')}: {g.winners_count}
+              </p>
+            </div>
+            <div class="flex-shrink-0 text-right">
+              <Badge variant={g.status === 'ended' ? 'success' : 'neutral'}>
+                {g.status === 'ended' ? t('giveaways.status_ended') : t('giveaways.status_cancelled')}
+              </Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </section>
+</DashboardLayout>
+
+<script define:vars={{ guildId, i18n }}>
+  async function callModuleAction(module, action, body = {}) {
+    const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }
+    if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
+    return data.data;
+  }
+
+  // --- Discord-Markdown (Escaping zuerst, wie auf den anderen Seiten) ---
+  function renderDiscordMarkdown(text) {
+    let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const codeBlocks = [];
+    out = out.replace(/```([\s\S]*?)```/g, (_, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
+    out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
+    out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
+    out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
+    out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
+    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/__(.+?)__/g, '<u>$1</u>');
+    out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
+    out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    out = out.split('\n').map((line) => {
+      if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
+      if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
+      if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
+      if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
+      return line;
+    }).join('\n');
+    out = out.replace(/%%CB(\d+)%%/g, (_, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
+    return out.replace(/\n/g, '<br>');
+  }
+
+  // --- Markdown-Toolbar ---
+  function wrapSelection(ta, before, after = before) {
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const val = ta.value;
+    const selected = val.slice(start, end);
+    ta.value = val.slice(0, start) + before + selected + after + val.slice(end);
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = start + before.length + selected.length;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.focus();
+  }
+  function prefixLines(ta, prefix) {
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const val = ta.value;
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = val.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = val.length;
+    const block = val.slice(lineStart, lineEnd);
+    const newBlock = block.split('\n').map((l) => prefix + l).join('\n');
+    ta.value = val.slice(0, lineStart) + newBlock + val.slice(lineEnd);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.focus();
+  }
+  function setupMarkdownToolbars() {
+    document.querySelectorAll('[data-md-toolbar]').forEach((toolbar) => {
+      if (toolbar.dataset.bound === 'true') return;
+      toolbar.dataset.bound = 'true';
+      const ta = document.getElementById(toolbar.dataset.mdToolbar);
+      if (!ta) return;
+      toolbar.querySelectorAll('[data-md]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          switch (btn.dataset.md) {
+            case 'bold': wrapSelection(ta, '**'); break;
+            case 'italic': wrapSelection(ta, '*'); break;
+            case 'underline': wrapSelection(ta, '__'); break;
+            case 'strike': wrapSelection(ta, '~~'); break;
+            case 'code': wrapSelection(ta, '`'); break;
+            case 'codeblock': wrapSelection(ta, '```\n', '\n```'); break;
+            case 'h1': prefixLines(ta, '# '); break;
+            case 'h2': prefixLines(ta, '## '); break;
+            case 'h3': prefixLines(ta, '### '); break;
+            case 'list': prefixLines(ta, '- '); break;
+          }
+        });
+      });
+    });
+  }
+
+  function setupDescPreview() {
+    const input = document.getElementById('gw-description');
+    const previewEl = document.getElementById('gw-description-preview');
+    if (!input || !previewEl || input.dataset.previewBound === 'true') return;
+    input.dataset.previewBound = 'true';
+    input.addEventListener('input', () => {
+      const val = input.value.trim();
+      previewEl.innerHTML = val ? renderDiscordMarkdown(val) : '—';
+    });
+  }
+
+  // --- Erstellen / Abbrechen ---
+  function setupCreateForm() {
+    const form = document.querySelector('[data-giveaway-form]');
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+
+    const errorEl = form.querySelector('[data-form-error]');
+    const submitBtn = form.querySelector('[type="submit"]');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      errorEl.classList.add('hidden');
+      submitBtn.disabled = true;
+
+      const fd = new FormData(form);
+      try {
+        await callModuleAction('giveaways', 'create', {
+          prize: fd.get('prize'),
+          description: fd.get('description'),
+          channel_id: fd.get('channel_id'),
+          end_time: fd.get('end_time'),
+          winners_count: fd.get('winners_count'),
+        });
+        window.location.reload();
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  function setupCancelButtons() {
+    document.querySelectorAll('[data-cancel-giveaway]').forEach((btn) => {
+      if (btn.dataset.bound === 'true') return;
+      btn.dataset.bound = 'true';
+      btn.addEventListener('click', async () => {
+        if (!confirm(i18n.confirmCancel)) return;
+        btn.disabled = true;
+        try {
+          await callModuleAction('giveaways', 'cancel', { id: Number(btn.dataset.cancelGiveaway) });
+          window.location.reload();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  function init() {
+    setupMarkdownToolbars();
+    setupDescPreview();
+    setupCreateForm();
+    setupCancelButtons();
+  }
+
+  init();
+  document.addEventListener('astro:page-load', init);
+</script>

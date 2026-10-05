@@ -20,7 +20,7 @@ async function getGuildSettings(id: string) {
 
 async function getPremiumInfo(id: string) {
   const [rows] = await pool.query(
-    `SELECT expires_at FROM premium WHERE guild_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    `SELECT expires_at, source FROM premium WHERE guild_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
     [id]
   );
   return (rows as any[])[0] ?? null;
@@ -75,6 +75,20 @@ function daysUntil(date: Date | string): number {
   return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 }
 
+function premiumDetail(): string {
+  if (!premium) return '';
+  const date = premium.expires_at ? new Date(premium.expires_at) : null;
+  const params = date
+    ? { date: date.toLocaleDateString(lang === 'en' ? 'en-US' : 'de-DE'), days: daysUntil(date) }
+    : {};
+
+  if (premium.source === 'discord') {
+    // NULL = Abo läuft; Datum = gekündigt, läuft noch bis dahin
+    return date ? t('settings.subscription_cancelled', params) : t('settings.subscription_active');
+  }
+  return date ? t('settings.expires_on', params) : t('settings.unlimited');
+}
+
 const i18n = {
   save: t('common.save'),
   saving: t('common.saving'),
@@ -114,19 +128,10 @@ const i18n = {
             </svg>
           </div>
           <div>
-            <p class="text-sm font-semibold text-slate-900 dark:text-white">{t('settings.premium_title', { status: premiumActive ? t('settings.active') : t('settings.inactive') })}</p>
-            {premiumActive ? (
-              <p class="text-sm text-slate-500 dark:text-slate-400">
-                {t('settings.source_discord_store')}
-                {premium?.expires_at ? (
-                  t('settings.expires_on', { date: new Date(premium.expires_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'de-DE'), days: daysUntil(premium.expires_at) })
-                ) : (
-                  t('settings.unlimited')
-                )}
-              </p>
-            ) : (
-              <p class="text-sm text-slate-500 dark:text-slate-400">{t('settings.no_active_premium')}</p>
-            )}
+            <p class="text-sm text-slate-500 dark:text-slate-400">
+              {t(`settings.source_${premium.source}`)}
+              {premiumDetail()}
+            </p>
           </div>
         </div>
         <Badge variant={premiumActive ? 'success' : 'neutral'}>{premiumActive ? t('settings.active_badge') : t('settings.inactive_badge')}</Badge>

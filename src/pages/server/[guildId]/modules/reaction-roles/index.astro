@@ -2,6 +2,7 @@
 import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
 import Badge from '../../../../../components/Badge.astro';
 import { callGuildAction } from '../../../../../lib/botApi';
+import { renderDiscordMarkdown } from '../../../../../lib/discordMarkdown';
 
 const { guildId } = Astro.params;
 const t = Astro.locals.t;
@@ -20,31 +21,6 @@ let messages: {
 let customEmojis: { name: string; id: string; animated: boolean; url: string }[] = [];
 let premiumActive = false;
 let botOnline = true;
-
-function renderDiscordMarkdown(text: string): string {
-  let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const codeBlocks: string[] = [];
-  out = out.replace(/```([\s\S]*?)```/g, (_m, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
-  out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
-  out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
-  out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
-  out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
-  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  out = out.replace(/__(.+?)__/g, '<u>$1</u>');
-  out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
-  out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
-  out = out.split('\n').map((line) => {
-    if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
-    if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
-    if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
-    if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
-    return line;
-  }).join('\n');
-  out = out.replace(/%%CB(\d+)%%/g, (_m, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
-  return out.replace(/\n/g, '<br>');
-}
 
 try {
   const [info, channelsResult, rolesResult, emojisResult, groupsResult, messagesResult] = await Promise.all([

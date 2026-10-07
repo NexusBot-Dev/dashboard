@@ -4,10 +4,14 @@ import Badge from '../../../../components/Badge.astro';
 import pool from '../../../../lib/db';
 import { callGuildAction } from '../../../../lib/botApi';
 import { intlLocale } from '../../../../i18n';
+import { renderPreview as baseRenderPreview } from '../../../../lib/discordMarkdown';
 
 const { guildId } = Astro.params;
 const t = Astro.locals.t;
 const lang = Astro.locals.lang;
+
+const renderPreview = (text: string) =>
+  baseRenderPreview(text, { user: `@${previewDisplayName}`, username: previewDisplayName, server: guildName });
 
 async function getGuildSettings(id: string) {
   const [rows] = await pool.query(
@@ -74,35 +78,6 @@ function formatScheduled(iso: string) {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
     timeZone: settings.timezone,
   });
-}
-
-function renderDiscordMarkdown(text: string): string {
-  let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const codeBlocks: string[] = [];
-  out = out.replace(/```([\s\S]*?)```/g, (_m, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
-  out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
-  out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
-  out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
-  out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
-  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  out = out.replace(/__(.+?)__/g, '<u>$1</u>');
-  out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
-  out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
-  out = out.split('\n').map((line) => {
-    if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
-    if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
-    if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
-    if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
-    return line;
-  }).join('\n');
-  out = out.replace(/%%CB(\d+)%%/g, (_m, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
-  return out.replace(/\n/g, '<br>');
-}
-
-function renderPreview(text: string) {
-  return renderDiscordMarkdown(text.replace(/{user}/g, `@${previewDisplayName}`).replace(/{username}/g, previewDisplayName).replace(/{server}/g, guildName));
 }
 
 const i18n = {
@@ -292,37 +267,6 @@ const i18n = {
 </DashboardLayout>
 
 <script define:vars={{ guildId, guildName, previewDisplayName, i18n }}>
-  function renderDiscordMarkdown(text) {
-    let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const codeBlocks = [];
-    out = out.replace(/```([\s\S]*?)```/g, (_, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
-    out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
-    out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
-    out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
-    out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
-    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    out = out.replace(/__(.+?)__/g, '<u>$1</u>');
-    out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
-    out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
-    out = out.split('\n').map((line) => {
-      if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
-      if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
-      if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
-      if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
-      return line;
-    }).join('\n');
-    out = out.replace(/%%CB(\d+)%%/g, (_, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
-    return out.replace(/\n/g, '<br>');
-  }
-
-  function renderPreview(text) {
-    return renderDiscordMarkdown(
-      text.replaceAll('{user}', `@${previewDisplayName}`).replaceAll('{username}', previewDisplayName).replaceAll('{server}', guildName)
-    );
-  }
-
   async function callModuleAction(module, action, body = {}) {
     const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
       method: 'POST',

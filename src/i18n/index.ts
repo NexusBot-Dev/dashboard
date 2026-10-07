@@ -7,7 +7,7 @@ import pt from './pt.json';
 const dictionaries = { de, en, es, pt } as const;
 export type Lang = keyof typeof dictionaries;
 
-export const SUPPORTED_LANGS: Lang[] = ['de', 'en'];
+export const SUPPORTED_LANGS = Object.keys(dictionaries) as Lang[];
 export const DEFAULT_LANG: Lang = 'en';
 
 const INTL_LOCALES: Record<Lang, string> = { de: 'de-DE', en: 'en-US', es: 'es-MX', pt: 'pt-BR' };

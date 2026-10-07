@@ -7,7 +7,7 @@ interface ManageableGuild {
   targetUrl: string;
   isExternal: boolean;
 }
-
+import type { Lang } from '../i18n';
 interface Props {
   guildName?: string;
   guildIconUrl?: string;
@@ -20,10 +20,10 @@ interface Props {
   };
   premiumActive?: boolean;
   premiumExpiresInDays?: number | null;
-  lang?: 'de' | 'en';
+  lang?: Lang;
 }
 
-const { guildName, guildIconUrl, guildId, switchableGuilds = [], user, premiumActive = false, premiumExpiresInDays = null, lang = 'de' } = Astro.props;
+const { guildName, guildIconUrl, guildId, switchableGuilds = [], user, premiumActive = false, premiumExpiresInDays = null, lang = Astro.locals.lang } = Astro.props;
 const t = Astro.locals.t;
 const displayName = user?.globalName || user?.username;
 const avatarLetter = displayName ? displayName.charAt(0).toUpperCase() : null;
@@ -36,9 +36,11 @@ const premiumNotice =
   : premiumExpiresInDays === 1 ? t('notifications.premium_expires_tomorrow')
   : t('notifications.premium_expires_soon', { days: premiumExpiresInDays });
 
-const LANG_LABELS: Record<string, { flag: string; short: string }> = {
+const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
   de: { flag: '🇩🇪', short: 'DE' },
   en: { flag: '🇬🇧', short: 'EN' },
+  es: { flag: '🇪🇸', short: 'ES' },
+  pt: { flag: '🇧🇷', short: 'PT' },
 };
 ---
 

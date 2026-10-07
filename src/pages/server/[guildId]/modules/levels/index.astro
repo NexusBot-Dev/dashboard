@@ -3,6 +3,7 @@ import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
 import Badge from '../../../../../components/Badge.astro';
 import pool from '../../../../../lib/db';
 import { callGuildAction } from '../../../../../lib/botApi';
+import { intlLocale } from '../../../../../i18n';
 
 const { guildId } = Astro.params;
 const t = Astro.locals.t;
@@ -171,7 +172,7 @@ const i18n = {
           <img src={entry.avatar_url || avatarFallback(entry.user_id)} alt="" class="w-9 h-9 rounded-full flex-shrink-0" />
           <div class="min-w-0 flex-1">
             <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{entry.username}</p>
-            <p class="text-xs text-slate-500 dark:text-slate-400">{entry.xp.toLocaleString(lang === 'en' ? 'en-US' : 'de-DE')} XP</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{entry.xp.toLocaleString(intlLocale(lang))} XP</p>
           </div>
           <Badge variant="neutral">{t('levels.level_badge', { level: entry.level })}</Badge>
         </div>

@@ -3,6 +3,7 @@ import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
 import Badge from '../../../../components/Badge.astro';
 import pool from '../../../../lib/db';
 import { callGuildAction } from '../../../../lib/botApi';
+import { intlLocale } from '../../../../i18n';
 
 const { guildId } = Astro.params;
 const t = Astro.locals.t;
@@ -83,7 +84,7 @@ if (botResult.ok) {
 
 // Anzeige in der Server-Zeitzone, passend zur Eingabe der Endzeit (wie auf der Embeds-Seite)
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString(lang === 'en' ? 'en-US' : 'de-DE', {
+  return new Date(iso).toLocaleString(intlLocale(lang), {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
     timeZone: timezone,
   });

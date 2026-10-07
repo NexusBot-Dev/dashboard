@@ -31,7 +31,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
 
   // Sprache gilt für ALLE Requests, auch public paths (Login-Seite etc.)
-  const lang = getLang(context.cookies);
+  const lang = getLang(context.cookies, context.request.headers.get('accept-language'));
   context.locals.lang = lang;
   context.locals.t = (key: string, vars?: Record<string, string | number>) => translate(lang, key, vars);
 

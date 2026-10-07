@@ -1,12 +1,17 @@
 import type { AstroCookies } from 'astro';
 import de from './de.json';
 import en from './en.json';
+import es from './es.json';
+import pt from './pt.json';
 
-const dictionaries = { de, en } as const;
+const dictionaries = { de, en, es, pt } as const;
 export type Lang = keyof typeof dictionaries;
 
 export const SUPPORTED_LANGS: Lang[] = ['de', 'en'];
-export const DEFAULT_LANG: Lang = 'de';
+export const DEFAULT_LANG: Lang = 'en';
+
+const INTL_LOCALES: Record<Lang, string> = { de: 'de-DE', en: 'en-US', es: 'es-MX', pt: 'pt-BR' };
+export const intlLocale = (lang: Lang) => INTL_LOCALES[lang];
 
 const LANG_COOKIE = 'nexus_lang';
 
@@ -14,10 +19,25 @@ function isLang(value: string | undefined): value is Lang {
   return !!value && SUPPORTED_LANGS.includes(value as Lang);
 }
 
-export function getLang(cookies: AstroCookies): Lang {
+function fromAcceptLanguage(header: string | null | undefined): Lang | null {
+  if (!header) return null;
+  const candidates = header
+    .split(',')
+    .map((part) => {
+      const [tag, q] = part.trim().split(';q=');
+      return { lang: tag.split('-')[0].toLowerCase(), q: q ? parseFloat(q) : 1 };
+    })
+    .sort((a, b) => b.q - a.q);
+  for (const c of candidates) {
+    if (isLang(c.lang)) return c.lang;
+  }
+  return null;
+}
+
+export function getLang(cookies: AstroCookies, acceptLanguage?: string | null): Lang {
   const cookieVal = cookies.get(LANG_COOKIE)?.value;
   if (isLang(cookieVal)) return cookieVal;
-  return DEFAULT_LANG;
+  return fromAcceptLanguage(acceptLanguage) ?? DEFAULT_LANG;
 }
 
 export function setLang(cookies: AstroCookies, lang: Lang) {

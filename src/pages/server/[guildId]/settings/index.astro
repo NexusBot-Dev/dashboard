@@ -3,6 +3,7 @@ import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
 import Badge from '../../../../components/Badge.astro';
 import pool from '../../../../lib/db';
 import { callGuildAction } from '../../../../lib/botApi';
+import { intlLocale } from '../../../../i18n';
 
 const { guildId } = Astro.params;
 const t = Astro.locals.t;
@@ -79,7 +80,7 @@ function premiumDetail(): string {
   if (!premium) return '';
   const date = premium.expires_at ? new Date(premium.expires_at) : null;
   const params = date
-    ? { date: date.toLocaleDateString(lang === 'en' ? 'en-US' : 'de-DE'), days: daysUntil(date) }
+    ? { date: date.toLocaleString(intlLocale(lang)), days: daysUntil(date) }
     : {};
 
   if (premium.source === 'discord') {
@@ -172,6 +173,8 @@ const i18n = {
           <select name="locale" data-field data-initial={settings.locale} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
             <option value="de" selected={settings.locale === 'de'}>Deutsch</option>
             <option value="en" selected={settings.locale === 'en'}>English</option>
+            <option value="es" selected={settings.locale === 'es'}>Español</option>
+            <option value="pt" selected={settings.locale === 'pt'}>Português</option>
           </select>
         </div>
         <div>

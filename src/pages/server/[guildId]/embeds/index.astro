@@ -3,6 +3,7 @@ import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
 import Badge from '../../../../components/Badge.astro';
 import pool from '../../../../lib/db';
 import { callGuildAction } from '../../../../lib/botApi';
+import { intlLocale } from '../../../../i18n';
 
 const { guildId } = Astro.params;
 const t = Astro.locals.t;
@@ -69,7 +70,7 @@ const limit = premiumActive ? limitPremium : limitFree;
 
 function formatScheduled(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleString(lang === 'en' ? 'en-US' : 'de-DE', {
+  return d.toLocaleString(intlLocale(lang), {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
     timeZone: settings.timezone,
   });

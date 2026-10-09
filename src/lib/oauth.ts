@@ -1,5 +1,28 @@
 import { CLIENT_ID, CLIENT_SECRET } from './secrets';
 
+export class DiscordApiError extends Error {
+  status: number;
+  retryAfter?: number;
+  constructor(message: string, status: number, retryAfter?: number) {
+    super(message);
+    this.status = status;
+    this.retryAfter = retryAfter;
+  }
+}
+
+export async function getDiscordUserGuilds(accessToken: string) {
+  const res = await fetch('https://discord.com/api/users/@me/guilds', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    const retryAfter = res.status === 429 ? Number(res.headers.get('retry-after')) || 5 : undefined;
+    throw new DiscordApiError('Fehler beim Abrufen der Serverliste', res.status, retryAfter);
+  }
+
+  return await res.json();
+}
+
 export const REDIRECT_URI = 'https://dashboard.trynexus.de/auth/callback';
 
 export function getDiscordAuthUrl(state: string): string {
@@ -80,20 +103,6 @@ export async function getDiscordUser(accessToken: string) {
 
   if (!res.ok) {
     throw new Error('Fehler beim Abrufen des Nutzerprofils');
-  }
-
-  return await res.json();
-}
-
-export async function getDiscordUserGuilds(accessToken: string) {
-  const res = await fetch('https://discord.com/api/users/@me/guilds', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error('Fehler beim Abrufen der Serverliste');
   }
 
   return await res.json();

@@ -30,6 +30,7 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
       body: JSON.stringify({
         guild_id: guildId,
         fields,
+        acting_user_id: session.discordUserId,
         discord_access_token: session.accessToken,
       }),
     });

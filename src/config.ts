@@ -38,7 +38,7 @@ export const DASHBOARD_NAV_LINKS = [
 ];
 
 export const OWNER_ONLY_MODULE_KEYS: string[] = [
-  'giveaways',
+  
 ];
 
 export const SITE_TITLE = 'Nexus Hub';

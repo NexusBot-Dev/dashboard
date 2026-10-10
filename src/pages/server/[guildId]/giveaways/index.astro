@@ -48,12 +48,21 @@ let channels: { id: string; name: string }[] = [];
 let limits = { max_prize: 200, max_description: 2000, max_winners: 20 };
 let botOnline = true;
 
+async function callBot(module: string, action: string) {
+  try {
+    return await callGuildAction(Astro, module, action, guildId!);
+  } catch (err) {
+    console.error(`Giveaways-Seite: ${module}/${action} fehlgeschlagen:`, err);
+    throw err;
+  }
+}
+
 const botInfoPromise = (async () => {
   try {
     const [info, list, channelsResult] = await Promise.all([
-      callGuildAction(Astro, 'guild', 'info', guildId!),
-      callGuildAction(Astro, 'giveaways', 'list', guildId!),
-      callGuildAction(Astro, 'guild', 'channels', guildId!),
+      callBot('guild', 'info'),
+      callBot('giveaways', 'list'),
+      callBot('guild', 'channels'),
     ]);
     return { ok: true as const, info, list, channels: channelsResult.channels };
   } catch {

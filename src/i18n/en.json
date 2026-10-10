@@ -459,7 +459,6 @@
     "channel_label": "Channel",
     "channel_placeholder": "Select a channel ...",
     "winners_label": "Number of winners",
-    "end_time_label": "End time",
     "end_time_hint": "The time is interpreted in your server's timezone ({timezone}).",
     "create_btn": "Start giveaway",
     "active_title": "Active giveaways",

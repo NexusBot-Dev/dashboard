@@ -17,6 +17,8 @@ let xpMin = 5;
 let xpMax = 5;
 let cooldownSeconds = 60;
 let allRoles: { id: string; name: string; color: number }[] = [];
+let channels: { id: string; name: string }[] = [];
+let levelupChannelId = '';
 let botOnline = true;
 let premiumActive = false;
 
@@ -29,10 +31,11 @@ async function getPremiumInfo(id: string) {
 }
 
 try {
-  const [premium, info, rolesResult, levelRolesResult, leaderboardResult, xpResult] = await Promise.all([
+  const [premium, info, rolesResult, channelsResult, levelRolesResult, leaderboardResult, xpResult] = await Promise.all([
     getPremiumInfo(guildId!),
     callGuildAction(Astro, 'guild', 'info', guildId!),
     callGuildAction(Astro, 'guild', 'roles', guildId!),
+    callGuildAction(Astro, 'guild', 'channels', guildId!),
     callGuildAction(Astro, 'leveling', 'list-roles', guildId!),
     callGuildAction(Astro, 'leveling', 'leaderboard', guildId!),
     callGuildAction(Astro, 'leveling', 'get-xp-settings', guildId!),
@@ -42,11 +45,13 @@ try {
   guildName = info.name;
   guildIconUrl = info.icon_url;
   allRoles = rolesResult.roles;
+  channels = channelsResult.channels;
   roles = levelRolesResult.roles;
   leaderboard = leaderboardResult.entries;
   xpMin = xpResult.xp_min;
   xpMax = xpResult.xp_max;
   cooldownSeconds = xpResult.cooldown_seconds;
+  levelupChannelId = xpResult.levelup_channel_id ?? '';
 } catch {
   botOnline = false;
 }
@@ -107,6 +112,24 @@ const i18n = {
       {t('common.save')}
     </button>
     <p class="mt-3 text-xs text-slate-400">{t('levels.cooldown_note')}</p>
+  </section>
+
+  <!-- Level-Up-Nachricht -->
+  <section class="rounded-xl glass-panel p-6 mb-6">
+    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('levels.levelup_section_title')}</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('levels.levelup_section_desc')}</p>
+    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.levelup_channel_label')}</label>
+    <select id="levelup-channel-select" data-initial={levelupChannelId} disabled={!botOnline} class="w-full sm:w-80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
+      <option value="" selected={levelupChannelId === ''}>{t('levels.levelup_channel_default')}</option>
+      {channels.map((ch) => (
+        <option value={ch.id} selected={ch.id === levelupChannelId}>#{ch.name}</option>
+      ))}
+    </select>
+    <div class="mt-4">
+      <button id="save-levelup-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        {t('common.save')}
+      </button>
+    </div>
   </section>
 
   <!-- Level-Rollen -->
@@ -231,6 +254,30 @@ const i18n = {
     });
   }
 
+  function setupLevelUpChannel() {
+    const select = document.getElementById('levelup-channel-select');
+    const saveBtn = document.getElementById('save-levelup-btn');
+    if (!select || !saveBtn || saveBtn.dataset.bound === 'true') return;
+    saveBtn.dataset.bound = 'true';
+
+    function refresh() { saveBtn.disabled = select.value === select.dataset.initial; }
+    select.addEventListener('change', refresh);
+
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      saveBtn.textContent = i18n.saving;
+      try {
+        await callModuleAction('leveling', 'set-levelup-channel', { channel_id: select.value || null });
+        select.dataset.initial = select.value;
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        saveBtn.textContent = i18n.save;
+        refresh();
+      }
+    });
+  }
+
   function setupLevelRoles() {
     const addBtn = document.getElementById('add-level-role-btn');
     const form = document.getElementById('level-role-form');
@@ -339,9 +386,11 @@ const i18n = {
   }
 
   setupXpSettings();
+  setupLevelUpChannel();
   setupLevelRoles();
   document.addEventListener('astro:page-load', () => {
     setupXpSettings();
+    setupLevelUpChannel();
     setupLevelRoles();
   });
 </script>

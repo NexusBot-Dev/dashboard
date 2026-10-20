@@ -154,11 +154,11 @@ const i18n = {
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="font-semibold text-slate-900 dark:text-white">{e.name}</span>
-                  <span class="text-xs text-slate-400">→ {channelName ? `#${channelName}` : t('embeds.no_channel_inline')}</span>
+                  <span class="font-semibold text-slate-900 dark:text-white embed-name-text">{e.name}</span>
+                  <span class="text-xs text-slate-400 embed-channel-text">{channelName ? `#${channelName}` : t('embeds.no_channel_inline')}</span>
                 </div>
-                <p class="text-sm font-medium text-slate-700 dark:text-slate-300">{e.title}</p>
-                <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{e.description}</p>
+                <p class="text-sm font-medium text-slate-700 dark:text-slate-300 embed-title-text">{e.title}</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 embed-desc-text">{e.description}</p>
                 {e.scheduled_at && (
                   <p class="mt-1.5 text-xs" data-schedule-badge>
                     <Badge variant="warning">{t('embeds.scheduled_for', { date: formatScheduled(e.scheduled_at) })}</Badge>

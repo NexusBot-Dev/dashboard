@@ -1,5 +1,5 @@
 import type { AstroCookies } from 'astro';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import pool from './db';
 import { encrypt, decrypt } from './crypto';
 import { refreshAccessToken } from './oauth';
@@ -8,6 +8,10 @@ const SESSION_COOKIE = 'nexus_session_id';
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 const REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 1 Tag
+
+function hashSessionId(sessionId: string): string {
+  return createHash('sha256').update(sessionId).digest('hex');
+}
 
 export interface SessionData {
   discordUserId: string;
@@ -28,7 +32,7 @@ export async function createSession(cookies: AstroCookies, data: Omit<SessionDat
      (id, discord_user_id, username, global_name, avatar_url, access_token, refresh_token, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      sessionId,
+      hashSessionId(sessionId),
       data.discordUserId,
       data.username,
       data.globalName ?? null,
@@ -48,7 +52,7 @@ export async function createSession(cookies: AstroCookies, data: Omit<SessionDat
   });
 }
 
-async function refreshAndPersist(sessionId: string, currentRefreshToken: string) {
+async function refreshAndPersist(sessionIdHash: string, currentRefreshToken: string) {
   const tokenData = await refreshAccessToken(currentRefreshToken);
   const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
@@ -56,7 +60,7 @@ async function refreshAndPersist(sessionId: string, currentRefreshToken: string)
     `UPDATE dashboard_sessions
      SET access_token = ?, refresh_token = ?, expires_at = ?
      WHERE id = ?`,
-    [encrypt(tokenData.access_token), encrypt(tokenData.refresh_token), expiresAt, sessionId]
+    [encrypt(tokenData.access_token), encrypt(tokenData.refresh_token), expiresAt, sessionIdHash]
   );
 
   return {
@@ -69,13 +73,14 @@ async function refreshAndPersist(sessionId: string, currentRefreshToken: string)
 export async function getSession(cookies: AstroCookies): Promise<SessionData | null> {
   const sessionId = cookies.get(SESSION_COOKIE)?.value;
   if (!sessionId) return null;
+  const sessionIdHash = hashSessionId(sessionId);
 
-  const [rows] = await pool.query('SELECT * FROM dashboard_sessions WHERE id = ?', [sessionId]);
+  const [rows] = await pool.query('SELECT * FROM dashboard_sessions WHERE id = ?', [sessionIdHash]);
   const row = (rows as any[])[0];
   if (!row) return null;
 
   if (new Date(row.expires_at).getTime() < Date.now()) {
-    await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [sessionId]);
+    await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [sessionIdHash]);
     return null;
   }
 
@@ -88,19 +93,19 @@ export async function getSession(cookies: AstroCookies): Promise<SessionData | n
     expiresAt = new Date(row.expires_at);
   } catch (err) {
     console.error('Session-Token-Entschlüsselung fehlgeschlagen, verwerfe Session:', err);
-    await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [sessionId]);
+    await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [sessionIdHash]);
     return null;
   }
 
   if (expiresAt.getTime() - Date.now() < REFRESH_THRESHOLD_MS) {
     try {
-      const refreshed = await refreshAndPersist(sessionId, refreshToken);
+      const refreshed = await refreshAndPersist(sessionIdHash, refreshToken);
       accessToken = refreshed.accessToken;
       refreshToken = refreshed.refreshToken;
       expiresAt = refreshed.expiresAt;
     } catch (err) {
       console.error('Token-Refresh fehlgeschlagen, beende Session:', err);
-      await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [sessionId]);
+      await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [sessionIdHash]);
       return null;
     }
   }
@@ -119,7 +124,7 @@ export async function getSession(cookies: AstroCookies): Promise<SessionData | n
 export async function clearSession(cookies: AstroCookies) {
   const sessionId = cookies.get(SESSION_COOKIE)?.value;
   if (sessionId) {
-    await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [sessionId]);
+    await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [hashSessionId(sessionId)]);
   }
   cookies.delete(SESSION_COOKIE, { path: '/' });
 }

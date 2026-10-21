@@ -21,14 +21,12 @@ export interface ManageableGuild {
   isExternal: boolean;
 }
 
-/**
- * Liefert alle Guilds, auf denen der User Admin/Manage-Guild hat, inkl.
- * Info ob der Bot dort schon läuft. Wird sowohl vom Server-Picker als auch
- * vom Server-Switcher-Dropdown im TopHeader verwendet — eine Quelle statt
- * doppelter Logik an zwei Stellen.
- */
-export async function getManageableGuilds(accessToken: string, clientId: string): Promise<ManageableGuild[]> {
-  const discordGuilds = await getCachedUserGuilds(accessToken);
+export async function getManageableGuilds(
+  accessToken: string,
+  clientId: string,
+  forceRefresh = false
+): Promise<ManageableGuild[]> {
+  const discordGuilds = await getCachedUserGuilds(accessToken, forceRefresh);
   const manageableGuilds = discordGuilds.filter(hasAdminOrManageAccess);
 
   const guildIds = manageableGuilds.map((g: any) => g.id);
@@ -45,7 +43,7 @@ export async function getManageableGuilds(accessToken: string, clientId: string)
 
   return manageableGuilds.map((g: any) => {
     const botPresent = botGuildIds.has(g.id);
-    const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=8&guild_id=${g.id}&disable_guild_select=true`;
+    const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&guild_id=${g.id}&disable_guild_select=true`;
 
     return {
       guildId: g.id,

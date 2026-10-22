@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../../../../lib/session';
-import { callBotModuleAction } from '../../../../../../lib/botApi';
+import { callBotModuleAction, BotApiError } from '../../../../../../lib/botApi';
 
 export const POST: APIRoute = async ({ params, request, cookies }) => {
   const session = await getSession(cookies);
@@ -25,6 +25,15 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
     return new Response(JSON.stringify({ ok: true, data }), { status: 200 });
   } catch (err) {
     console.error(`Modul-Aktion fehlgeschlagen (${module}/${action}):`, err);
+
+    // Der Bot ist erreichbar, drosselt aber — das ist nicht "offline".
+    if (err instanceof BotApiError && err.isRateLimited) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'rate_limited', retry_after: err.retryAfter ?? null }),
+        { status: 429 }
+      );
+    }
+
     return new Response(JSON.stringify({ ok: false, error: 'bot_unreachable' }), { status: 502 });
   }
 };

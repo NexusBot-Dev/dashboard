@@ -65,10 +65,14 @@ if (!settings) {
 const premiumActive = Boolean(premium);
 const announcementsEnabled = Boolean(settings.announcements_enabled);
 
-function discordColorToHex(color: number | null): string {
-  if (color === null || color === 0) return '#00F5D4';
-  return '#' + color.toString(16).padStart(6, '0');
+// Immer kleingeschrieben: <input type="color"> normalisiert seinen Wert so, sonst wäre das Feld sofort "geändert"
+function discordColorToHex(color: number | string | null): string {
+  const n = Number(color);
+  if (!n || n < 0 || n > 0xffffff) return '#00f5d4';
+  return '#' + n.toString(16).padStart(6, '0');
 }
+// Ohne Premium nutzt der Bot (get_color) die Standardfarbe, also zeigen wir auch genau die an
+const accentColor = premiumActive ? discordColorToHex(settings.color) : '#00f5d4';
 
 function daysUntil(date: Date | string): number {
   const target = new Date(date).getTime();
@@ -159,10 +163,19 @@ const i18n = {
       </div>
 
       <div class="max-w-sm mb-5">
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.accent_color_label')}</label>
+        <label for="accent-color-input" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.accent_color_label')}</label>
         <div class="flex items-center gap-2">
-          <div class="h-9 w-12 rounded-lg border border-slate-200 dark:border-slate-700" style={`background-color: ${discordColorToHex(settings.color)}`}></div>
-          <span class="text-sm font-mono text-slate-600 dark:text-slate-400">{discordColorToHex(settings.color)}</span>
+          <input
+            type="color"
+            id="accent-color-input"
+            name="color"
+            value={accentColor}
+            data-field
+            data-initial={accentColor}
+            disabled={!premiumActive}
+            class="h-9 w-12 p-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+          <span id="accent-color-hex" class="text-sm font-mono text-slate-600 dark:text-slate-400">{accentColor.toUpperCase()}</span>
           {!premiumActive && <span class="text-xs text-slate-400">{t('settings.premium_custom_color_hint')}</span>}
         </div>
       </div>
@@ -315,6 +328,8 @@ const i18n = {
     const saveBtn = document.getElementById('save-btn');
     const discardBtn = document.getElementById('discard-btn');
     const announcementsToggle = document.getElementById('announcements-toggle');
+    const colorInput = document.getElementById('accent-color-input');
+    const colorHex = document.getElementById('accent-color-hex');
 
     if (!form || !saveBar || !saveBtn || !discardBtn) return;
     if (form.dataset.bound === 'true') return;
@@ -334,10 +349,16 @@ const i18n = {
       saveBar.classList.toggle('hidden', !isDirty());
     }
 
+    function syncColorLabel() {
+      if (colorInput && colorHex) colorHex.textContent = colorInput.value.toUpperCase();
+    }
+
     form.querySelectorAll('input[data-field], select[data-field]').forEach((el) => {
       el.addEventListener('input', refreshSaveBar);
       el.addEventListener('change', refreshSaveBar);
     });
+
+    if (colorInput) colorInput.addEventListener('input', syncColorLabel);
 
     if (announcementsToggle) {
       announcementsToggle.addEventListener('click', () => {
@@ -368,6 +389,7 @@ const i18n = {
           el.value = el.dataset.initial;
         }
       });
+      syncColorLabel();
       refreshSaveBar();
     });
 
@@ -397,6 +419,9 @@ const i18n = {
           alert(i18n.saveErrorPrefix + (data.error || i18n.unknown));
           return;
         }
+
+        const warnings = data.data?.warnings ?? data.warnings ?? [];
+        if (warnings.length > 0) alert(warnings.join('\n'));
 
         form.querySelectorAll('[data-field]').forEach((el) => {
           el.dataset.initial = fieldValue(el);

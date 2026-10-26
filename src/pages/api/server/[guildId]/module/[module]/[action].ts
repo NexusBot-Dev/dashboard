@@ -21,7 +21,7 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
   }
 
   try {
-    const data = await callBotModuleAction(module, action, guildId, body, session.discordUserId, session.accessToken);
+    const data = await callBotModuleAction(module, action, guildId, body, session.discordUserId);
     return new Response(JSON.stringify({ ok: true, data }), { status: 200 });
   } catch (err) {
     console.error(`Modul-Aktion fehlgeschlagen (${module}/${action}):`, err);
@@ -32,6 +32,12 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
         JSON.stringify({ ok: false, error: 'rate_limited', retry_after: err.retryAfter ?? null }),
         { status: 429 }
       );
+    }
+
+    // Der Bot hat geantwortet, die Aktion aber fachlich abgelehnt (z.B. fehlende Rechte) —
+    // seine Meldung durchreichen. Nur Netzwerkfehler und 5xx heißen wirklich "nicht erreichbar".
+    if (err instanceof BotApiError && err.status >= 400 && err.status < 500) {
+      return new Response(JSON.stringify({ ok: false, error: err.code }), { status: err.status });
     }
 
     return new Response(JSON.stringify({ ok: false, error: 'bot_unreachable' }), { status: 502 });

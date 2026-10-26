@@ -8,9 +8,7 @@ Instant alerts, real-time raid defense - no bloat, no filler.
 - Astro 7 with static output
 - Tailwind CSS 4 styling
 - Responsive SaaS landing page sections
-- Pricing, FAQ, testimonials, blog, and changelog pages
 - MDX content with reusable callout components
-- Dark and light mode with persisted user preference
 - Command palette search
 - Astro view transitions
 - Playwright UI regression tests

@@ -34,6 +34,12 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
       );
     }
 
+    // Der Bot hat geantwortet, die Aktion aber fachlich abgelehnt (z.B. fehlende Rechte) —
+    // seine Meldung durchreichen. Nur Netzwerkfehler und 5xx heißen wirklich "nicht erreichbar".
+    if (err instanceof BotApiError && err.status >= 400 && err.status < 500) {
+      return new Response(JSON.stringify({ ok: false, error: err.code }), { status: err.status });
+    }
+
     return new Response(JSON.stringify({ ok: false, error: 'bot_unreachable' }), { status: 502 });
   }
 };

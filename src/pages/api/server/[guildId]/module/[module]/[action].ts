@@ -21,7 +21,7 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
   }
 
   try {
-    const data = await callBotModuleAction(module, action, guildId, body, session.discordUserId, session.accessToken);
+    const data = await callBotModuleAction(module, action, guildId, body, session.discordUserId);
     return new Response(JSON.stringify({ ok: true, data }), { status: 200 });
   } catch (err) {
     console.error(`Modul-Aktion fehlgeschlagen (${module}/${action}):`, err);

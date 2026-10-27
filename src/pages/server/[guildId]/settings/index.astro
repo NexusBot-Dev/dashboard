@@ -82,16 +82,14 @@ function daysUntil(date: Date | string): number {
 
 function premiumDetail(): string {
   if (!premium) return '';
-  const date = premium.expires_at ? new Date(premium.expires_at) : null;
-  const params = date
-    ? { date: date.toLocaleString(intlLocale(lang)), days: daysUntil(date) }
-    : {};
-
-  if (premium.source === 'discord') {
-    // NULL = Abo läuft; Datum = gekündigt, läuft noch bis dahin
-    return date ? t('settings.subscription_cancelled', params) : t('settings.subscription_active');
+  const isDiscord = premium.source === 'discord';
+  if (!premium.expires_at) {
+    return t(isDiscord ? 'settings.subscription_active' : 'settings.unlimited');
   }
-  return date ? t('settings.expires_on', params) : t('settings.unlimited');
+  const date = new Date(premium.expires_at);
+  const params = { date: date.toLocaleString(intlLocale(lang)), days: daysUntil(date) };
+  // Discord: Datum = gekündigt, läuft noch bis dahin
+  return t(isDiscord ? 'settings.subscription_cancelled' : 'settings.expires_on', params);
 }
 const premiumSourceLabel = premium?.source ? t(`settings.source_${premium.source}`) : '';
 

@@ -250,12 +250,6 @@ const i18n = {
 </DashboardLayout>
 
 <script define:vars={{ guildId, guildName, previewDisplayName, i18n }}>
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
   function renderDiscordMarkdown(text) {
     let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const codeBlocks = [];

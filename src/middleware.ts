@@ -15,7 +15,8 @@ function isPublicPath(pathname: string): boolean {
 }
 
 function extractGuildId(pathname: string): string | null {
-  const match = pathname.match(/^\/(?:api\/)?server\/(\d+)\//);
+  // Auch ohne abschließenden Slash erkennen — die Zugriffsprüfung soll nicht an trailingSlash hängen
+  const match = pathname.match(/^\/(?:api\/)?server\/(\d+)(?:\/|$)/);
   return match ? match[1] : null;
 }
 

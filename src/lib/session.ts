@@ -52,6 +52,40 @@ export async function createSession(cookies: AstroCookies, data: Omit<SessionDat
   });
 }
 
+// Laufende Refreshes pro Session. Discord tauscht den Refresh-Token bei jedem Refresh aus:
+// Refreshen zwei parallele Requests mit demselben Token, scheitert der zweite — und ohne
+// diese Bündelung würde er die Session löschen (Nutzer fliegt scheinbar zufällig raus).
+const pendingRefreshes = new Map<string, Promise<{ accessToken: string; refreshToken: string; expiresAt: Date }>>();
+
+function refreshOnce(sessionIdHash: string, currentRefreshToken: string) {
+  const pending = pendingRefreshes.get(sessionIdHash);
+  if (pending) return pending;
+  const promise = refreshAndPersist(sessionIdHash, currentRefreshToken).finally(() => {
+    pendingRefreshes.delete(sessionIdHash);
+  });
+  pendingRefreshes.set(sessionIdHash, promise);
+  return promise;
+}
+
+/** Liest die Tokens einer Session neu aus der DB — null, wenn sie fehlt oder nicht entschlüsselbar ist. */
+async function reloadTokens(sessionIdHash: string) {
+  const [rows] = await pool.query(
+    'SELECT access_token, refresh_token, expires_at FROM dashboard_sessions WHERE id = ?',
+    [sessionIdHash]
+  );
+  const row = (rows as any[])[0];
+  if (!row) return null;
+  try {
+    return {
+      accessToken: decrypt(row.access_token),
+      refreshToken: decrypt(row.refresh_token),
+      expiresAt: new Date(row.expires_at),
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function refreshAndPersist(sessionIdHash: string, currentRefreshToken: string) {
   const tokenData = await refreshAccessToken(currentRefreshToken);
   const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
@@ -99,14 +133,23 @@ export async function getSession(cookies: AstroCookies): Promise<SessionData | n
 
   if (expiresAt.getTime() - Date.now() < REFRESH_THRESHOLD_MS) {
     try {
-      const refreshed = await refreshAndPersist(sessionIdHash, refreshToken);
+      const refreshed = await refreshOnce(sessionIdHash, refreshToken);
       accessToken = refreshed.accessToken;
       refreshToken = refreshed.refreshToken;
       expiresAt = refreshed.expiresAt;
     } catch (err) {
-      console.error('Token-Refresh fehlgeschlagen, beende Session:', err);
-      await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [sessionIdHash]);
-      return null;
+      // Hat ein anderer Request (z.B. eine zweite Dashboard-Instanz) inzwischen refresht,
+      // stehen die neuen Tokens schon in der DB — dann ist die Session weiter gültig.
+      const current = await reloadTokens(sessionIdHash);
+      if (current && current.refreshToken !== refreshToken && current.expiresAt.getTime() > Date.now()) {
+        accessToken = current.accessToken;
+        refreshToken = current.refreshToken;
+        expiresAt = current.expiresAt;
+      } else {
+        console.error('Token-Refresh fehlgeschlagen, beende Session:', err);
+        await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [sessionIdHash]);
+        return null;
+      }
     }
   }
 

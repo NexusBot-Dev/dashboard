@@ -23,6 +23,12 @@ export interface SessionData {
   expiresAt: Date;
 }
 
+interface RefreshedTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: Date;
+}
+
 export async function createSession(cookies: AstroCookies, data: Omit<SessionData, 'expiresAt'> & { expiresIn: number }) {
   const sessionId = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + data.expiresIn * 1000);
@@ -52,7 +58,7 @@ export async function createSession(cookies: AstroCookies, data: Omit<SessionDat
   });
 }
 
-async function refreshAndPersist(sessionIdHash: string, currentRefreshToken: string) {
+async function refreshAndPersist(sessionIdHash: string, currentRefreshToken: string): Promise<RefreshedTokens> {
   const tokenData = await refreshAccessToken(currentRefreshToken);
   const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
@@ -68,6 +74,46 @@ async function refreshAndPersist(sessionIdHash: string, currentRefreshToken: str
     refreshToken: tokenData.refresh_token,
     expiresAt,
   };
+}
+
+// Aktuelle Tokens frisch aus der DB lesen (null, wenn die Session nicht mehr existiert).
+async function readStoredTokens(sessionIdHash: string): Promise<RefreshedTokens | null> {
+  const [rows] = await pool.query(
+    'SELECT access_token, refresh_token, expires_at FROM dashboard_sessions WHERE id = ?',
+    [sessionIdHash]
+  );
+  const row = (rows as any[])[0];
+  if (!row) return null;
+  return {
+    accessToken: decrypt(row.access_token),
+    refreshToken: decrypt(row.refresh_token),
+    expiresAt: new Date(row.expires_at),
+  };
+}
+
+// Pro Session läuft höchstens ein Refresh gleichzeitig; parallele Requests teilen sich dasselbe Promise.
+const inflightRefreshes = new Map<string, Promise<RefreshedTokens>>();
+
+function refreshOnce(sessionIdHash: string, refreshToken: string): Promise<RefreshedTokens> {
+  const existing = inflightRefreshes.get(sessionIdHash);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      return await refreshAndPersist(sessionIdHash, refreshToken);
+    } catch (err) {
+      // Ein anderer Request (oder eine andere Instanz) kann den Refresh-Token schon getauscht haben.
+      // Dann steht in der DB bereits ein neuer Stand, und wir nutzen den, statt die Session zu löschen.
+      const stored = await readStoredTokens(sessionIdHash).catch(() => null);
+      if (stored && stored.refreshToken !== refreshToken) return stored;
+      throw err;
+    }
+  })().finally(() => {
+    inflightRefreshes.delete(sessionIdHash);
+  });
+
+  inflightRefreshes.set(sessionIdHash, promise);
+  return promise;
 }
 
 export async function getSession(cookies: AstroCookies): Promise<SessionData | null> {
@@ -99,7 +145,7 @@ export async function getSession(cookies: AstroCookies): Promise<SessionData | n
 
   if (expiresAt.getTime() - Date.now() < REFRESH_THRESHOLD_MS) {
     try {
-      const refreshed = await refreshAndPersist(sessionIdHash, refreshToken);
+      const refreshed = await refreshOnce(sessionIdHash, refreshToken);
       accessToken = refreshed.accessToken;
       refreshToken = refreshed.refreshToken;
       expiresAt = refreshed.expiresAt;

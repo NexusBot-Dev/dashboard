@@ -1,0 +1,765 @@
+---
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import Badge from '../../../../components/Badge.astro';
+import pool from '../../../../lib/db';
+import { callGuildAction } from '../../../../lib/botApi';
+import { renderPreview as baseRenderPreview } from '../../../../lib/discordMarkdown';
+
+const { guildId } = Astro.params;
+const t = Astro.locals.t;
+
+type Channel = { id: string; name: string };
+type Role = { id: string; name: string };
+type Category = { id: number; name: string; role_ids: string[]; roles: Role[] };
+type OpenTicket = { id: number; ticket_number: number; status: string; category_name: string; user_tag: string; channel_id: string };
+
+// Modul-Status und Log-Channel kommen direkt aus der DB — so funktioniert die Anzeige auch bei offline Bot
+async function getGuildRow(id: string) {
+  const [rows] = await pool.query(
+    `SELECT modules, ticket_log_channel_id FROM guild_settings WHERE guild_id = ?`,
+    [id]
+  );
+  return (rows as any[])[0] ?? null;
+}
+
+async function loadBotData() {
+  try {
+    const [info, channelsResult, rolesResult, catResult, openResult, settingsResult] = await Promise.all([
+      callGuildAction(Astro, 'guild', 'info', guildId!),
+      callGuildAction(Astro, 'guild', 'channels', guildId!),
+      callGuildAction(Astro, 'guild', 'roles', guildId!),
+      callGuildAction(Astro, 'tickets', 'list-categories', guildId!),
+      callGuildAction(Astro, 'tickets', 'list-open', guildId!),
+      callGuildAction(Astro, 'tickets', 'get-settings', guildId!),
+    ]);
+    return { info, channelsResult, rolesResult, catResult, openResult, settingsResult };
+  } catch {
+    return null;
+  }
+}
+
+const [guildRow, botData] = await Promise.all([getGuildRow(guildId!), loadBotData()]);
+
+if (!guildRow) {
+  return Astro.redirect('/server');
+}
+
+let moduleStates: Record<string, boolean> = {};
+try {
+  moduleStates = typeof guildRow.modules === 'string' ? JSON.parse(guildRow.modules) : (guildRow.modules ?? {});
+} catch {
+  moduleStates = {};
+}
+const moduleEnabled = moduleStates.tickets ?? false;
+const logChannelId: string | null = guildRow.ticket_log_channel_id ? String(guildRow.ticket_log_channel_id) : null;
+
+const botOnline = botData !== null;
+const guildName: string = botData?.info.name ?? `Server ${guildId}`;
+const guildIconUrl: string | null = botData?.info.icon_url ?? null;
+const channels: Channel[] = botData?.channelsResult.channels ?? [];
+const allRoles: Role[] = botData?.rolesResult.roles ?? [];
+const categories: Category[] = botData?.catResult.categories ?? [];
+const openTickets: OpenTicket[] = botData?.openResult.tickets ?? [];
+const limitFree: number = botData?.catResult.limit_free ?? 2;
+const limitPremium: number = botData?.catResult.limit_premium ?? 10;
+const premiumActive: boolean = botData?.catResult.premium_active ?? false;
+const limit = premiumActive ? limitPremium : limitFree;
+
+// Panel & Fristen (get-settings)
+const ts = botData?.settingsResult ?? null;
+const panelChannelId: string | null = ts?.panel_channel_id ?? null;
+const panelMessageId: string | null = ts?.panel_message_id ?? null;
+const hasPanel = Boolean(panelChannelId && panelMessageId);
+const panelWasDeleted = Boolean(panelChannelId && !panelMessageId);
+const panelChannel = channels.find((c) => c.id === panelChannelId);
+const panelLink = hasPanel ? `https://discord.com/channels/${guildId}/${panelChannelId}/${panelMessageId}` : null;
+const panelTitle: string = ts?.panel_title ?? '🎫 Support';
+const panelDescription: string = ts?.panel_description ?? '';
+
+const closureHours: number | null = ts?.closure_timeout_hours ?? null;
+const deletionHours: number | null = ts?.deletion_delay_hours ?? null;
+// Falls ein Wert in der DB steht, der (noch) nicht in der Auswahlliste ist, trotzdem anzeigen
+const withCurrent = (options: number[], current: number | null) =>
+  current !== null && !options.includes(current) ? [current, ...options] : options;
+const closureOptions = withCurrent(ts?.closure_options ?? [], closureHours);
+const deletionOptions = withCurrent(ts?.deletion_options ?? [], deletionHours);
+
+const durationLabel = (h: number) =>
+  h % 24 === 0
+    ? (h === 24 ? t('tickets.duration_day_one') : t('tickets.duration_days', { count: h / 24 }))
+    : (h === 1 ? t('tickets.duration_hour_one') : t('tickets.duration_hours', { count: h }));
+
+const statusLabel: Record<string, string> = {
+  open: t('tickets.status_open'),
+  pending_closure: t('tickets.status_pending_closure'),
+};
+const statusVariant: Record<string, 'success' | 'warning'> = { open: 'success', pending_closure: 'warning' };
+
+// Tabs — der erste ist der Standard, per Hash (#panel, #categories, #settings) direkt ansteuerbar
+const TAB_ACTIVE = 'border-primary-500 text-primary-600 dark:text-primary-400';
+const TAB_INACTIVE = 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+const tabs = [
+  { key: 'overview', label: t('tickets.tab_overview') },
+  { key: 'panel', label: t('tickets.tab_panel') },
+  { key: 'categories', label: t('tickets.tab_categories') },
+  { key: 'settings', label: t('tickets.tab_settings') },
+];
+
+const inputClass = 'w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50';
+const labelClass = 'block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5';
+const mdBtnClass = 'h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800';
+const mdButtons = [
+  { md: 'bold', label: 'B', title: t('tickets.md_bold'), cls: 'w-8 text-sm font-bold' },
+  { md: 'italic', label: 'I', title: t('tickets.md_italic'), cls: 'w-8 text-sm italic' },
+  { md: 'underline', label: 'U', title: t('tickets.md_underline'), cls: 'w-8 text-sm underline' },
+  { md: 'strike', label: 'S', title: t('tickets.md_strike'), cls: 'w-8 text-sm line-through' },
+  { sep: true },
+  { md: 'h1', label: 'H1', cls: 'px-2 text-xs font-bold' },
+  { md: 'h2', label: 'H2', cls: 'px-2 text-xs font-bold' },
+  { md: 'h3', label: 'H3', cls: 'px-2 text-xs font-bold' },
+  { sep: true },
+  { md: 'list', label: '•', cls: 'w-8 text-sm' },
+  { md: 'code', label: '</>', cls: 'w-8 text-xs font-mono' },
+  { md: 'codeblock', label: '{ }', cls: 'px-2 text-xs font-mono' },
+];
+
+const i18n = {
+  errorGeneric: t('common.error_generic'),
+  errorServerTemplate: t('common.error_server'),
+  unexpectedResponseTemplate: t('tickets.unexpected_response'),
+  saving: t('common.saving'),
+  save: t('common.save'),
+  categoryFormAddTitle: t('tickets.category_form_add_title'),
+  categoryFormEditTitle: t('tickets.category_form_edit_title'),
+  alertNameRequired: t('tickets.alert_name_required'),
+  confirmDeleteCategory: t('tickets.confirm_delete_category'),
+  alertTitleDescRequired: t('tickets.alert_title_desc_required'),
+  confirmPostPanelTemplate: t('tickets.confirm_post_panel'), // enthält "{channel}"
+  confirmMovePanelTemplate: t('tickets.confirm_move_panel'), // enthält "{channel}"
+  alertPanelPosted: t('tickets.alert_panel_posted'),
+  alertPanelUpdated: t('tickets.alert_panel_updated'),
+  alertImportLinkRequired: t('tickets.alert_import_link_required'),
+  alertPanelImported: t('tickets.alert_panel_imported'),
+};
+---
+
+<DashboardLayout title={t('tickets.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
+  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('tickets.title')}</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+    {t('tickets.subtitle')}
+  </p>
+
+  {!botOnline && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-700 dark:text-amber-400">{t('common.bot_offline')}</p>
+    </div>
+  )}
+
+  {!moduleEnabled && (
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div>
+        <p class="text-sm font-semibold text-amber-700 dark:text-amber-400">{t('tickets.module_disabled_title')}</p>
+        <p class="text-sm text-amber-700/90 dark:text-amber-400/90">{t('tickets.module_disabled_desc')}</p>
+      </div>
+      <a href={`/server/${guildId}/modules/`} class="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline flex-shrink-0">{t('tickets.module_disabled_link')}</a>
+    </div>
+  )}
+
+  <div id="tickets-tabs">
+    <div role="tablist" aria-label={t('tickets.title')} class="flex gap-1 border-b border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto">
+      {tabs.map((tab, i) => (
+        <button
+          type="button"
+          role="tab"
+          id={`tab-${tab.key}`}
+          data-tab={tab.key}
+          aria-controls={`tab-panel-${tab.key}`}
+          aria-selected={i === 0 ? 'true' : 'false'}
+          tabindex={i === 0 ? 0 : -1}
+          class:list={['px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors', i === 0 ? TAB_ACTIVE : TAB_INACTIVE]}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+
+    <!-- ═══ Übersicht ═══ -->
+    <div role="tabpanel" id="tab-panel-overview" aria-labelledby="tab-overview" data-tab-panel="overview">
+      <section class="rounded-xl glass-panel p-6">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('tickets.open_tickets_title')}</h2>
+          <span class="text-sm text-slate-500 dark:text-slate-400">{openTickets.length} {openTickets.length === 1 ? t('tickets.ticket_singular') : t('tickets.ticket_plural')}</span>
+        </div>
+        <div class="space-y-2">
+          {openTickets.map((ticket) => (
+            <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+              <span class="text-sm font-mono text-slate-400 flex-shrink-0">#{ticket.ticket_number}</span>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{ticket.user_tag}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">{ticket.category_name}</p>
+              </div>
+              <Badge variant={statusVariant[ticket.status] ?? 'neutral'}>{statusLabel[ticket.status] ?? ticket.status}</Badge>
+              <a
+                href={`https://discord.com/channels/${guildId}/${ticket.channel_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline flex-shrink-0"
+              >
+                {t('tickets.open_ticket_link')}
+              </a>
+            </div>
+          ))}
+        </div>
+        {openTickets.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('tickets.no_open_tickets')}</p>}
+      </section>
+    </div>
+
+    <!-- ═══ Panel ═══ -->
+    <div role="tabpanel" id="tab-panel-panel" aria-labelledby="tab-panel" data-tab-panel="panel" class="hidden">
+      <section class="rounded-xl glass-panel p-6 mb-6">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('tickets.panel_section_title')}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">{t('tickets.panel_section_desc')}</p>
+
+        <!-- Aktueller Stand -->
+        <div class="mb-5 rounded-lg border border-slate-200 dark:border-slate-800 px-4 py-3">
+          <p class={labelClass}>{t('tickets.panel_status_title')}</p>
+          {hasPanel ? (
+            <p class="text-sm text-slate-700 dark:text-slate-300">
+              <span class="font-medium">{panelChannel ? `#${panelChannel.name}` : t('tickets.panel_unknown_channel')}</span>
+              <a href={panelLink!} target="_blank" rel="noopener noreferrer" class="ml-2 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">{t('tickets.panel_status_open_link')}</a>
+            </p>
+          ) : panelWasDeleted ? (
+            <p class="text-sm text-amber-600 dark:text-amber-400">{t('tickets.panel_status_missing')}</p>
+          ) : (
+            <p class="text-sm text-slate-500 dark:text-slate-400">{t('tickets.panel_status_none')}</p>
+          )}
+        </div>
+
+        {botOnline && categories.length === 0 && (
+          <p class="text-xs text-amber-600 dark:text-amber-400 mb-4">{t('tickets.panel_needs_categories')}</p>
+        )}
+
+        <div id="panel-form" data-has-panel={String(hasPanel)} data-panel-channel-id={panelChannelId ?? ''}>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label for="panel-channel-select" class={labelClass}>{t('tickets.target_channel_label')}</label>
+              <select id="panel-channel-select" disabled={!botOnline} class={inputClass}>
+                {channels.map((ch) => <option value={ch.id} selected={ch.id === panelChannelId}>#{ch.name}</option>)}
+              </select>
+              {hasPanel && <p class="mt-1.5 text-xs text-slate-400">{t('tickets.panel_channel_hint')}</p>}
+            </div>
+            <div>
+              <label for="panel-title-input" class={labelClass}>{t('tickets.title_label')}</label>
+              <input type="text" id="panel-title-input" maxlength="256" value={panelTitle} disabled={!botOnline} class={inputClass} />
+            </div>
+          </div>
+
+          <div class="mb-3 max-w-xs">
+            <label for="panel-mode-select" class={labelClass}>{t('tickets.panel_mode_label')}</label>
+            <select id="panel-mode-select" disabled class={inputClass}>
+              <option value="buttons" selected>{t('tickets.panel_mode_buttons')}</option>
+              <option value="dropdown">{t('tickets.panel_mode_dropdown_soon')}</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label for="tickets-textarea" class={labelClass}>{t('tickets.description_label')}</label>
+            <div class="flex flex-wrap gap-1 mb-2" data-md-toolbar="tickets-textarea">
+              {mdButtons.map((b) => (
+                'sep' in b
+                  ? <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+                  : <button type="button" data-md={b.md} title={b.title} class:list={[mdBtnClass, b.cls]}>{b.label}</button>
+              ))}
+            </div>
+            <textarea id="tickets-textarea" rows="4" maxlength="1000" disabled={!botOnline} placeholder={t('tickets.description_placeholder')} class={`${inputClass} resize-none`}>{panelDescription}</textarea>
+            <div class="mt-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+              <p class="text-xs text-slate-400 mb-1">{t('tickets.live_preview_label')}</p>
+              {panelDescription
+                ? <p id="tickets-preview" class="text-sm text-slate-700 dark:text-slate-300 italic" set:html={baseRenderPreview(panelDescription)} />
+                : <p id="tickets-preview" class="text-sm text-slate-700 dark:text-slate-300 italic">—</p>}
+            </div>
+          </div>
+
+          <button id="post-panel-btn" type="button" disabled={!botOnline || categories.length === 0} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            {hasPanel ? t('tickets.update_panel_btn') : t('tickets.post_panel_btn')}
+          </button>
+        </div>
+      </section>
+
+      <!-- Bestehendes Panel übernehmen -->
+      <section class="rounded-xl glass-panel p-6">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('tickets.import_title')}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('tickets.import_desc')}</p>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <input type="text" id="import-panel-input" placeholder={t('tickets.import_placeholder')} disabled={!botOnline} class={`${inputClass} sm:max-w-md`} />
+          <button id="import-panel-btn" type="button" disabled={!botOnline} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            {t('tickets.import_btn')}
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══ Kategorien ═══ -->
+    <div role="tabpanel" id="tab-panel-categories" aria-labelledby="tab-categories" data-tab-panel="categories" class="hidden">
+      <section class="rounded-xl glass-panel p-6">
+        <div class="flex items-center justify-between mb-1">
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('tickets.categories_title')}</h2>
+          <button id="add-category-btn" type="button" disabled={!botOnline || categories.length >= limit} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            + {t('common.create')}
+          </button>
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+          {t('tickets.categories_count', { count: categories.length, limit })}
+          {!premiumActive && categories.length >= limitFree && (
+            <span class="ml-1">— <Badge variant="primary">Premium</Badge> {t('tickets.premium_hint', { max: limitPremium })}</span>
+          )}
+        </p>
+
+        <div id="categories-list" class="space-y-2">
+          {categories.map((cat) => (
+            <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-category-row={cat.id} data-category-name={cat.name} data-role-ids={JSON.stringify(cat.role_ids)}>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-sm font-medium text-slate-900 dark:text-white">{cat.name}</span>
+                <div class="flex items-center gap-3 flex-shrink-0">
+                  <button type="button" data-edit-category={cat.id} disabled={!botOnline} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline disabled:opacity-50">{t('common.edit')}</button>
+                  <button type="button" data-remove-category={cat.id} disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline disabled:opacity-50">{t('common.delete')}</button>
+                </div>
+              </div>
+              <p class="mt-1 text-xs text-slate-400">
+                {cat.roles.length > 0 ? t('tickets.access_prefix', { names: cat.roles.map((r) => r.name).join(', ') }) : t('tickets.admins_only')}
+              </p>
+            </div>
+          ))}
+        </div>
+        {categories.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('tickets.no_categories')}</p>}
+
+        <div id="category-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <p id="category-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('tickets.category_form_add_title')}</p>
+          <div class="mb-3 max-w-sm">
+            <label for="category-name-input" class={labelClass}>{t('tickets.name_label')}</label>
+            <input type="text" id="category-name-input" maxlength="100" placeholder={t('tickets.name_placeholder')} class={inputClass} />
+          </div>
+          <div class="mb-4">
+            <p class={labelClass}>{t('tickets.allowed_roles_label')}</p>
+            <div class="flex flex-wrap gap-2">
+              {allRoles.map((r) => (
+                <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-950 text-sm">
+                  <input type="checkbox" data-role-checkbox value={r.id} class="accent-primary-600" />
+                  {r.name}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="confirm-category-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+            <button id="cancel-category-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+          </div>
+          <p class="mt-2 text-xs text-slate-400">{t('tickets.category_form_note')}</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══ Einstellungen ═══ -->
+    <div role="tabpanel" id="tab-panel-settings" aria-labelledby="tab-settings" data-tab-panel="settings" class="hidden">
+      <!-- Fristen -->
+      <section class="rounded-xl glass-panel p-6 mb-6">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('tickets.timeouts_title')}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">{t('tickets.timeouts_desc')}</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-4">
+          <div>
+            <label for="closure-select" class={labelClass}>{t('tickets.closure_label')}</label>
+            <select id="closure-select" data-initial={String(closureHours ?? '')} disabled={!botOnline || ts === null} class={inputClass}>
+              {closureOptions.map((h) => <option value={String(h)} selected={h === closureHours}>{durationLabel(h)}</option>)}
+            </select>
+            <p class="mt-1.5 text-xs text-slate-400">{t('tickets.closure_desc')}</p>
+          </div>
+          <div>
+            <label for="deletion-select" class={labelClass}>{t('tickets.deletion_label')}</label>
+            <select id="deletion-select" data-initial={String(deletionHours ?? '')} disabled={!botOnline || ts === null} class={inputClass}>
+              {deletionOptions.map((h) => <option value={String(h)} selected={h === deletionHours}>{durationLabel(h)}</option>)}
+            </select>
+            <p class="mt-1.5 text-xs text-slate-400">{t('tickets.deletion_desc')}</p>
+          </div>
+        </div>
+
+        <button id="save-timeouts-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          {t('common.save')}
+        </button>
+      </section>
+
+      <!-- Ticket-Log-Channel (auch in den globalen Einstellungen editierbar) -->
+      <section class="rounded-xl glass-panel p-6">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('tickets.log_channel_title')}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('tickets.log_channel_desc')}</p>
+        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+          <div class="flex-1 max-w-xs">
+            <select id="log-channel-select" aria-label={t('tickets.log_channel_title')} data-initial={logChannelId ?? ''} disabled={!botOnline} class={inputClass}>
+              <option value="" selected={!logChannelId}>{t('common.no_channel')}</option>
+              {logChannelId && !channels.some((c) => c.id === logChannelId) && <option value={logChannelId} selected>{logChannelId}</option>}
+              {channels.map((ch) => <option value={ch.id} selected={ch.id === logChannelId}>#{ch.name}</option>)}
+            </select>
+          </div>
+          <button id="save-log-channel-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            {t('common.save')}
+          </button>
+          <a href={`/server/${guildId}/settings/`} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline self-center sm:self-end sm:mb-2.5">
+            {t('tickets.also_in_settings')}
+          </a>
+        </div>
+      </section>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script define:vars={{ guildId, i18n, TAB_ACTIVE, TAB_INACTIVE }}>
+// Alles als Funktionsdeklarationen: das Skript läuft bei jeder Navigation erneut (View Transitions)
+async function postJson(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  let data;
+  try { data = await res.json(); } catch { throw new Error(i18n.unexpectedResponseTemplate.replace('{status}', res.status)); }
+  if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
+  return data.data;
+}
+
+// trailingSlash: 'always' — Slash am Ende nicht vergessen, sonst wird POST zu GET umgeleitet
+function callModuleAction(module, action, body = {}) {
+  return postJson(`/api/server/${guildId}/module/${module}/${action}/`, body);
+}
+function saveSettings(fields) {
+  return postJson(`/api/server/${guildId}/settings/`, fields);
+}
+
+// ─── Tabs ────────────────────────────────────────────────────────────────────
+function setupTabs() {
+  const root = document.getElementById('tickets-tabs');
+  if (!root || root.dataset.bound === 'true') return;
+  root.dataset.bound = 'true';
+
+  const tabs = Array.from(root.querySelectorAll('[role="tab"]'));
+  const panels = new Map(Array.from(root.querySelectorAll('[data-tab-panel]')).map((p) => [p.dataset.tabPanel, p]));
+
+  function activate(name, { updateHash = true, focus = false } = {}) {
+    if (!panels.has(name)) name = tabs[0].dataset.tab;
+    tabs.forEach((tab) => {
+      const active = tab.dataset.tab === name;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+      tab.classList.remove(...(active ? TAB_INACTIVE : TAB_ACTIVE).split(' '));
+      tab.classList.add(...(active ? TAB_ACTIVE : TAB_INACTIVE).split(' '));
+      if (active && focus) tab.focus();
+    });
+    panels.forEach((panel, key) => panel.classList.toggle('hidden', key !== name));
+    if (updateHash) history.replaceState(history.state, '', `#${name}`);
+  }
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activate(tab.dataset.tab));
+    tab.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      activate(tabs[next].dataset.tab, { focus: true });
+    });
+  });
+
+  activate(location.hash.slice(1), { updateHash: false });
+}
+
+// ─── Markdown-Toolbar & Live-Vorschau (identisch zur Welcome-Seite) ──────────
+function renderDiscordMarkdown(text) {
+  let out = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const codeBlocks = [];
+  out = out.replace(/```([\s\S]*?)```/g, (_, code) => { codeBlocks.push(code); return `%%CB${codeBlocks.length - 1}%%`; });
+  out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
+  out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
+  out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  out = out.replace(/__\*\*(.+?)\*\*__/g, '<u><strong>$1</strong></u>');
+  out = out.replace(/__\*(.+?)\*__/g, '<u><em>$1</em></u>');
+  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/__(.+?)__/g, '<u>$1</u>');
+  out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  out = out.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
+  out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  out = out.split('\n').map((line) => {
+    if (/^### (.+)/.test(line)) return line.replace(/^### (.+)/, '<span class="text-sm font-bold">$1</span>');
+    if (/^## (.+)/.test(line)) return line.replace(/^## (.+)/, '<span class="text-base font-bold">$1</span>');
+    if (/^# (.+)/.test(line)) return line.replace(/^# (.+)/, '<span class="text-lg font-bold">$1</span>');
+    if (/^\s{0,2}[-*] (.+)/.test(line)) return line.replace(/^\s{0,2}[-*] (.+)/, '• $1');
+    return line;
+  }).join('\n');
+  out = out.replace(/%%CB(\d+)%%/g, (_, i) => `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`);
+  return out.replace(/\n/g, '<br>');
+}
+
+function wrapSelection(ta, before, after = before) {
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const val = ta.value;
+  const selected = val.slice(start, end);
+  ta.value = val.slice(0, start) + before + selected + after + val.slice(end);
+  ta.selectionStart = start + before.length;
+  ta.selectionEnd = start + before.length + selected.length;
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  ta.focus();
+}
+function prefixLines(ta, prefix) {
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const val = ta.value;
+  const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+  let lineEnd = val.indexOf('\n', end);
+  if (lineEnd === -1) lineEnd = val.length;
+  const block = val.slice(lineStart, lineEnd);
+  const newBlock = block.split('\n').map((l) => prefix + l).join('\n');
+  ta.value = val.slice(0, lineStart) + newBlock + val.slice(lineEnd);
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  ta.focus();
+}
+function setupMarkdownToolbars() {
+  document.querySelectorAll('[data-md-toolbar]').forEach((toolbar) => {
+    if (toolbar.dataset.bound === 'true') return;
+    toolbar.dataset.bound = 'true';
+    const ta = document.getElementById(toolbar.dataset.mdToolbar);
+    if (!ta) return;
+    toolbar.querySelectorAll('[data-md]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        switch (btn.dataset.md) {
+          case 'bold': wrapSelection(ta, '**'); break;
+          case 'italic': wrapSelection(ta, '*'); break;
+          case 'underline': wrapSelection(ta, '__'); break;
+          case 'strike': wrapSelection(ta, '~~'); break;
+          case 'code': wrapSelection(ta, '`'); break;
+          case 'codeblock': wrapSelection(ta, '```\n', '\n```'); break;
+          case 'h1': prefixLines(ta, '# '); break;
+          case 'h2': prefixLines(ta, '## '); break;
+          case 'h3': prefixLines(ta, '### '); break;
+          case 'list': prefixLines(ta, '- '); break;
+        }
+      });
+    });
+  });
+}
+function setupTicketsPreview() {
+  const textarea = document.getElementById('tickets-textarea');
+  const previewEl = document.getElementById('tickets-preview');
+  if (!textarea || !previewEl || textarea.dataset.previewBound === 'true') return;
+  textarea.dataset.previewBound = 'true';
+  textarea.addEventListener('input', () => {
+    const val = textarea.value.trim();
+    previewEl.innerHTML = val ? renderDiscordMarkdown(val) : '—';
+  });
+}
+
+// ─── Kategorien ──────────────────────────────────────────────────────────────
+// Nach jeder Änderung wird neu geladen: Zähler, Limit und Panel-Hinweise kommen so immer
+// frisch vom Server, und es gibt keinen selbst gebauten HTML-Code mit Nutzereingaben.
+function setupCategories() {
+  const addBtn = document.getElementById('add-category-btn');
+  const form = document.getElementById('category-form');
+  if (!addBtn || !form || addBtn.dataset.bound === 'true') return;
+  addBtn.dataset.bound = 'true';
+
+  const formTitle = document.getElementById('category-form-title');
+  const nameInput = document.getElementById('category-name-input');
+  const confirmBtn = document.getElementById('confirm-category-btn');
+  const cancelBtn = document.getElementById('cancel-category-btn');
+  const list = document.getElementById('categories-list');
+
+  let editingId = null;
+  let editingName = '';
+
+  function openForm(row) {
+    editingId = row ? row.dataset.categoryRow : null;
+    editingName = row ? row.dataset.categoryName : '';
+    formTitle.textContent = row ? i18n.categoryFormEditTitle : i18n.categoryFormAddTitle;
+    nameInput.value = editingName;
+    const checkedIds = row ? JSON.parse(row.dataset.roleIds || '[]') : [];
+    form.querySelectorAll('[data-role-checkbox]').forEach((cb) => { cb.checked = checkedIds.includes(cb.value); });
+    form.classList.remove('hidden');
+    nameInput.focus();
+  }
+  function closeForm() { form.classList.add('hidden'); editingId = null; }
+
+  addBtn.addEventListener('click', () => openForm(null));
+  cancelBtn.addEventListener('click', closeForm);
+
+  list.querySelectorAll('[data-edit-category]').forEach((btn) => {
+    btn.addEventListener('click', () => openForm(btn.closest('[data-category-row]')));
+  });
+
+  list.querySelectorAll('[data-remove-category]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(i18n.confirmDeleteCategory)) return;
+      const row = btn.closest('[data-category-row]');
+      btn.disabled = true;
+      try {
+        await callModuleAction('tickets', 'delete-category', { category_id: Number(row.dataset.categoryRow) });
+        location.reload();
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+      }
+    });
+  });
+
+  confirmBtn.addEventListener('click', async () => {
+    const name = nameInput.value.trim();
+    if (!name) { alert(i18n.alertNameRequired); return; }
+    const roleIds = Array.from(form.querySelectorAll('[data-role-checkbox]:checked')).map((cb) => cb.value);
+
+    confirmBtn.disabled = true;
+    try {
+      if (editingId) {
+        const id = Number(editingId);
+        if (name !== editingName) await callModuleAction('tickets', 'rename-category', { category_id: id, name });
+        await callModuleAction('tickets', 'set-category-roles', { category_id: id, role_ids: roleIds });
+      } else {
+        await callModuleAction('tickets', 'create-category', { name, role_ids: roleIds });
+      }
+      location.reload();
+    } catch (err) {
+      alert(err.message);
+      confirmBtn.disabled = false;
+    }
+  });
+}
+
+// ─── Panel ───────────────────────────────────────────────────────────────────
+function setupPanel() {
+  const btn = document.getElementById('post-panel-btn');
+  const form = document.getElementById('panel-form');
+  if (!btn || !form || btn.dataset.bound === 'true') return;
+  btn.dataset.bound = 'true';
+
+  const channelSelect = document.getElementById('panel-channel-select');
+  const titleInput = document.getElementById('panel-title-input');
+  const descInput = document.getElementById('tickets-textarea');
+
+  btn.addEventListener('click', async () => {
+    const title = titleInput.value.trim();
+    const description = descInput.value.trim();
+    if (!title || !description) { alert(i18n.alertTitleDescRequired); return; }
+
+    const hasPanel = form.dataset.hasPanel === 'true';
+    const currentChannel = form.dataset.panelChannelId || '';
+    const selected = channelSelect ? channelSelect.value : '';
+    const option = channelSelect ? channelSelect.selectedOptions[0] : null;
+    const channelName = option ? option.textContent.replace('#', '') : '';
+
+    if (!hasPanel) {
+      if (!confirm(i18n.confirmPostPanelTemplate.replace('{channel}', () => channelName))) return;
+    } else if (selected && currentChannel && selected !== currentChannel) {
+      if (!confirm(i18n.confirmMovePanelTemplate.replace('{channel}', () => channelName))) return;
+    }
+
+    btn.disabled = true;
+    try {
+      const body = { title, description };
+      if (selected) body.channel_id = selected;
+      const result = await callModuleAction('tickets', 'post-panel', body);
+      alert(result.edited ? i18n.alertPanelUpdated : i18n.alertPanelPosted);
+      location.reload();
+    } catch (err) {
+      alert(err.message);
+      btn.disabled = false;
+    }
+  });
+}
+
+function setupImport() {
+  const btn = document.getElementById('import-panel-btn');
+  const input = document.getElementById('import-panel-input');
+  if (!btn || !input || btn.dataset.bound === 'true') return;
+  btn.dataset.bound = 'true';
+
+  btn.addEventListener('click', async () => {
+    const link = input.value.trim();
+    if (!link) { alert(i18n.alertImportLinkRequired); return; }
+    btn.disabled = true;
+    try {
+      await callModuleAction('tickets', 'import-panel', { link });
+      alert(i18n.alertPanelImported);
+      location.reload();
+    } catch (err) {
+      alert(err.message);
+      btn.disabled = false;
+    }
+  });
+}
+
+// ─── Fristen ─────────────────────────────────────────────────────────────────
+function setupTimeouts() {
+  const closure = document.getElementById('closure-select');
+  const deletion = document.getElementById('deletion-select');
+  const saveBtn = document.getElementById('save-timeouts-btn');
+  if (!closure || !deletion || !saveBtn || saveBtn.dataset.bound === 'true') return;
+  saveBtn.dataset.bound = 'true';
+
+  const closureChanged = () => closure.value !== closure.dataset.initial;
+  const deletionChanged = () => deletion.value !== deletion.dataset.initial;
+  const refresh = () => { saveBtn.disabled = !(closureChanged() || deletionChanged()); };
+  closure.addEventListener('change', refresh);
+  deletion.addEventListener('change', refresh);
+
+  saveBtn.addEventListener('click', async () => {
+    // Nur geänderte Werte schicken — der Bot akzeptiert ausschließlich die festen Auswahlwerte
+    const body = {};
+    if (closureChanged()) body.closure_timeout_hours = Number(closure.value);
+    if (deletionChanged()) body.deletion_delay_hours = Number(deletion.value);
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = i18n.saving;
+    try {
+      const result = await callModuleAction('tickets', 'set-timeouts', body);
+      closure.dataset.initial = String(result.closure_timeout_hours);
+      deletion.dataset.initial = String(result.deletion_delay_hours);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      saveBtn.textContent = i18n.save;
+      refresh();
+    }
+  });
+}
+
+// ─── Ticket-Log-Channel ("editable in both places") ──────────────────────────
+function setupLogChannel() {
+  const select = document.getElementById('log-channel-select');
+  const saveBtn = document.getElementById('save-log-channel-btn');
+  if (!select || !saveBtn || saveBtn.dataset.bound === 'true') return;
+  saveBtn.dataset.bound = 'true';
+
+  select.addEventListener('change', () => { saveBtn.disabled = select.value === select.dataset.initial; });
+
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    saveBtn.textContent = i18n.saving;
+    try {
+      await saveSettings({ ticket_log_channel_id: select.value }); // '' = kein eigener Channel
+      select.dataset.initial = select.value;
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      saveBtn.textContent = i18n.save;
+      saveBtn.disabled = select.value === select.dataset.initial;
+    }
+  });
+}
+
+function setupAll() {
+  setupTabs();
+  setupMarkdownToolbars();
+  setupTicketsPreview();
+  setupCategories();
+  setupPanel();
+  setupImport();
+  setupTimeouts();
+  setupLogChannel();
+}
+
+setupAll();
+document.addEventListener('astro:page-load', setupAll);
+</script>

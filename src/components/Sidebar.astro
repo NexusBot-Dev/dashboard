@@ -16,6 +16,7 @@ const NAV_LABELS: Record<string, string> = {
   overview: t('nav.overview'),
   modules: t('nav.modules'),
   moderation: t('moderation.title'),
+  tickets: t('tickets.title'),
   embeds: t('embeds.title'),
   settings: t('settings.title'),
 };
@@ -35,7 +36,6 @@ const MODULES = [
   { key: 'boosts', label: t('boost.title') },
   { key: 'automod', label: t('nav.module_automod') },
   { key: 'stream-alerts', label: t('stream_alerts.title') },
-  { key: 'tickets', label: t('tickets.title') },
 ];
 
 const visibleModules = MODULES.filter(mod => !OWNER_ONLY_MODULE_KEYS.includes(mod.key) || isOwner);

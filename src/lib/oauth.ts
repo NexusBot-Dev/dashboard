@@ -1,5 +1,9 @@
 import { CLIENT_ID, CLIENT_SECRET } from './secrets';
 
+// Basis-URL der Discord-API für Server-Aufrufe. Nur die Tests setzen DISCORD_API_BASE
+// (Fake-Discord); die Login-Weiterleitung unten zeigt immer auf das echte Discord.
+const DISCORD_API = process.env.DISCORD_API_BASE ?? 'https://discord.com/api';
+
 export class DiscordApiError extends Error {
   status: number;
   retryAfter?: number;
@@ -11,7 +15,7 @@ export class DiscordApiError extends Error {
 }
 
 export async function getDiscordUserGuilds(accessToken: string) {
-  const res = await fetch('https://discord.com/api/users/@me/guilds', {
+  const res = await fetch(`${DISCORD_API}/users/@me/guilds`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
@@ -54,7 +58,7 @@ export async function exchangeCodeForToken(code: string): Promise<DiscordTokenRe
     redirect_uri: REDIRECT_URI,
   });
 
-  const res = await fetch('https://discord.com/api/oauth2/token', {
+  const res = await fetch(`${DISCORD_API}/oauth2/token`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -78,7 +82,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<DiscordT
     refresh_token: refreshToken,
   });
 
-  const res = await fetch('https://discord.com/api/oauth2/token', {
+  const res = await fetch(`${DISCORD_API}/oauth2/token`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -95,7 +99,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<DiscordT
 }
 
 export async function getDiscordUser(accessToken: string) {
-  const res = await fetch('https://discord.com/api/users/@me', {
+  const res = await fetch(`${DISCORD_API}/users/@me`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },

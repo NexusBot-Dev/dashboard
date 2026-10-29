@@ -428,3 +428,9 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Astro / Tests
+dist/
+.astro/
+test-results/
+playwright-report/

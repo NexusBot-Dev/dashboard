@@ -53,6 +53,49 @@ test.describe('Übersicht & Navigation', () => {
   });
 });
 
+test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
+  // Nutzer kommen meist über die Sidebar, nicht per Direktaufruf. Der ClientRouter tauscht die
+  // Seite dann aus, ohne neu zu laden — die Seitenlogik muss trotzdem korrekt verdrahtet werden.
+  const ticketsLink = (page: Page) => page.locator(`aside a[href="/server/${GUILD_ID}/tickets/"]`).first();
+
+  async function navigateToTickets(page: Page) {
+    await page.evaluate(() => ((window as any).__noReload = true));
+    await ticketsLink(page).click();
+    await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/tickets/`));
+    await expect(page.locator('#tickets-tabs')).toBeVisible();
+    // Marker überlebt nur, wenn wirklich nicht neu geladen wurde — sonst testet der Test das Falsche
+    expect(await page.evaluate(() => (window as any).__noReload)).toBe(true);
+  }
+
+  test('über die Sidebar geöffnet funktionieren Tabs und Aktionen', async ({ page }) => {
+    await page.goto(guildPath(''));
+    await navigateToTickets(page);
+
+    await openTab(page, 'settings');
+    await expect(page.locator('#tab-panel-settings')).toBeVisible();
+    await page.locator('#closure-select').selectOption('12');
+    await page.locator('#save-timeouts-btn').click();
+    expect(await waitForBotCall('tickets/set-timeouts')).toMatchObject({ closure_timeout_hours: 12 });
+  });
+
+  test('mehrfach hin und zurück: jede Aktion wird genau einmal gesendet', async ({ page }) => {
+    collectDialogs(page);
+    await page.goto(guildPath(''));
+    for (let i = 0; i < 3; i++) {
+      await navigateToTickets(page);
+      await page.locator(`aside a[href="/server/${GUILD_ID}/"]`).first().click();
+      await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/$`));
+    }
+    await navigateToTickets(page);
+    await openTab(page, 'categories');
+    await page.locator('[data-remove-category="1"]').click();
+
+    await waitForBotCall('tickets/delete-category');
+    await page.waitForTimeout(500); // etwaige doppelte Aufrufe abwarten
+    expect(await botCalls('tickets/delete-category')).toHaveLength(1);
+  });
+});
+
 test.describe('Panel', () => {
   test('Markdown-Vorschau rendert Formatierung und escaped HTML', async ({ page }) => {
     await page.goto(guildPath('tickets/#panel'));

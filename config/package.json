@@ -1,0 +1,52 @@
+{
+  "name": "dashboard",
+  "description": "The focused Discord bot for streamers and gaming communities. Instant alerts, real-time raid defense - no bloat, no filler.",
+  "type": "module",
+  "version": "0.0.1",
+  "license": "MIT",
+  "homepage": "https://dashboard.trynexus.de",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NexusBot-Dev/dashboard"
+  },
+  "bugs": {
+    "url": "https://github.com/NexusBot-Dev/dashboard/issues"
+  },
+  "keywords": [
+    "astro",
+    "astro-theme",
+    "tailwindcss",
+    "saas",
+    "landing-page",
+    "blog",
+    "mdx"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/mdx": "^8.1.1",
+    "@astrojs/node": "^11.1.9",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/space-grotesk": "^5.2.10",
+    "@tailwindcss/vite": "^4.3.0",
+    "astro": "^7.4.2",
+    "mysql2": "^3.23.3",
+    "sharp": "^0.35.3",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@tailwindcss/typography": "^0.5.19"
+  }
+}

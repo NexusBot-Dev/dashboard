@@ -110,6 +110,20 @@ export const defaultBotData = {
   'boosts/edit-message': (body) => ({ id: Number(body.message_id), message: body.message }),
   'boosts/delete-message': (body) => ({ id: Number(body.message_id) }),
 
+  'embeds/list': {
+    embeds: [
+      { id: 1, name: 'Regeln', title: '📋 Regeln', description: '**Sei nett** zu {user}', channel_id: CHANNELS[0].id, scheduled_at: null },
+      { id: 2, name: 'Event', title: '', description: 'Treffen am Freitag', channel_id: CHANNELS[1].id, scheduled_at: '2030-01-02T12:45:00Z' },
+    ],
+    limit_free: 3, limit_premium: 100, premium_active: false,
+  },
+  'embeds/add': (body) => ({ id: 9, name: body.name, title: body.title, description: body.description, channel_id: body.channel_id }),
+  'embeds/edit': (body) => ({ id: Number(body.embed_id), posts_updated: 0, posts_removed: 0, posts_failed: 0 }),
+  'embeds/delete': (body) => ({ id: Number(body.embed_id) }),
+  'embeds/post-now': (body) => ({ id: Number(body.embed_id), message_id: '910000000000000001' }),
+  'embeds/schedule': (body) => ({ id: Number(body.embed_id), scheduled_at: '2030-03-04T09:30:00Z' }),
+  'embeds/unschedule': (body) => ({ id: Number(body.embed_id) }),
+
   'modules/toggle': (body) => ({ modules: { ...body.changes } }),
 
   settings: (body) => ({ updated_fields: Object.keys(body.fields ?? {}), warnings: [] }),

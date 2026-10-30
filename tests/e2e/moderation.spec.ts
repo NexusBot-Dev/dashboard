@@ -150,7 +150,6 @@ test.describe('Aktionen', () => {
 
 test.describe('Anzeige nach Änderungen', () => {
   test('Zähler passt sich nach dem Entbannen an', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: Zähler bleibt bis zum Neuladen auf dem alten Stand');
     collectDialogs(page);
     await page.goto(PAGE);
     await row(page, MAX.user_id).locator('[data-unban]').click();
@@ -159,7 +158,6 @@ test.describe('Anzeige nach Änderungen', () => {
   });
 
   test('nach dem letzten Timeout erscheint der Leer-Hinweis', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: leere Liste ohne Hinweis bis zum Neuladen');
     await resetBot({ 'moderation/list-timeouts': { data: { timeouts: [{ user_id: TIM, username: 'Tim', avatar_url: null, until: '2099-01-01T00:00:00Z' }] } } });
     collectDialogs(page);
     await page.goto(PAGE);
@@ -169,7 +167,6 @@ test.describe('Anzeige nach Änderungen', () => {
   });
 
   test('Suche nach einem gerade Entbannten zeigt „Keine Treffer“', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: die Suche zählt entfernte Zeilen weiter als Treffer');
     collectDialogs(page);
     await page.goto(PAGE);
     await row(page, MAX.user_id).locator('[data-unban]').click();
@@ -179,7 +176,6 @@ test.describe('Anzeige nach Änderungen', () => {
   });
 
   test('fällt eine Liste aus, wird die andere trotzdem angezeigt', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: ein Fehler bei den Bans (z.B. fehlende Ban-Berechtigung des Bots) leert die ganze Seite');
     await resetBot({ 'moderation/list-bans': { status: 500, error: 'internal_error' } });
     await page.goto(PAGE);
     await expect(row(page, TIM)).toBeVisible({ timeout: 2000 });

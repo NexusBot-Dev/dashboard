@@ -341,6 +341,7 @@
     "core_module_badge": "Módulo principal",
     "subtitle": "Kick, ban y timeout se ejecutan mediante comandos de barra. Aquí ves un resumen de los miembros baneados y en timeout actualmente.",
     "data_unavailable": "⚠️ El bot no está disponible en este momento — no se pudieron cargar los datos.",
+    "list_unavailable": "No se pudo cargar esta lista — puede que al bot le falte un permiso.",
     "banned_members_title": "Miembros baneados",
     "entry_singular": "entrada",
     "entry_plural": "entradas",

@@ -341,6 +341,7 @@
     "core_module_badge": "Core module",
     "subtitle": "Kick, ban, and timeout run through slash commands. Here you see an overview of currently banned and timed-out members.",
     "data_unavailable": "⚠️ Bot is currently unreachable — data could not be loaded.",
+    "list_unavailable": "This list could not be loaded — the bot may be missing a permission.",
     "banned_members_title": "Banned members",
     "entry_singular": "entry",
     "entry_plural": "entries",

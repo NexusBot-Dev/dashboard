@@ -341,6 +341,7 @@
     "core_module_badge": "Módulo principal",
     "subtitle": "Expulsar, banir e dar timeout funcionam por comandos de barra (slash). Aqui você vê uma visão geral dos membros atualmente banidos e em timeout.",
     "data_unavailable": "⚠️ O bot não está acessível no momento — não foi possível carregar os dados.",
+    "list_unavailable": "Não foi possível carregar esta lista — talvez falte uma permissão ao bot.",
     "banned_members_title": "Membros banidos",
     "entry_singular": "entrada",
     "entry_plural": "entradas",

@@ -341,6 +341,7 @@
     "core_module_badge": "Kern-Modul",
     "subtitle": "Kick, Ban und Timeout laufen über Slash-Commands. Hier siehst du eine Übersicht der aktuell gebannten und im Timeout befindlichen Mitglieder.",
     "data_unavailable": "⚠️ Bot ist gerade nicht erreichbar — Daten konnten nicht geladen werden.",
+    "list_unavailable": "Diese Liste konnte nicht geladen werden — fehlt dem Bot eventuell eine Berechtigung?",
     "banned_members_title": "Gebannte Mitglieder",
     "entry_singular": "Eintrag",
     "entry_plural": "Einträge",

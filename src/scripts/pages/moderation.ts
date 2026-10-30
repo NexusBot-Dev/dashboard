@@ -8,6 +8,8 @@ interface ModerationConfig {
   i18n: ApiMessages & {
     confirmUnban: string;
     confirmRemoveTimeout: string;
+    entrySingular: string;
+    entryPlural: string;
   };
 }
 
@@ -19,24 +21,29 @@ const ROW_ACTIONS = [
   { attr: 'data-remove-timeout', action: 'remove-timeout', confirmKey: 'confirmRemoveTimeout' },
 ] as const;
 
-function setupSearch(root: HTMLElement, input: HTMLInputElement) {
-  const key = input.dataset.search!;
+/**
+ * Zeigt Zähler, Leer-Hinweis und Suchergebnis passend zu den Zeilen, die gerade in der Liste stehen —
+ * nach jeder Eingabe in der Suche und nach jedem Entfernen einer Zeile.
+ */
+function refreshList(root: HTMLElement, key: string, i18n: ModerationConfig['i18n']) {
   const list = root.querySelector<HTMLElement>(`[data-list="${key}"]`);
-  const emptyState = root.querySelector<HTMLElement>(`[data-empty-search="${key}"]`);
   if (!list) return;
-
+  const input = root.querySelector<HTMLInputElement>(`[data-search="${key}"]`);
   const items = Array.from(list.querySelectorAll<HTMLElement>('[data-search-value]'));
 
-  input.addEventListener('input', () => {
-    const query = input.value.trim().toLowerCase();
-    let visibleCount = 0;
-    items.forEach((item) => {
-      const matches = item.dataset.searchValue!.includes(query);
-      item.classList.toggle('hidden', !matches);
-      if (matches) visibleCount++;
-    });
-    emptyState?.classList.toggle('hidden', visibleCount > 0);
+  const query = input?.value.trim().toLowerCase() ?? '';
+  let visibleCount = 0;
+  items.forEach((item) => {
+    const matches = item.dataset.searchValue!.includes(query);
+    item.classList.toggle('hidden', !matches);
+    if (matches) visibleCount++;
   });
+
+  const count = root.querySelector(`[data-count="${key}"]`);
+  if (count) count.textContent = `${items.length} ${items.length === 1 ? i18n.entrySingular : i18n.entryPlural}`;
+  // Leere Liste: „keine Bans“ statt „keine Treffer“
+  root.querySelector(`[data-empty-list="${key}"]`)?.classList.toggle('hidden', items.length > 0);
+  root.querySelector(`[data-empty-search="${key}"]`)?.classList.toggle('hidden', items.length === 0 || visibleCount > 0);
 }
 
 // Schatten am unteren Rand, solange die Liste noch weiter scrollt
@@ -71,7 +78,9 @@ function setupModerationPage() {
       btn.disabled = true;
       try {
         await api.callModuleAction('moderation', action, { user_id: btn.getAttribute(attr) });
+        const key = btn.closest<HTMLElement>('[data-list]')?.dataset.list;
         btn.closest('[data-search-value]')?.remove();
+        if (key) refreshList(root, key, i18n);
       } catch (err) {
         alert(errorMessage(err));
         btn.disabled = false;
@@ -80,7 +89,9 @@ function setupModerationPage() {
     }
   });
 
-  root.querySelectorAll<HTMLInputElement>('[data-search]').forEach((input) => setupSearch(root, input));
+  root.querySelectorAll<HTMLInputElement>('[data-search]').forEach((input) => {
+    input.addEventListener('input', () => refreshList(root, input.dataset.search!, i18n));
+  });
   root.querySelectorAll<HTMLElement>('[data-list]').forEach(setupScrollFade);
 }
 

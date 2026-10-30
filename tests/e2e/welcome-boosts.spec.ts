@@ -150,7 +150,6 @@ for (const { area, module, channelField, placeholderValue } of AREAS) {
     });
 
     test('Limit: nach dem Löschen ist Hinzufügen wieder möglich', async ({ page }) => {
-      test.fail(true, 'Bekannter Bug: der Button bleibt gesperrt, bis die Seite neu geladen wird');
       const full = { messages: [{ id: 1, message: 'Eins' }, { id: 2, message: 'Zwei' }], limit_free: 2, limit_premium: 5 };
       await resetBot({ [`${module}/list`]: { data: full } });
       collectDialogs(page);
@@ -168,6 +167,29 @@ for (const { area, module, channelField, placeholderValue } of AREAS) {
       await openArea(page, area);
       await expect(page.getByText(t('common.bot_offline'))).toBeVisible();
       await expect(messageEditor(page, area).addBtn).toBeDisabled();
+    });
+  });
+
+  test.describe(`${area}: Zähler & Hinweise`, () => {
+    test('Zähler folgt dem Hinzufügen und Löschen, ohne Nachrichten erscheint der Standard-Hinweis', async ({ page }) => {
+      const key = area === 'welcome' ? 'welcome' : 'boost';
+      collectDialogs(page);
+      await openArea(page, area);
+      const ed = messageEditor(page, area);
+      const emptyHint = ed.root.getByText(t(`${key}.no_custom_messages`));
+      await expect(emptyHint).toBeHidden();
+
+      await ed.addBtn.click();
+      await ed.textarea.fill('Zweite');
+      await ed.confirmBtn.click();
+      await waitForBotCall(`${module}/add-message`);
+      await expect(ed.root).toContainText(t(`${key}.messages_count`, { count: 2, limit: 2 }));
+
+      await ed.row(9).locator('[data-remove-message]').click();
+      await ed.row(1).locator('[data-remove-message]').click();
+      await expect(ed.rows).toHaveCount(0);
+      await expect(ed.root).toContainText(t(`${key}.messages_count`, { count: 0, limit: 2 }));
+      await expect(emptyHint).toBeVisible();
     });
   });
 
@@ -189,7 +211,6 @@ for (const { area, module, channelField, placeholderValue } of AREAS) {
 
 test.describe('welcome: Channel', () => {
   test('Welcome-Channel lässt sich abwählen', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: keine Option „Kein Channel“');
     await openArea(page, 'welcome');
     const { select, saveBtn } = channelPicker(page, 'welcome');
     await expect(select.locator('option[value=""]')).toHaveCount(1);
@@ -223,11 +244,39 @@ test.describe('goodbye', () => {
   });
 
   test('ohne gesetzten Goodbye-Channel wird kein Channel still mitgespeichert', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: ohne „Kein Channel“-Option zeigt die Auswahl den ersten Channel und speichert ihn mit');
     await setChannels({ goodbye_channel_id: null });
     await openArea(page, 'goodbye');
     const gb = goodbye(page);
     await expect(gb.select).toHaveValue('');
+    await gb.toggle.click();
+    await gb.saveBtn.click();
+    // Der Bot lehnt „an ohne Channel“ selbst ab — entscheidend ist, dass kein Channel untergeschoben wird
+    expect((await waitForBotCall('settings')).fields).toEqual({ goodbye_enabled: true, goodbye_channel_id: '' });
+  });
+});
+
+test.describe('boosts: Channel-Fallback', () => {
+  test('ohne eigenen Boost-Channel ist sichtbar, dass der Welcome-Channel genutzt wird', async ({ page }) => {
+    await setChannels({ boost_channel_id: null, welcome_channel_id: CHANNELS[1].id });
+    await openArea(page, 'boosts');
+    const { select, saveBtn } = channelPicker(page, 'boosts');
+    await expect(select).toHaveValue('');
+    await expect(select.locator('option:checked')).toHaveText(t('boost.same_as_welcome', { channel: `#${CHANNELS[1].name}` }));
+    await expect(saveBtn).toBeDisabled();
+  });
+
+  test('eigenen Boost-Channel wieder entfernen schickt ein leeres Feld', async ({ page }) => {
+    await openArea(page, 'boosts');
+    const { select, saveBtn } = channelPicker(page, 'boosts');
+    await select.selectOption('');
+    await saveBtn.click();
+    expect((await waitForBotCall('settings')).fields).toEqual({ boost_channel_id: '' });
+  });
+
+  test('ohne Welcome-Channel heißt die Option „Kein Channel“', async ({ page }) => {
+    await setChannels({ boost_channel_id: null, welcome_channel_id: null });
+    await openArea(page, 'boosts');
+    await expect(channelPicker(page, 'boosts').select.locator('option:checked')).toHaveText(t('common.no_channel'));
   });
 });
 

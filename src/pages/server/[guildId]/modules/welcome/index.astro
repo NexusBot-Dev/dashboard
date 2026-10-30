@@ -64,6 +64,7 @@ const boostTier: number = botResult.ok ? botResult.info.boost_tier : 0;
 const boostCount: number = botResult.ok ? botResult.info.boost_count : 0;
 
 const premiumActive = Boolean(premium);
+const welcomeChannelName = channels.find((ch) => ch.id === settings.welcome_channel_id)?.name ?? null;
 const goodbyeEnabled = Boolean(settings.goodbye_enabled);
 
 // Beispielwerte für die Vorschau — Server und Skript nutzen dieselben, damit beide gleich aussehen
@@ -114,6 +115,7 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
           <div class="flex-1 max-w-xs">
             <label for="welcome-channel-select" class={LABEL}>{t('welcome.welcome_channel_label')}</label>
             <select id="welcome-channel-select" data-initial={settings.welcome_channel_id ?? ''} disabled={!botOnline} class={SELECT}>
+              <option value="">{t('common.no_channel')}</option>
               {channels.map((ch) => <option value={ch.id} selected={ch.id === settings.welcome_channel_id}>#{ch.name}</option>)}
             </select>
           </div>
@@ -161,6 +163,7 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
           <div class="flex-1 max-w-xs">
             <label for="goodbye-channel-select" class={LABEL}>{t('welcome.goodbye_channel_label')}</label>
             <select id="goodbye-channel-select" data-initial={settings.goodbye_channel_id ?? ''} disabled={!botOnline} class={SELECT}>
+              <option value="">{t('common.no_channel')}</option>
               {channels.map((ch) => <option value={ch.id} selected={ch.id === settings.goodbye_channel_id}>#{ch.name}</option>)}
             </select>
           </div>
@@ -195,8 +198,10 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
           <div class="flex-1 max-w-xs">
             <label for="boost-channel-select" class={LABEL}>{t('boost.boost_channel_label')}</label>
             <select id="boost-channel-select" data-initial={settings.boost_channel_id ?? ''} disabled={!botOnline} class={SELECT}>
+              <!-- Ohne eigenen Boost-Channel nutzt der Bot den Welcome-Channel (cogs/boosts.py) — das sichtbar machen -->
+              <option value="">{welcomeChannelName ? t('boost.same_as_welcome', { channel: `#${welcomeChannelName}` }) : t('common.no_channel')}</option>
               {channels.map((ch) => (
-                <option value={ch.id} selected={ch.id === (settings.boost_channel_id ?? settings.welcome_channel_id)}>#{ch.name}</option>
+                <option value={ch.id} selected={ch.id === settings.boost_channel_id}>#{ch.name}</option>
               ))}
             </select>
           </div>

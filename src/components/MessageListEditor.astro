@@ -29,8 +29,12 @@ const textareaId = `${module}-message-textarea`;
 const config = {
   module,
   limit,
+  limitFree,
+  premiumActive,
   previewVars,
   i18n: {
+    countTemplate: t(`${textKey}.messages_count`), // enthält "{count}" und "{limit}"
+
     edit: t('common.edit'),
     delete: t('common.delete'),
     previewLabel: t('boost.preview_label'),
@@ -50,9 +54,9 @@ const config = {
     </button>
   </div>
   <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
-    {t(`${textKey}.messages_count`, { count: messages.length, limit })}
-    {!premiumActive && messages.length >= limitFree && (
-      <span class="ml-1">— <Badge variant="primary">Premium</Badge> {t(`${textKey}.premium_hint`, { max: limitPremium })}</span>
+    <span data-role="count">{t(`${textKey}.messages_count`, { count: messages.length, limit })}</span>
+    {!premiumActive && (
+      <span data-role="premium-hint" class:list={['ml-1', messages.length < limitFree && 'hidden']}>— <Badge variant="primary">Premium</Badge> {t(`${textKey}.premium_hint`, { max: limitPremium })}</span>
     )}
   </p>
 
@@ -74,14 +78,13 @@ const config = {
     ))}
   </div>
 
-  {messages.length === 0 && (
-    <div class="py-2">
-      <p class="text-sm text-slate-500 dark:text-slate-400 mb-2">{t(`${textKey}.no_custom_messages`)}</p>
-      <div class="rounded-lg border border-slate-200 dark:border-slate-800 border-dashed p-4">
-        <p class="text-sm text-slate-600 dark:text-slate-400 italic" set:html={preview(defaultMessage)} />
-      </div>
+  <!-- Immer im Markup, damit das Skript den Hinweis nach dem Löschen der letzten Nachricht wieder zeigen kann -->
+  <div data-role="empty" class:list={['py-2', messages.length > 0 && 'hidden']}>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-2">{t(`${textKey}.no_custom_messages`)}</p>
+    <div class="rounded-lg border border-slate-200 dark:border-slate-800 border-dashed p-4">
+      <p class="text-sm text-slate-600 dark:text-slate-400 italic" set:html={preview(defaultMessage)} />
     </div>
-  )}
+  </div>
 
   <div data-role="form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
     <p data-role="form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t(`${textKey}.message_form_add_title`)}</p>

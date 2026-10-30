@@ -229,6 +229,7 @@
     "server_level": "Nivel del servidor {tier}",
     "level_badge": "Nivel {tier}",
     "boost_channel_label": "Canal de boosts",
+    "same_as_welcome": "Igual que el canal de bienvenida ({channel})",
     "messages_title": "Mensajes",
     "messages_count": "{count} / {limit} mensajes",
     "premium_hint": "para hasta {max} mensajes",

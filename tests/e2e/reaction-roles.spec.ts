@@ -209,6 +209,110 @@ test.describe('Nachrichten', () => {
   });
 });
 
+test.describe('Nachricht bearbeiten', () => {
+  const form = (page: Page) => page.locator('#new-message-form');
+
+  test('Formular ist vorbefüllt, Channel und Anzeige-Modus sind ausgeblendet', async ({ page }) => {
+    await page.goto(PAGE);
+    await messageBlock(page, MSG_REACTION).locator('[data-edit-message]').click();
+
+    await expect(form(page)).toBeVisible();
+    await expect(page.locator('#message-form-title')).toHaveText(t('reaction_roles.edit_message_form_title'));
+    await expect(page.locator('#confirm-new-message-btn')).toHaveText(t('common.save'));
+    await expect(page.locator('#new-msg-title')).toHaveValue('Rollen-Auswahl');
+    await expect(page.locator('#new-msg-desc')).toHaveValue('**Wähle** deine Farbe'); // Rohtext, nicht gerendert
+    await expect(page.locator('#new-msg-desc-preview strong')).toHaveText('Wähle');
+    await expect(page.locator('#new-msg-channel-wrap')).toBeHidden();
+    await expect(page.locator('#new-msg-display-wrap')).toBeHidden();
+  });
+
+  test('Speichern schickt Titel und Text und aktualisiert die Anzeige', async ({ page }) => {
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await messageBlock(page, MSG_REACTION).locator('[data-edit-message]').click();
+    await page.locator('#new-msg-title').fill(`Neu ${XSS}`);
+    await page.locator('#new-msg-desc').fill(`**Neu** ${XSS}`);
+    await page.locator('#confirm-new-message-btn').click();
+
+    expect(await waitForBotCall('reaction_roles/update-message')).toMatchObject({
+      message_id: MSG_REACTION, title: `Neu ${XSS}`, description: `**Neu** ${XSS}`,
+    });
+    const block = messageBlock(page, MSG_REACTION);
+    await expect(block.locator('[data-msg-title]')).toHaveText(`Neu ${XSS}`);
+    await expect(block.locator('[data-msg-desc] strong')).toHaveText('Neu');
+    await expect(block.locator('[data-msg-desc] img')).toHaveCount(0);
+    await expect(form(page)).toBeHidden();
+    expect(await botCalls('reaction_roles/create-message')).toHaveLength(0);
+
+    // Erneut öffnen: das Formular zeigt den gespeicherten Stand, nicht den vom Seitenaufruf
+    await block.locator('[data-edit-message]').click();
+    await expect(page.locator('#new-msg-title')).toHaveValue(`Neu ${XSS}`);
+    expect(dialogs).toHaveLength(0); // status "updated" → kein Hinweis
+    await expectNoXss(page);
+  });
+
+  for (const [status, key] of [['saved_only', 'edit_status_saved_only'], ['not_own', 'edit_status_not_own'], ['failed', 'edit_status_failed']]) {
+    test(`Status „${status}“ des Bots wird als Hinweis angezeigt`, async ({ page }) => {
+      await resetBot({ 'reaction_roles/update-message': { data: { message_id: MSG_REACTION, status } } });
+      const dialogs = collectDialogs(page);
+      await page.goto(PAGE);
+      await messageBlock(page, MSG_REACTION).locator('[data-edit-message]').click();
+      await page.locator('#new-msg-title').fill('Anders');
+      await page.locator('#confirm-new-message-btn').click();
+
+      await expect.poll(() => dialogs).toContain(t(`reaction_roles.${key}`));
+      await expect(messageBlock(page, MSG_REACTION).locator('[data-msg-title]')).toHaveText('Anders');
+    });
+  }
+
+  test('Fehler des Bots: Hinweis, Formular bleibt offen, Anzeige unverändert', async ({ page }) => {
+    await resetBot({ 'reaction_roles/update-message': { status: 400, error: 'Titel zu lang (max. 256 Zeichen)' } });
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await messageBlock(page, MSG_REACTION).locator('[data-edit-message]').click();
+    await page.locator('#new-msg-title').fill('Anders');
+    await page.locator('#confirm-new-message-btn').click();
+
+    await expect.poll(() => dialogs.join('\n')).toContain('Titel zu lang');
+    await expect(form(page)).toBeVisible();
+    await expect(messageBlock(page, MSG_REACTION).locator('[data-msg-title]')).toHaveText('Rollen-Auswahl');
+  });
+
+  test('nach dem Bearbeiten legt „Neue Nachricht“ wieder eine neue an', async ({ page }) => {
+    await page.goto(PAGE);
+    await messageBlock(page, MSG_REACTION).locator('[data-edit-message]').click();
+    await page.locator('#cancel-new-message-btn').click();
+
+    await page.locator('#new-message-btn').click();
+    await expect(page.locator('#message-form-title')).toHaveText(t('reaction_roles.new_message_form_title'));
+    await expect(page.locator('#new-msg-title')).toHaveValue('');
+    await expect(page.locator('#new-msg-channel-wrap')).toBeVisible();
+    await page.locator('#new-msg-title').fill('Frisch');
+    await page.locator('#new-msg-desc').fill('Text');
+    await page.locator('#confirm-new-message-btn').click();
+
+    await waitForBotCall('reaction_roles/create-message');
+    expect(await botCalls('reaction_roles/update-message')).toHaveLength(0);
+  });
+
+  test('neu angelegte Nachricht lässt sich direkt bearbeiten', async ({ page }) => {
+    await page.goto(PAGE);
+    await page.locator('#new-message-btn').click();
+    await page.locator('#new-msg-title').fill('Erst');
+    await page.locator('#new-msg-desc').fill('Text');
+    await page.locator('#confirm-new-message-btn').click();
+    await waitForBotCall('reaction_roles/create-message');
+
+    const block = messageBlock(page, '700000000000000009');
+    await block.locator('[data-edit-message]').click();
+    await expect(page.locator('#new-msg-title')).toHaveValue('Erst');
+    await page.locator('#new-msg-title').fill('Dann');
+    await page.locator('#confirm-new-message-btn').click();
+    expect(await waitForBotCall('reaction_roles/update-message')).toMatchObject({ message_id: '700000000000000009', title: 'Dann' });
+    await expect(block.locator('[data-msg-title]')).toHaveText('Dann');
+  });
+});
+
 test.describe('Zuordnungen', () => {
   test('Toggle-Zuordnung hinzufügen und wieder entfernen', async ({ page }) => {
     collectDialogs(page);

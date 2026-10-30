@@ -89,6 +89,9 @@ export const defaultBotData = {
     entry_id: 99, role_id: body.role_id, role_name: ROLES.find((r) => r.id === body.role_id)?.name ?? '?',
     emoji: body.emoji, mode: body.mode,
   }),
+  'reaction_roles/update-message': (body) => ({
+    message_id: body.message_id, title: body.title, description: body.description, message_updated: true, status: 'updated',
+  }),
   'reaction_roles/delete-entry': (body) => ({ entry_id: Number(body.entry_id) }),
   'reaction_roles/delete-message': (body) => ({ message_id: body.message_id }),
 

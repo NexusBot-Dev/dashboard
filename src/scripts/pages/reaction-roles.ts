@@ -24,6 +24,14 @@ interface ReactionRolesConfig {
     confirmDeleteMessage: string;
     displayModeReactionOption: string;
     displayModeDropdownOption: string;
+    editBtn: string;
+    saveBtn: string;
+    createBtn: string;
+    newMessageFormTitle: string;
+    editMessageFormTitle: string;
+    editStatusSavedOnly: string;
+    editStatusNotOwn: string;
+    editStatusFailed: string;
   };
 }
 
@@ -101,10 +109,15 @@ function setupGroups(api: DashboardApi, i18n: I18n) {
   });
 }
 
-// ─── Neue Nachricht ──────────────────────────────────────────────────────────
+// ─── Neue Nachricht / Nachricht bearbeiten ───────────────────────────────────
+// Ein gemeinsames Formular für beide Fälle (wie auf der Embeds-Seite): im Edit-Modus sind
+// Channel und Anzeige-Modus ausgeblendet, weil die Bot-Action update-message nur Titel/Text ändert.
 function setupNewMessage(api: DashboardApi, i18n: I18n) {
   const newMsgBtn = byId<HTMLButtonElement>('new-message-btn');
   const form = byId('new-message-form')!;
+  const formTitle = byId('message-form-title')!;
+  const channelWrap = byId('new-msg-channel-wrap')!;
+  const displayWrap = byId('new-msg-display-wrap')!;
   const channelSelect = byId<HTMLSelectElement>('new-msg-channel')!;
   const titleInput = byId<HTMLInputElement>('new-msg-title')!;
   const descInput = byId<HTMLTextAreaElement>('new-msg-desc')!;
@@ -112,12 +125,121 @@ function setupNewMessage(api: DashboardApi, i18n: I18n) {
   const confirmBtn = byId<HTMLButtonElement>('confirm-new-message-btn')!;
   const cancelBtn = byId<HTMLButtonElement>('cancel-new-message-btn')!;
   const list = byId('messages-list')!;
+  const descPreview = byId('new-msg-desc-preview');
 
   if (!newMsgBtn || newMsgBtn.dataset.bound === 'true') return;
   newMsgBtn.dataset.bound = 'true';
 
-  newMsgBtn.addEventListener('click', () => form.classList.remove('hidden'));
-  cancelBtn.addEventListener('click', () => form.classList.add('hidden'));
+  let editingId: string | null = null;
+
+  const updatePreview = () => {
+    const val = descInput.value.trim();
+    if (descPreview) descPreview.innerHTML = val ? renderDiscordMarkdown(val) : '—';
+  };
+
+  function openForm(mode: 'create' | 'edit', block?: HTMLElement) {
+    editingId = mode === 'edit' && block ? block.dataset.messageBlock! : null;
+    const isEdit = editingId !== null;
+    formTitle.textContent = isEdit ? i18n.editMessageFormTitle : i18n.newMessageFormTitle;
+    confirmBtn.textContent = isEdit ? i18n.saveBtn : i18n.createBtn;
+    channelWrap.classList.toggle('hidden', isEdit);
+    displayWrap.classList.toggle('hidden', isEdit);
+    titleInput.value = isEdit ? block!.dataset.title ?? '' : '';
+    descInput.value = isEdit ? block!.dataset.description ?? '' : '';
+    updatePreview();
+    form.classList.remove('hidden');
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    titleInput.focus();
+  }
+
+  function closeForm() {
+    form.classList.add('hidden');
+    editingId = null;
+  }
+
+  newMsgBtn.addEventListener('click', () => openForm('create'));
+  cancelBtn.addEventListener('click', closeForm);
+
+  // Delegiert, damit auch Buttons neu angelegter Nachrichten funktionieren
+  list.addEventListener('click', (event) => {
+    const editBtn = (event.target as HTMLElement).closest<HTMLElement>('[data-edit-message]');
+    if (!editBtn) return;
+    const block = editBtn.closest<HTMLElement>('[data-message-block]');
+    if (block) openForm('edit', block);
+  });
+
+  async function saveEdit(messageId: string, title: string, description: string) {
+    const result = await api.callModuleAction<{ status: string }>('reaction_roles', 'update-message', {
+      message_id: messageId, title, description,
+    });
+
+    const block = list.querySelector<HTMLElement>(`[data-message-block="${CSS.escape(messageId)}"]`);
+    if (block) {
+      block.dataset.title = title;
+      block.dataset.description = description;
+      block.querySelector<HTMLElement>('[data-msg-title]')!.textContent = title;
+      block.querySelector<HTMLElement>('[data-msg-desc]')!.innerHTML = renderDiscordMarkdown(description);
+    }
+    closeForm();
+
+    // Der Text ist in jedem Fall gespeichert; der Status sagt, ob Discord nachgezogen wurde
+    const hint = ({ saved_only: i18n.editStatusSavedOnly, not_own: i18n.editStatusNotOwn, failed: i18n.editStatusFailed } as Record<string, string>)[result.status];
+    if (hint) alert(hint);
+  }
+
+  async function createMessage(title: string, description: string) {
+    const channelId = channelSelect.value;
+    const channelName = channelSelect.selectedOptions[0]?.dataset.channelName ?? '';
+    const displayMode = displayModeSelect.value;
+    const result = await api.callModuleAction<{ message_id: string }>('reaction_roles', 'create-message', {
+      channel_id: channelId, title, description, display_mode: displayMode,
+    });
+
+    const modeLabel = displayMode === 'dropdown' ? i18n.displayModeDropdownOption : i18n.displayModeReactionOption;
+    const modeBadgeClass = displayMode === 'dropdown' ? BADGE_PRIMARY : BADGE_NEUTRAL;
+
+    const block = document.createElement('div');
+    block.className = 'mb-5 last:mb-0';
+    block.dataset.messageBlock = result.message_id;
+    block.dataset.title = title;
+    block.dataset.description = description;
+    block.innerHTML = `
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400" data-channel-label></span>
+          <span class="text-xs text-slate-400 font-mono" data-message-id-label></span>
+          <span class="${BADGE_BASE} ${modeBadgeClass}">${modeLabel}</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button type="button" data-edit-message class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">${i18n.editBtn}</button>
+          <button type="button" data-add-entry-to class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">+ ${i18n.addEntryBtn}</button>
+          <button type="button" data-delete-message class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">${i18n.deleteMessageBtn}</button>
+        </div>
+      </div>
+      <div class="mb-2">
+        <p class="text-sm font-semibold text-slate-900 dark:text-white truncate" data-msg-title></p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 italic" data-msg-desc></p>
+      </div>
+      <div class="space-y-2" data-entries-list></div>
+      <p class="text-sm text-slate-400 py-2">${i18n.noEntries}</p>
+    `;
+    // IDs und Namen per DOM-API setzen statt in den HTML-String — so kann nichts davon Markup werden
+    block.querySelector<HTMLElement>('[data-channel-label]')!.textContent = `#${channelName}`;
+    block.querySelector<HTMLElement>('[data-message-id-label]')!.textContent = result.message_id;
+    block.querySelector<HTMLElement>('[data-edit-message]')!.dataset.editMessage = result.message_id;
+    const addBtn = block.querySelector<HTMLElement>('[data-add-entry-to]')!;
+    addBtn.dataset.addEntryTo = result.message_id;
+    addBtn.dataset.channelId = channelId;
+    const deleteBtn = block.querySelector<HTMLElement>('[data-delete-message]')!;
+    deleteBtn.dataset.deleteMessage = result.message_id;
+    deleteBtn.dataset.channelId = channelId;
+    block.querySelector<HTMLElement>('[data-entries-list]')!.dataset.entriesList = result.message_id;
+    block.querySelector<HTMLElement>('[data-msg-title]')!.textContent = title;
+    block.querySelector<HTMLElement>('[data-msg-desc]')!.innerHTML = renderDiscordMarkdown(description);
+    list.appendChild(block);
+
+    closeForm();
+  }
 
   confirmBtn.addEventListener('click', async () => {
     const title = titleInput.value.trim();
@@ -126,57 +248,8 @@ function setupNewMessage(api: DashboardApi, i18n: I18n) {
 
     confirmBtn.disabled = true;
     try {
-      const channelId = channelSelect.value;
-      const channelName = channelSelect.selectedOptions[0]?.dataset.channelName ?? '';
-      const displayMode = displayModeSelect.value;
-      const result = await api.callModuleAction<{ message_id: string }>('reaction_roles', 'create-message', {
-        channel_id: channelId, title, description, display_mode: displayMode,
-      });
-
-      const modeLabel = displayMode === 'dropdown' ? i18n.displayModeDropdownOption : i18n.displayModeReactionOption;
-      const modeBadgeClass = displayMode === 'dropdown' ? BADGE_PRIMARY : BADGE_NEUTRAL;
-
-      const block = document.createElement('div');
-      block.className = 'mb-5 last:mb-0';
-      block.dataset.messageBlock = result.message_id;
-      block.innerHTML = `
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400" data-channel-label></span>
-            <span class="text-xs text-slate-400 font-mono" data-message-id-label></span>
-            <span class="${BADGE_BASE} ${modeBadgeClass}">${modeLabel}</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <button type="button" data-add-entry-to class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">+ ${i18n.addEntryBtn}</button>
-            <button type="button" data-delete-message class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">${i18n.deleteMessageBtn}</button>
-          </div>
-        </div>
-        <div class="mb-2">
-          <p class="text-sm font-semibold text-slate-900 dark:text-white truncate" data-msg-title></p>
-          <p class="text-xs text-slate-500 dark:text-slate-400 italic" data-msg-desc></p>
-        </div>
-        <div class="space-y-2" data-entries-list></div>
-        <p class="text-sm text-slate-400 py-2">${i18n.noEntries}</p>
-      `;
-      // IDs und Namen per DOM-API setzen statt in den HTML-String — so kann nichts davon Markup werden
-      block.querySelector<HTMLElement>('[data-channel-label]')!.textContent = `#${channelName}`;
-      block.querySelector<HTMLElement>('[data-message-id-label]')!.textContent = result.message_id;
-      const addBtn = block.querySelector<HTMLElement>('[data-add-entry-to]')!;
-      addBtn.dataset.addEntryTo = result.message_id;
-      addBtn.dataset.channelId = channelId;
-      const deleteBtn = block.querySelector<HTMLElement>('[data-delete-message]')!;
-      deleteBtn.dataset.deleteMessage = result.message_id;
-      deleteBtn.dataset.channelId = channelId;
-      block.querySelector<HTMLElement>('[data-entries-list]')!.dataset.entriesList = result.message_id;
-      block.querySelector<HTMLElement>('[data-msg-title]')!.textContent = title;
-      block.querySelector<HTMLElement>('[data-msg-desc]')!.innerHTML = renderDiscordMarkdown(description);
-      list.appendChild(block);
-
-      titleInput.value = '';
-      descInput.value = '';
-      const descPreview = byId('new-msg-desc-preview');
-      if (descPreview) descPreview.innerHTML = '—';
-      form.classList.add('hidden');
+      if (editingId) await saveEdit(editingId, title, description);
+      else await createMessage(title, description);
     } catch (err) {
       alert(errorMessage(err));
     } finally {

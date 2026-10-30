@@ -305,7 +305,11 @@
     "display_mode_label": "Display mode",
     "display_mode_reaction_option": "Emoji reactions",
     "display_mode_dropdown_option": "Dropdown menu",
-    "premium_dropdown_hint": "(Dropdown menu requires Premium)"
+    "premium_dropdown_hint": "(Dropdown menu requires Premium)",
+    "edit_message_form_title": "Edit message",
+    "edit_status_saved_only": "Saved, but the message in Discord is currently not reachable. The new text will be used when it is reposted.",
+    "edit_status_not_own": "Saved, but this message was not posted by Nexus, so it cannot be changed in Discord.",
+    "edit_status_failed": "Saved, but Discord rejected editing the message. Please try again later."
   },
   "welcome": {
     "title": "Welcome",

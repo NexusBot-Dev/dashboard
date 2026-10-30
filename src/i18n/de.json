@@ -305,7 +305,11 @@
     "display_mode_label": "Anzeige-Modus",
     "display_mode_reaction_option": "Emoji-Reaktionen",
     "display_mode_dropdown_option": "Dropdown-Menü",
-    "premium_dropdown_hint": "(Dropdown-Menü benötigt Premium)"
+    "premium_dropdown_hint": "(Dropdown-Menü benötigt Premium)",
+    "edit_message_form_title": "Nachricht bearbeiten",
+    "edit_status_saved_only": "Gespeichert, aber die Nachricht in Discord ist gerade nicht erreichbar. Der neue Text wird beim Neu-Posten verwendet.",
+    "edit_status_not_own": "Gespeichert, aber diese Nachricht stammt nicht von Nexus und kann deshalb nicht in Discord geändert werden.",
+    "edit_status_failed": "Gespeichert, aber Discord hat das Bearbeiten der Nachricht abgelehnt. Bitte später erneut versuchen."
   },
   "welcome": {
     "title": "Welcome",

@@ -305,7 +305,11 @@
     "display_mode_label": "Modo de visualización",
     "display_mode_reaction_option": "Reacciones con emoji",
     "display_mode_dropdown_option": "Menú desplegable",
-    "premium_dropdown_hint": "(El menú desplegable requiere Premium)"
+    "premium_dropdown_hint": "(El menú desplegable requiere Premium)",
+    "edit_message_form_title": "Editar mensaje",
+    "edit_status_saved_only": "Guardado, pero el mensaje en Discord no está accesible ahora. El nuevo texto se usará al volver a publicarlo.",
+    "edit_status_not_own": "Guardado, pero este mensaje no fue publicado por Nexus, así que no se puede modificar en Discord.",
+    "edit_status_failed": "Guardado, pero Discord rechazó la edición del mensaje. Inténtalo de nuevo más tarde."
   },
   "welcome": {
     "title": "Bienvenida",

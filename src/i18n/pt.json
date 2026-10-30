@@ -305,7 +305,11 @@
     "display_mode_label": "Modo de exibição",
     "display_mode_reaction_option": "Reações com emoji",
     "display_mode_dropdown_option": "Menu suspenso",
-    "premium_dropdown_hint": "(O menu suspenso requer Premium)"
+    "premium_dropdown_hint": "(O menu suspenso requer Premium)",
+    "edit_message_form_title": "Editar mensagem",
+    "edit_status_saved_only": "Salvo, mas a mensagem no Discord não está acessível no momento. O novo texto será usado ao repostá-la.",
+    "edit_status_not_own": "Salvo, mas esta mensagem não foi postada pelo Nexus, então não pode ser alterada no Discord.",
+    "edit_status_failed": "Salvo, mas o Discord recusou a edição da mensagem. Tente novamente mais tarde."
   },
   "welcome": {
     "title": "Boas-vindas",

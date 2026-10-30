@@ -332,7 +332,6 @@ function setupDeletes(api: DashboardApi, i18n: I18n) {
 
 // ─── Einstieg ────────────────────────────────────────────────────────────────
 function setupReactionRolesPage() {
-  // Auf anderen Seiten gibt es das Element nicht — dann ist nichts zu tun
   const root = byId('reaction-roles-page');
   if (!root) return;
 

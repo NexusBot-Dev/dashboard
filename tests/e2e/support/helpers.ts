@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import mysql from 'mysql2/promise';
 import { expect, type BrowserContext, type Page } from '@playwright/test';
-import { APP_URL, BOT_URL, GUILD_ID, SESSION_ID, USER_ID } from './env.mjs';
+import { APP_URL, BOT_URL, DB, GUILD_ID, SESSION_ID, USER_ID } from './env.mjs';
 
 type BotCall = { key: string; body: any };
 type Override = { status?: number; error: string } | { data: unknown };
@@ -51,3 +52,13 @@ export function collectDialogs(page: Page, { accept = true } = {}) {
 }
 
 export const guildPath = (sub: string) => `/server/${GUILD_ID}/${sub}`;
+
+/** Direkter Zugriff auf die Test-DB — für Seiten, die (wie Settings) selbst aus der DB lesen */
+export async function dbQuery(sql: string, params: unknown[] = []) {
+  const conn = await mysql.createConnection(DB);
+  try {
+    await conn.query(sql, params);
+  } finally {
+    await conn.end();
+  }
+}

@@ -95,5 +95,7 @@ export const defaultBotData = {
   'reaction_roles/delete-entry': (body) => ({ entry_id: Number(body.entry_id) }),
   'reaction_roles/delete-message': (body) => ({ message_id: body.message_id }),
 
+  'modules/toggle': (body) => ({ modules: { ...body.changes } }),
+
   settings: (body) => ({ updated_fields: Object.keys(body.fields ?? {}), warnings: [] }),
 };

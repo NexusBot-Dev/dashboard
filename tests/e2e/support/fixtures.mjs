@@ -4,6 +4,8 @@
 export const CHANNELS = [
   { id: '200000000000000001', name: 'support' },
   { id: '200000000000000002', name: 'ticket-logs' },
+  // Kategorie-/Voice-Namen dürfen bei Discord Sonderzeichen enthalten — muss überall als Text landen
+  { id: '200000000000000003', name: 'böse<img src=x onerror="window.__xss=1">' },
 ];
 
 export const ROLES = [
@@ -54,6 +56,41 @@ export const defaultBotData = {
     closure_timeout_hours: body.closure_timeout_hours ?? 24,
     deletion_delay_hours: body.deletion_delay_hours ?? 48,
   }),
+
+  'guild/emojis': {
+    emojis: [{ name: 'blau', id: '400000000000000001', animated: false, url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }],
+  },
+
+  'reaction_roles/list-groups': { groups: [{ id: 5, name: 'Farben' }] },
+  'reaction_roles/list-messages': {
+    premium_active: false,
+    messages: [
+      {
+        message_id: '700000000000000001', channel_id: CHANNELS[0].id, channel_name: CHANNELS[0].name,
+        title: 'Rollen-Auswahl', description: '**Wähle** deine Farbe', display_mode: 'reaction',
+        entries: [
+          { id: 11, emoji: '🔴', role_id: ROLES[0].id, role_name: 'Mods', mode: 'toggle', group_id: null },
+          { id: 12, emoji: '<:blau:400000000000000001>', role_id: ROLES[1].id, role_name: 'Helfer', mode: 'unique', group_id: 5 },
+        ],
+      },
+      {
+        message_id: '700000000000000002', channel_id: CHANNELS[1].id, channel_name: null,
+        title: 'Pronomen', description: 'Wähle aus dem Menü', display_mode: 'dropdown',
+        entries: [],
+      },
+    ],
+  },
+  'reaction_roles/create-group': (body) => ({ id: 6, name: body.name }),
+  'reaction_roles/create-message': (body) => ({
+    message_id: '700000000000000009', channel_id: body.channel_id,
+    channel_name: CHANNELS.find((c) => c.id === body.channel_id)?.name, display_mode: body.display_mode,
+  }),
+  'reaction_roles/add-entry': (body) => ({
+    entry_id: 99, role_id: body.role_id, role_name: ROLES.find((r) => r.id === body.role_id)?.name ?? '?',
+    emoji: body.emoji, mode: body.mode,
+  }),
+  'reaction_roles/delete-entry': (body) => ({ entry_id: Number(body.entry_id) }),
+  'reaction_roles/delete-message': (body) => ({ message_id: body.message_id }),
 
   settings: (body) => ({ updated_fields: Object.keys(body.fields ?? {}), warnings: [] }),
 };

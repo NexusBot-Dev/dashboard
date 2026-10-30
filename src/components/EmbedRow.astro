@@ -1,0 +1,42 @@
+---
+// Eine Zeile der Embed-Liste. Wird für die gespeicherten Embeds gerendert und — ohne embed — als
+// <template>, aus dem das Skript neue Zeilen klont (src/scripts/pages/embeds.ts).
+import Badge from './Badge.astro';
+
+interface Props {
+  embed?: { id: number; name: string; title: string; description: string; channel_id: string | null };
+  channelLabel?: string;        // „#name“ oder „kein Channel“
+  scheduledLabel?: string | null;
+  premiumActive: boolean;
+}
+
+const { embed, channelLabel = '', scheduledLabel = null, premiumActive } = Astro.props;
+const t = Astro.locals.t;
+const id = embed ? String(embed.id) : '';
+const LINK = 'text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline';
+---
+
+<div class="rounded-lg border border-slate-200 dark:border-slate-800 p-4" data-embed-row={id} data-title={embed?.title ?? ''} data-description={embed?.description ?? ''} data-channel-id={embed?.channel_id ?? ''}>
+  <div class="flex items-start justify-between gap-4">
+    <div class="min-w-0 flex-1">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="font-semibold text-slate-900 dark:text-white" data-field="name">{embed?.name}</span>
+        <span class="text-xs text-slate-400" data-field="channel">{channelLabel}</span>
+      </div>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300" data-field="title">{embed?.title}</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2" data-field="description">{embed?.description}</p>
+      {scheduledLabel && (
+        <p class="mt-1.5 text-xs" data-schedule-badge>
+          <Badge variant="warning">{scheduledLabel}</Badge>
+          <button type="button" data-unschedule={id} class="ml-2 text-xs text-red-600 dark:text-red-400 hover:underline">{t('embeds.remove_schedule_btn')}</button>
+        </p>
+      )}
+    </div>
+    <div class="flex flex-col items-end gap-1.5 flex-shrink-0 text-right">
+      <button type="button" data-post-now={id} class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">{t('embeds.post_now_btn')}</button>
+      <button type="button" data-schedule-btn={id} class={LINK}>{t('embeds.schedule_btn')} {!premiumActive && '🔒'}</button>
+      <button type="button" data-edit-embed={id} class={LINK}>{t('common.edit')}</button>
+      <button type="button" data-remove-embed={id} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">{t('common.delete')}</button>
+    </div>
+  </div>
+</div>

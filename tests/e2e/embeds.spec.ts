@@ -92,6 +92,23 @@ test.describe('Erstellen', () => {
     await expectNoXss(page);
   });
 
+  test('neu angelegtes Embed ist sofort bedienbar und sieht aus wie die anderen', async ({ page }) => {
+    collectDialogs(page);
+    await page.goto(PAGE);
+    await page.locator('#add-embed-btn').click();
+    await fillForm(page, { name: 'Neu', channel: CHANNELS[0].id, description: 'Text' });
+    await page.locator('#confirm-embed-btn').click();
+    await waitForBotCall('embeds/add');
+
+    await expect(row(page, 9).locator('[data-schedule-btn]')).toContainText('🔒'); // ohne Premium wie bei den übrigen
+    await row(page, 9).locator('[data-edit-embed]').click();
+    await expect(page.locator('#embed-name-input')).toHaveValue('Neu');
+    await page.locator('#cancel-embed-btn').click();
+    await row(page, 9).locator('[data-remove-embed]').click();
+    expect(String((await waitForBotCall('embeds/delete')).embed_id)).toBe('9');
+    await expect(row(page, 9)).toHaveCount(0);
+  });
+
   test('Vorschau rendert Markdown und escaped HTML', async ({ page }) => {
     await page.goto(PAGE);
     await page.locator('#add-embed-btn').click();

@@ -45,7 +45,6 @@ export function renderDiscordMarkdown(text: string): string {
 
 /**
  * Vorschau mit Platzhaltern. Jede Seite übergibt nur die Variablen, die sie kennt:
- *   embeds:  { user, username, server }
  *   boosts:  { user, username, server, count }
  *   welcome: { user, username, server, membercount }
  *   tickets: keine

@@ -52,9 +52,6 @@ if (!settings) {
   return Astro.redirect('/server');
 }
 
-const session = Astro.locals.session;
-const previewDisplayName = session?.globalName || session?.username || 'User';
-
 if (botResult.ok) {
   guildName = botResult.info.name;
   guildIconUrl = botResult.info.icon_url;
@@ -78,11 +75,9 @@ function formatScheduled(iso: string) {
   });
 }
 
-// Beispielwerte für die Live-Vorschau
-const previewVars = { user: `@${previewDisplayName}`, username: previewDisplayName, server: guildName };
-
 // Texte für das Seiten-Skript (src/scripts/pages/embeds.ts)
 const i18n = {
+  countTemplate: t('embeds.embeds_count'), // enthält "{count}" und "{limit}"
   errorGeneric: t('common.error_generic'),
   errorServerTemplate: t('common.error_server'),
   unexpectedResponseTemplate: t('embeds.unexpected_response'),
@@ -136,13 +131,13 @@ const i18n = {
       </button>
     </div>
     <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
-      {t('embeds.embeds_count', { count: embeds.length, limit })}
-      {!premiumActive && embeds.length >= limitFree && (
-        <span class="ml-1">— <Badge variant="primary">Premium</Badge> {t('embeds.premium_hint', { max: limitPremium })}</span>
+      <span id="embeds-count">{t('embeds.embeds_count', { count: embeds.length, limit })}</span>
+      {!premiumActive && (
+        <span id="embeds-premium-hint" class:list={['ml-1', embeds.length < limitFree && 'hidden']}>— <Badge variant="primary">Premium</Badge> {t('embeds.premium_hint', { max: limitPremium })}</span>
       )}
     </p>
 
-    <div id="embeds-list" class="space-y-3" data-config={JSON.stringify({ guildId, i18n, previewVars })}>
+    <div id="embeds-list" class="space-y-3" data-config={JSON.stringify({ guildId, i18n, limit, limitFree, premiumActive })}>
       {embeds.map((e) => {
         const channelName = channels.find((c) => c.id === e.channel_id)?.name;
         return (
@@ -157,9 +152,8 @@ const i18n = {
     </div>
     <template id="embed-row-template"><EmbedRow premiumActive={premiumActive} /></template>
 
-    {embeds.length === 0 && (
-      <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('embeds.no_embeds')}</p>
-    )}
+    <!-- Immer im Markup, damit das Skript den Hinweis nach dem Löschen des letzten Embeds wieder zeigen kann -->
+    <p id="embeds-empty" class:list={['text-sm text-slate-500 dark:text-slate-400 py-4', embeds.length > 0 && 'hidden']}>{t('embeds.no_embeds')}</p>
 
     <!-- Add/Edit-Form -->
     <div id="embed-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
@@ -168,7 +162,7 @@ const i18n = {
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
           <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.internal_name_label')}</label>
-          <input type="text" id="embed-name-input" maxlength="100" placeholder={t('embeds.internal_name_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          <input type="text" id="embed-name-input" maxlength="100" placeholder={t('embeds.internal_name_placeholder')} class="read-only:opacity-60 read-only:cursor-not-allowed w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('tickets.target_channel_label')}</label>

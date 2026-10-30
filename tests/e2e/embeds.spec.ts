@@ -120,7 +120,6 @@ test.describe('Erstellen', () => {
   });
 
   test('Vorschau zeigt Platzhalter so, wie der Bot sie postet', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: die Vorschau ersetzt {user}/{server}, der Bot postet Embeds aber ohne Ersetzung');
     await page.goto(PAGE);
     await page.locator('#add-embed-btn').click();
     await fillForm(page, { description: 'Hallo {user} auf {server}' });
@@ -141,6 +140,21 @@ test.describe('Erstellen', () => {
     expect(await botCalls('embeds/add')).toHaveLength(0);
   });
 
+  test('Löschen gibt das Limit frei, ohne Embeds erscheint der Leer-Hinweis', async ({ page }) => {
+    const full = { ...list, embeds: [...list.embeds, { ...list.embeds[0], id: 3, name: 'Drei' }] };
+    await resetBot({ 'embeds/list': { data: full } });
+    collectDialogs(page);
+    await page.goto(PAGE);
+    await expect(page.locator('#add-embed-btn')).toBeDisabled();
+    for (const id of [3, 2, 1]) {
+      await row(page, id).locator('[data-remove-embed]').click();
+      await expect(row(page, id)).toHaveCount(0);
+    }
+    await expect(page.locator('#add-embed-btn')).toBeEnabled();
+    await expect(page.getByText(t('embeds.embeds_count', { count: 0, limit: 3 }))).toBeVisible();
+    await expect(page.getByText(t('embeds.no_embeds'))).toBeVisible();
+  });
+
   test('Fehler des Bots wird angezeigt, Formular bleibt offen', async ({ page }) => {
     await resetBot({ 'embeds/add': { status: 400, error: 'Limit erreicht (3 Embeds)' } });
     const dialogs = collectDialogs(page);
@@ -153,7 +167,6 @@ test.describe('Erstellen', () => {
   });
 
   test('Limit: nach Erreichen ist Erstellen gesperrt und der Zähler stimmt', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: Button und Zähler werden erst nach dem Neuladen aktualisiert');
     await page.goto(PAGE);
     await page.locator('#add-embed-btn').click();
     await fillForm(page, { name: 'Drittes', channel: CHANNELS[0].id, description: 'Text' });
@@ -186,14 +199,12 @@ test.describe('Bearbeiten', () => {
   });
 
   test('der interne Name lässt sich beim Bearbeiten nicht scheinbar ändern', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: Name ist editierbar und wird in der Zeile angezeigt, aber nie gespeichert (Bot-Action edit kennt keinen Namen)');
     await page.goto(PAGE);
     await row(page, 1).locator('[data-edit-embed]').click();
     await expect(page.locator('#embed-name-input')).not.toBeEditable();
   });
 
   test('ohne Channel wird beim Bearbeiten nichts gesendet', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: Bot behält den alten Channel, die Zeile zeigt aber „kein Channel“');
     const dialogs = collectDialogs(page);
     await page.goto(PAGE);
     await row(page, 1).locator('[data-edit-embed]').click();

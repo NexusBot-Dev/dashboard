@@ -1,14 +1,17 @@
 // Browser-Logik der Embeds-Seite (/server/<id>/embeds/).
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
-import { renderPreview } from '../../lib/discordMarkdown';
+import { renderDiscordMarkdown } from '../../lib/discordMarkdown';
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
 import { setupMarkdownToolbars } from '../markdown-toolbar';
 
 interface EmbedsConfig {
   guildId: string;
-  previewVars: Record<string, string>;
+  limit: number;
+  limitFree: number;
+  premiumActive: boolean;
   i18n: ApiMessages & {
+    countTemplate: string; // enthält "{count}" und "{limit}"
     embedFormAddTitle: string;
     embedFormEditTitle: string;
     noChannelInline: string;
@@ -27,7 +30,7 @@ const errorMessage = (err: unknown) => (err instanceof Error ? err.message : Str
 const field = (row: HTMLElement, name: string) => row.querySelector<HTMLElement>(`[data-field="${name}"]`)!;
 
 function setupEmbeds(list: HTMLElement, api: DashboardApi, config: EmbedsConfig) {
-  const { i18n, previewVars } = config;
+  const { i18n, limit, limitFree, premiumActive } = config;
   const addBtn = byId<HTMLButtonElement>('add-embed-btn')!;
   const form = byId('embed-form')!;
   const formTitle = byId('embed-form-title')!;
@@ -39,12 +42,25 @@ function setupEmbeds(list: HTMLElement, api: DashboardApi, config: EmbedsConfig)
   const confirmBtn = byId<HTMLButtonElement>('confirm-embed-btn')!;
   const cancelBtn = byId<HTMLButtonElement>('cancel-embed-btn')!;
   const rowTemplate = byId<HTMLTemplateElement>('embed-row-template')!;
+  const countEl = byId('embeds-count')!;
+  const emptyEl = byId('embeds-empty')!;
+  const premiumHint = byId('embeds-premium-hint'); // nur ohne Premium vorhanden
+
+  // Nach Erstellen/Löschen: Limit-Sperre, Zähler, Premium-Hinweis und Leer-Hinweis nachziehen
+  function refreshState() {
+    const count = list.querySelectorAll('[data-embed-row]').length;
+    addBtn.disabled = count >= limit;
+    countEl.textContent = i18n.countTemplate.replace('{count}', String(count)).replace('{limit}', String(limit));
+    premiumHint?.classList.toggle('hidden', premiumActive || count < limitFree);
+    emptyEl.classList.toggle('hidden', count > 0);
+  }
 
   let editingId: string | null = null;
 
   function updatePreview() {
     const val = descInput.value.trim();
-    previewEl.innerHTML = val ? renderPreview(val, previewVars) : '—';
+    // Ohne Platzhalter-Ersetzung: der Bot postet Embeds wörtlich ({user} bleibt {user})
+    previewEl.innerHTML = val ? renderDiscordMarkdown(val) : '—';
   }
   descInput.addEventListener('input', updatePreview);
 
@@ -53,6 +69,7 @@ function setupEmbeds(list: HTMLElement, api: DashboardApi, config: EmbedsConfig)
     formTitle.textContent = row ? i18n.embedFormEditTitle : i18n.embedFormAddTitle;
     byId('schedule-form')!.classList.add('hidden');
     nameInput.value = row ? field(row, 'name').textContent ?? '' : '';
+    nameInput.readOnly = Boolean(row); // die Bot-Action „edit“ speichert keinen Namen — also auch keinen anbieten
     titleInput.value = row?.dataset.title ?? '';
     descInput.value = row?.dataset.description ?? '';
     channelSelect.value = row?.dataset.channelId ?? '';
@@ -88,12 +105,13 @@ function setupEmbeds(list: HTMLElement, api: DashboardApi, config: EmbedsConfig)
     const title = titleInput.value.trim();
     const channelName = channelSelect.selectedOptions[0]?.textContent?.replace('#', '') ?? '';
 
-    if (!editingId && !channelId) { alert(i18n.alertChannelRequired); return; }
+    // Auch beim Bearbeiten: ohne Channel behielte der Bot still den alten, die Zeile zeigte aber „kein Channel“
+    if (!channelId) { alert(i18n.alertChannelRequired); return; }
 
     confirmBtn.disabled = true;
     try {
       if (editingId) {
-        await api.callModuleAction('embeds', 'edit', { embed_id: editingId, title, description, channel_id: channelId || null });
+        await api.callModuleAction('embeds', 'edit', { embed_id: editingId, title, description, channel_id: channelId });
         const row = list.querySelector<HTMLElement>(`[data-embed-row="${CSS.escape(editingId)}"]`);
         if (row) fillRow(row, { name, title, description, channelId, channelName });
       } else {
@@ -107,6 +125,7 @@ function setupEmbeds(list: HTMLElement, api: DashboardApi, config: EmbedsConfig)
         row.querySelector<HTMLElement>('[data-remove-embed]')!.dataset.removeEmbed = id;
         fillRow(row, { name, title, description, channelId, channelName });
         list.appendChild(row);
+        refreshState();
       }
       closeForm();
     } catch (err) {
@@ -168,7 +187,9 @@ function setupEmbeds(list: HTMLElement, api: DashboardApi, config: EmbedsConfig)
       if (!confirm(i18n.confirmDeleteEmbed)) return;
       try {
         await api.callModuleAction('embeds', 'delete', { embed_id: id });
+        if (editingId === id) closeForm();
         row.remove();
+        refreshState();
       } catch (err) {
         alert(errorMessage(err));
       }

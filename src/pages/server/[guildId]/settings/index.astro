@@ -29,7 +29,6 @@ async function getPremiumInfo(id: string) {
 
 const settingsPromise = getGuildSettings(guildId!);
 const premiumPromise = getPremiumInfo(guildId!);
-const timezones = Intl.supportedValuesOf('timeZone').sort();
 
 let channels: { id: string; name: string }[] = [];
 let guildName = `Server ${guildId}`;
@@ -62,6 +61,8 @@ if (!settings) {
   return Astro.redirect('/server');
 }
 
+const timezones = [...new Set([...Intl.supportedValuesOf('timeZone'), 'UTC', settings.timezone])].filter(Boolean).sort();
+
 const premiumActive = Boolean(premium);
 const announcementsEnabled = Boolean(settings.announcements_enabled);
 
@@ -71,7 +72,7 @@ function discordColorToHex(color: number | string | null): string {
   if (!n || n < 0 || n > 0xffffff) return '#00f5d4';
   return '#' + n.toString(16).padStart(6, '0');
 }
-// Ohne Premium nutzt der Bot (get_color) die Standardfarbe, also zeigen wir auch genau die an
+// Ohne Premium nutzt der Bot (get_color) die Standardfarbe
 const accentColor = premiumActive ? discordColorToHex(settings.color) : '#00f5d4';
 
 function daysUntil(date: Date | string): number {
@@ -271,6 +272,7 @@ const i18n = {
             data-initial={settings.ticket_log_channel_id ?? ''}
             class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
+            <option value="">{t('common.no_channel')}</option>
             {channels.map((ch) => (
               <option value={ch.id} selected={ch.id === settings.ticket_log_channel_id}>#{ch.name}</option>
             ))}

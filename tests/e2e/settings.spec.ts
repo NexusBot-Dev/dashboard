@@ -70,11 +70,8 @@ test.describe('Anzeige', () => {
   });
 
   test('Standardwerte eines neuen Servers werden beim Speichern nicht überschrieben', async ({ page }) => {
-    // Bekannter Bug: Die DB-Standardzeitzone „UTC“ fehlt in Intl.supportedValuesOf('timeZone'), und der
-    // Ticket-Log-Channel hat keine Option „Kein Channel“. Beide Selects springen still auf ihren ersten
-    // Eintrag (Africa/Abidjan bzw. den ersten Channel) — und das nächste Speichern einer ganz anderen
-    // Einstellung schickt beides mit.
-    test.fail();
+    // Früher fehlten „UTC“ in der Zeitzonenliste und „Kein Channel“ beim Ticket-Log — beide Selects
+    // sprangen still auf ihren ersten Eintrag, und jedes Speichern schickte das ungewollt mit.
     await setSettings({ timezone: 'UTC', ticket_log_channel_id: null });
     await page.goto(PAGE);
     await expect(field(page, 'timezone')).toHaveValue('UTC');
@@ -86,7 +83,6 @@ test.describe('Anzeige', () => {
   });
 
   test('Ticket-Log-Channel lässt sich abwählen', async ({ page }) => {
-    test.fail(); // gleicher Bug: es gibt keine Option „Kein Channel“
     await page.goto(PAGE);
     await expect(field(page, 'ticket_log_channel_id').locator('option[value=""]')).toHaveCount(1);
     await field(page, 'ticket_log_channel_id').selectOption('');

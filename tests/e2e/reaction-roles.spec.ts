@@ -322,10 +322,6 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
   });
 
   test('mehrfach hin und zurück: jede Aktion wird genau einmal gesendet', async ({ page }) => {
-    // Bekannter Bug im aktuellen Seiten-Skript: ab dem zweiten Besuch per Sidebar sind „Entfernen“ und
-    // „Nachricht löschen“ der vom Server gerenderten Einträge nicht verdrahtet (Klick tut nichts).
-    // test.fail() hält das fest; beim Umbau auf ein gebündeltes Skript fliegt die Markierung raus.
-    test.fail();
     collectDialogs(page);
     await page.goto(guildPath('modules/'));
     for (let i = 0; i < 3; i++) {

@@ -106,9 +106,12 @@ function setupModulesPage() {
     try {
       await postToggle(guildId, changes, i18n);
 
-      // Gespeicherter Stand ist der neue Ausgangswert
+      // Gespeicherter Stand ist der neue Ausgangswert — und das Badge zeigt ihn an
       cards().forEach((card) => {
-        card.dataset.initialEnabled = String(isSwitchOn(toggleOf(card)));
+        const enabled = isSwitchOn(toggleOf(card));
+        card.dataset.initialEnabled = String(enabled);
+        card.querySelector('[data-badge-state="on"]')?.classList.toggle('hidden', !enabled);
+        card.querySelector('[data-badge-state="off"]')?.classList.toggle('hidden', enabled);
       });
 
       saveStatus.textContent = i18n.saved;

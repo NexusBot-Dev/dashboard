@@ -104,9 +104,6 @@ test.describe('Schalten', () => {
   });
 
   test('nach dem Speichern zeigt das Badge den neuen Stand', async ({ page }) => {
-    // Bekannter Bug: das Badge „Aktiv/Inaktiv“ wird nach dem Speichern nicht aktualisiert,
-    // erst ein Neuladen zeigt den richtigen Stand.
-    test.fail();
     await page.goto(PAGE);
     await toggle(page, 'levels').click();
     await toggle(page, 'tickets').click();

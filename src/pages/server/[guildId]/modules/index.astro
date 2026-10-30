@@ -116,8 +116,10 @@ const i18n = {
         </div>
         <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">{mod.description}</p>
         <div class="flex items-center justify-between">
+          <!-- Beide Badges rendern, das Skript blendet nach dem Speichern das passende ein -->
           <span data-module-badge>
-            <Badge variant={mod.enabled ? 'success' : 'neutral'}>{mod.enabled ? t('settings.active_badge') : t('settings.inactive_badge')}</Badge>
+            <span data-badge-state="on" class:list={[!mod.enabled && 'hidden']}><Badge variant="success">{t('settings.active_badge')}</Badge></span>
+            <span data-badge-state="off" class:list={[mod.enabled && 'hidden']}><Badge variant="neutral">{t('settings.inactive_badge')}</Badge></span>
           </span>
           <a href={moduleHref(mod.key)} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
             {t('modules.settings_link')}

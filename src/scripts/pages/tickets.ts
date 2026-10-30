@@ -4,11 +4,10 @@
 import { renderDiscordMarkdown } from '../../lib/discordMarkdown';
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
 import { setupMarkdownToolbars } from '../markdown-toolbar';
+import { setupTabs } from '../tabs';
 
 interface TicketsConfig {
   guildId: string;
-  tabActive: string;
-  tabInactive: string;
   i18n: ApiMessages & {
     saving: string;
     save: string;
@@ -28,43 +27,6 @@ interface TicketsConfig {
 
 type I18n = TicketsConfig['i18n'];
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
-
-// ─── Tabs ────────────────────────────────────────────────────────────────────
-function setupTabs(root: HTMLElement, config: TicketsConfig) {
-  if (root.dataset.bound === 'true') return;
-  root.dataset.bound = 'true';
-
-  const tabs = Array.from(root.querySelectorAll<HTMLElement>('[role="tab"]'));
-  const panels = new Map(
-    Array.from(root.querySelectorAll<HTMLElement>('[data-tab-panel]')).map((p) => [p.dataset.tabPanel!, p])
-  );
-
-  function activate(name: string, { updateHash = true, focus = false } = {}) {
-    if (!panels.has(name)) name = tabs[0].dataset.tab!;
-    tabs.forEach((tab) => {
-      const active = tab.dataset.tab === name;
-      tab.setAttribute('aria-selected', String(active));
-      tab.tabIndex = active ? 0 : -1;
-      tab.classList.remove(...(active ? config.tabInactive : config.tabActive).split(' '));
-      tab.classList.add(...(active ? config.tabActive : config.tabInactive).split(' '));
-      if (active && focus) tab.focus();
-    });
-    panels.forEach((panel, key) => panel.classList.toggle('hidden', key !== name));
-    if (updateHash) history.replaceState(history.state, '', `#${name}`);
-  }
-
-  tabs.forEach((tab, index) => {
-    tab.addEventListener('click', () => activate(tab.dataset.tab!));
-    tab.addEventListener('keydown', (event) => {
-      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-      event.preventDefault();
-      const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-      activate(tabs[next].dataset.tab!, { focus: true });
-    });
-  });
-
-  activate(location.hash.slice(1), { updateHash: false });
-}
 
 // ─── Live-Vorschau der Panel-Beschreibung ────────────────────────────────────
 function setupPreview() {
@@ -286,7 +248,7 @@ function setupTicketsPage() {
   const config = readPageConfig<TicketsConfig>(root);
   const api = createDashboardApi(config.guildId, config.i18n);
 
-  setupTabs(root, config);
+  setupTabs(root);
   setupMarkdownToolbars();
   setupPreview();
   setupCategories(api, config.i18n);

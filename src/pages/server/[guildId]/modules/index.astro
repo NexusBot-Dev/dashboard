@@ -9,12 +9,16 @@ const t = Astro.locals.t;
 
 const MODULE_KEYS = ['levels', 'welcome', 'reaction_roles', 'boosts', 'automod', 'stream_alerts', 'tickets'] as const;
 
-// Tickets hat eine eigene Seite (Top-Level) — der Toggle bleibt aber hier in der Übersicht
-const moduleHref = (key: string) =>
-  key === 'tickets' ? `/server/${guildId}/tickets/` : `/server/${guildId}/modules/${key.replace('_', '-')}/`;
+// Tickets hat eine eigene Seite (Top-Level), Boosts ist ein Tab von Welcome & Boosts —
+// die Schalter bleiben aber hier in der Übersicht
+const moduleHref = (key: string) => {
+  if (key === 'tickets') return `/server/${guildId}/tickets/`;
+  if (key === 'boosts') return `/server/${guildId}/modules/welcome/#boosts`;
+  return `/server/${guildId}/modules/${key.replace('_', '-')}/`;
+};
 
 const MODULE_LABELS: Record<string, string> = {
-  levels: t('levels.title'), welcome: t('nav.module_welcome'),
+  levels: t('levels.title'), welcome: t('welcome.title'),
   reaction_roles: t('reaction_roles.title'), boosts: t('boost.title'),
   automod: t('automod.title'), stream_alerts: t('stream_alerts.title'), tickets: t('tickets.title'),
 };

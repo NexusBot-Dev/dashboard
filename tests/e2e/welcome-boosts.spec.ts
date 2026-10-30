@@ -138,7 +138,6 @@ for (const { area, module, channelField, placeholderValue } of AREAS) {
     });
 
     test('Limit: nach Erreichen ist Hinzufügen gesperrt', async ({ page }) => {
-      test.fail(area === 'boosts', 'Bekannter Bug: Boosts sperrt den Button nach dem Hinzufügen nicht');
       await openArea(page, area);
       const ed = messageEditor(page, area);
       await expect(ed.addBtn).toBeEnabled();
@@ -237,6 +236,64 @@ test.describe('boosts: Status', () => {
     await openArea(page, 'boosts');
     await expect(page.getByText(`3 ${t('boost.boost_plural')}`)).toBeVisible();
     await expect(page.getByText(t('boost.server_level', { tier: 1 }))).toBeVisible();
+  });
+});
+
+test.describe('Seite & Tabs', () => {
+  test('drei Tabs, per #hash direkt ansteuerbar', async ({ page }) => {
+    await page.goto(guildPath('modules/welcome/'));
+    await expect(page.locator('#tab-panel-welcome')).toBeVisible();
+    await expect(page.locator('#tab-panel-boosts')).toBeHidden();
+
+    await page.getByRole('tab', { name: t('welcome.goodbye_title') }).click();
+    await expect(page).toHaveURL(/#goodbye$/);
+    await expect(page.locator('#tab-panel-goodbye')).toBeVisible();
+    await expect(page.locator('#tab-panel-welcome')).toBeHidden();
+
+    await page.goto(guildPath(''));
+    await page.goto(guildPath('modules/welcome/#boosts'));
+    await expect(page.locator('#tab-panel-boosts')).toBeVisible();
+  });
+
+  test('alte Boosts-URL leitet auf den Boosts-Tab um', async ({ page }) => {
+    await page.goto(guildPath('modules/boosts/'));
+    await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/modules/welcome/#boosts$`));
+    await expect(page.locator('#tab-panel-boosts')).toBeVisible();
+  });
+
+  test('Sidebar hat einen Eintrag „Welcome & Boosts“ und keinen eigenen für Boosts', async ({ page }) => {
+    await page.goto(guildPath('modules/'));
+    const sidebar = page.locator('aside');
+    await expect(sidebar.locator(`a[href="/server/${GUILD_ID}/modules/welcome/"]`)).toHaveText(t('nav.module_welcome'));
+    await expect(sidebar.locator(`a[href="/server/${GUILD_ID}/modules/boosts/"]`)).toHaveCount(0);
+  });
+
+  test('Modul-Übersicht: zwei Schalter, die Boosts-Karte führt auf den Boosts-Tab', async ({ page }) => {
+    await page.goto(guildPath('modules/'));
+    await expect(page.locator('[data-module-card="welcome"] [data-module-toggle]')).toHaveCount(1);
+    await expect(page.locator('[data-module-card="boosts"] [data-module-toggle]')).toHaveCount(1);
+    await expect(page.locator('[data-module-card="boosts"] a').first())
+      .toHaveAttribute('href', `/server/${GUILD_ID}/modules/welcome/#boosts`);
+  });
+
+  test('beide Nachrichtenlisten arbeiten unabhängig voneinander', async ({ page }) => {
+    await openArea(page, 'welcome');
+    const welcome = messageEditor(page, 'welcome');
+    await welcome.addBtn.click();
+    await welcome.textarea.fill('Nur Welcome');
+
+    await page.getByRole('tab', { name: t('boost.title') }).click();
+    const boosts = messageEditor(page, 'boosts');
+    await expect(boosts.form).toBeHidden();
+    await boosts.row(1).locator('[data-edit-message]').click();
+    await boosts.textarea.fill('Nur Boost');
+    await boosts.confirmBtn.click();
+
+    expect(await waitForBotCall('boosts/edit-message')).toMatchObject({ message: 'Nur Boost' });
+    expect(await botCalls('welcome/add-message')).toHaveLength(0);
+    expect(await botCalls('welcome/edit-message')).toHaveLength(0);
+    await page.getByRole('tab', { name: t('welcome.title') }).click();
+    await expect(welcome.textarea).toHaveValue('Nur Welcome'); // offenes Formular bleibt erhalten
   });
 });
 

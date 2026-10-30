@@ -1,0 +1,37 @@
+---
+// Tab-Leiste für Seiten mit mehreren Bereichen (Tickets, Welcome & Boosts).
+// Die Panels liegen auf der Seite selbst: <div role="tabpanel" id="tab-panel-<key>" data-tab-panel="<key>">.
+// Verhalten (Klick, Pfeiltasten, #hash) kommt aus src/scripts/tabs.ts.
+interface Props {
+  tabs: { key: string; label: string }[];
+  label: string; // aria-label der Tab-Leiste
+}
+
+const { tabs, label } = Astro.props;
+
+const TAB_ACTIVE = 'border-primary-500 text-primary-600 dark:text-primary-400';
+const TAB_INACTIVE = 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+---
+
+<div
+  role="tablist"
+  aria-label={label}
+  data-tab-active={TAB_ACTIVE}
+  data-tab-inactive={TAB_INACTIVE}
+  class="flex gap-1 border-b border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto overflow-y-hidden"
+>
+  {tabs.map((tab, i) => (
+    <button
+      type="button"
+      role="tab"
+      id={`tab-${tab.key}`}
+      data-tab={tab.key}
+      aria-controls={`tab-panel-${tab.key}`}
+      aria-selected={i === 0 ? 'true' : 'false'}
+      tabindex={i === 0 ? 0 : -1}
+      class:list={['px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors', i === 0 ? TAB_ACTIVE : TAB_INACTIVE]}
+    >
+      {tab.label}
+    </button>
+  ))}
+</div>

@@ -1,25 +1,24 @@
-import type { Page } from '@playwright/test';
-import { guildPath } from './helpers';
+import { expect, type Page } from '@playwright/test';
+import { guildPath, t } from './helpers';
 import { GUILD_ID } from './env.mjs';
 
 // Wo auf der Seite liegt was? Die Tests für Welcome, Goodbye und Boosts sprechen nur über diese
-// Helfer mit der Seite. Beim Zusammenlegen zu einer Seite mit Tabs ändert sich nur diese Datei —
-// die Tests selbst (was angezeigt wird, was beim Bot ankommt) bleiben unverändert.
+// Helfer mit der Seite. Beim Zusammenlegen zu einer Seite mit Tabs hat sich nur diese Datei geändert —
+// die Tests selbst (was angezeigt wird, was beim Bot ankommt) sind gleich geblieben.
 
 export type MessageArea = 'welcome' | 'boosts';
 
-const PAGES: Record<MessageArea | 'goodbye', string> = {
-  welcome: 'modules/welcome/',
-  goodbye: 'modules/welcome/',
-  boosts: 'modules/boosts/',
-};
+const PAGE = 'modules/welcome/';
+const TAB_LABELS = { welcome: 'welcome.title', goodbye: 'welcome.goodbye_title', boosts: 'boost.title' } as const;
 
-/** URL des Bereichs (relativ zum Server) — für Direktaufrufe und Navigationstests */
-export const areaPath = (area: MessageArea | 'goodbye') => guildPath(PAGES[area]);
+/** URL des Bereichs (relativ zum Server) — der Tab steckt im #hash */
+export const areaPath = (area: MessageArea | 'goodbye') => guildPath(`${PAGE}#${area}`);
 
-/** Öffnet den Bereich über die Sidebar, ohne Neuladen (ClientRouter) — Start auf einer Modul-Seite */
+/** Öffnet den Bereich über die Sidebar und den Tab, ohne Neuladen (ClientRouter) — Start auf einer Modul-Seite */
 export async function navigateToArea(page: Page, area: MessageArea | 'goodbye') {
-  await page.locator(`aside a[href="/server/${GUILD_ID}/${PAGES[area]}"]`).first().click();
+  await page.locator(`aside a[href="/server/${GUILD_ID}/${PAGE}"]`).first().click();
+  await expect(page.locator('#welcome-page')).toBeVisible();
+  await page.getByRole('tab', { name: t(TAB_LABELS[area]) }).click();
 }
 
 /** Öffnet die Seite des Bereichs per Direktaufruf */
@@ -28,28 +27,29 @@ export async function openArea(page: Page, area: MessageArea | 'goodbye') {
 }
 
 /** Nachrichtenliste mit Formular (Welcome- bzw. Boost-Nachrichten) */
-export function messageEditor(page: Page, _area: MessageArea) {
+export function messageEditor(page: Page, area: MessageArea) {
+  const root = page.locator(`[data-message-editor="${area}"]`);
+  const role = (name: string) => root.locator(`[data-role="${name}"]`);
   return {
-    root: page.locator('section', { has: page.locator('#messages-list') }),
-    list: page.locator('#messages-list'),
-    row: (id: number | string) => page.locator(`[data-message-row="${id}"]`),
-    rows: page.locator('[data-message-row]'),
-    addBtn: page.locator('#add-message-btn'),
-    form: page.locator('#message-form'),
-    formTitle: page.locator('#message-form-title'),
-    textarea: page.locator('#message-textarea'),
-    preview: page.locator('#message-preview'),
-    toolbar: page.locator('[data-md-toolbar="message-textarea"]'),
-    confirmBtn: page.locator('#confirm-message-btn'),
-    cancelBtn: page.locator('#cancel-message-btn'),
+    root,
+    list: role('list'),
+    row: (id: number | string) => root.locator(`[data-message-row="${id}"]`),
+    rows: root.locator('[data-message-row]'),
+    addBtn: role('add'),
+    form: role('form'),
+    formTitle: role('form-title'),
+    textarea: role('textarea'),
+    preview: role('preview'),
+    toolbar: root.locator('[data-md-toolbar]'),
+    confirmBtn: role('confirm'),
+    cancelBtn: role('cancel'),
   };
 }
 
 /** Channel-Auswahl mit eigenem Speichern-Button */
 export function channelPicker(page: Page, area: MessageArea) {
-  return area === 'welcome'
-    ? { select: page.locator('#welcome-channel-select'), saveBtn: page.locator('#save-welcome-channel-btn') }
-    : { select: page.locator('#boost-channel-select'), saveBtn: page.locator('#save-boost-channel-btn') };
+  const root = page.locator(`[data-channel-setting="${area === 'welcome' ? 'welcome_channel_id' : 'boost_channel_id'}"]`);
+  return { select: root.locator('select'), saveBtn: root.locator('[data-role="save"]') };
 }
 
 export function goodbye(page: Page) {

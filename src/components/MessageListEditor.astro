@@ -1,0 +1,102 @@
+---
+// Liste eigener Bot-Nachrichten mit Hinzufügen/Bearbeiten/Löschen, Limit und Live-Vorschau.
+// Genutzt für Welcome- und Boost-Nachrichten; Verhalten aus src/scripts/message-editor.ts.
+import Badge from './Badge.astro';
+import MarkdownToolbar from './MarkdownToolbar.astro';
+import { renderPreview } from '../lib/discordMarkdown';
+
+interface Props {
+  module: 'welcome' | 'boosts';           // Bot-Modul für add-/edit-/delete-message
+  textKey: 'welcome' | 'boost';           // Präfix der Übersetzungen (messages_title, messages_count, ...)
+  messages: { id: number; message: string }[];
+  limitFree: number;
+  limitPremium: number;
+  premiumActive: boolean;
+  botOnline: boolean;
+  defaultMessage: string;                 // was der Bot ohne eigene Nachrichten sendet
+  previewVars: Record<string, string>;    // Platzhalter → Beispielwert, z.B. { user: '@Max', count: '3' }
+  rows?: number;
+}
+
+const { module, textKey, messages, limitFree, limitPremium, premiumActive, botOnline, defaultMessage, previewVars, rows = 4 } = Astro.props;
+const t = Astro.locals.t;
+
+const limit = premiumActive ? limitPremium : limitFree;
+const preview = (text: string) => renderPreview(text, previewVars);
+const textareaId = `${module}-message-textarea`;
+
+// Für das Skript (src/scripts/message-editor.ts)
+const config = {
+  module,
+  limit,
+  previewVars,
+  i18n: {
+    edit: t('common.edit'),
+    delete: t('common.delete'),
+    previewLabel: t('boost.preview_label'),
+    formAddTitle: t(`${textKey}.message_form_add_title`),
+    formEditTitle: t(`${textKey}.message_form_edit_title`),
+    alertMessageRequired: t('boost.alert_message_required'),
+    confirmDeleteMessage: t('boost.confirm_delete_message'),
+  },
+};
+---
+
+<section class="rounded-xl glass-panel p-6 mb-6" data-message-editor={module} data-config={JSON.stringify(config)}>
+  <div class="flex items-center justify-between mb-1">
+    <h2 class="text-base font-bold text-slate-900 dark:text-white">{t(`${textKey}.messages_title`)}</h2>
+    <button type="button" data-role="add" disabled={!botOnline || messages.length >= limit} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+      + {t('common.add')}
+    </button>
+  </div>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+    {t(`${textKey}.messages_count`, { count: messages.length, limit })}
+    {!premiumActive && messages.length >= limitFree && (
+      <span class="ml-1">— <Badge variant="primary">Premium</Badge> {t(`${textKey}.premium_hint`, { max: limitPremium })}</span>
+    )}
+  </p>
+
+  <div data-role="list" class="space-y-3">
+    {messages.map((msg) => (
+      <div class="rounded-lg border border-slate-200 dark:border-slate-800 p-4" data-message-row={msg.id}>
+        <div class="flex items-start justify-between gap-4">
+          <p class="text-sm text-slate-700 dark:text-slate-300 flex-1" data-message-text>{msg.message}</p>
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <button type="button" data-edit-message={msg.id} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">{t('common.edit')}</button>
+            <button type="button" data-remove-message={msg.id} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">{t('common.delete')}</button>
+          </div>
+        </div>
+        <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+          <p class="text-xs text-slate-400 mb-1">{t('boost.preview_label')}</p>
+          <p class="text-sm text-slate-600 dark:text-slate-400 italic" data-message-preview set:html={preview(msg.message)} />
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {messages.length === 0 && (
+    <div class="py-2">
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-2">{t(`${textKey}.no_custom_messages`)}</p>
+      <div class="rounded-lg border border-slate-200 dark:border-slate-800 border-dashed p-4">
+        <p class="text-sm text-slate-600 dark:text-slate-400 italic" set:html={preview(defaultMessage)} />
+      </div>
+    </div>
+  )}
+
+  <div data-role="form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+    <p data-role="form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t(`${textKey}.message_form_add_title`)}</p>
+    <MarkdownToolbar target={textareaId} />
+    <textarea id={textareaId} data-role="textarea" rows={rows} maxlength="1000" placeholder={t(`${textKey}.message_placeholder`)} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+    <p class="mt-2 text-xs text-slate-400">
+      {t('boost.placeholders_label')} {Object.keys(previewVars).map((key) => <code class="text-primary-600 dark:text-primary-400 mr-1">{`{${key}}`}</code>)}
+    </p>
+    <div class="mt-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+      <p class="text-xs text-slate-400 mb-1">{t('tickets.live_preview_label')}</p>
+      <p data-role="preview" class="text-sm text-slate-700 dark:text-slate-300 italic">—</p>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button data-role="confirm" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+      <button data-role="cancel" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+    </div>
+  </div>
+</section>

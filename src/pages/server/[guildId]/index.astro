@@ -86,8 +86,11 @@ function avatarFallback(userId: string) {
 
 const fmt = (n: number | null | undefined) => (typeof n === 'number' ? n.toLocaleString(numberLocale) : '–');
 // Tickets ist ein eigener Top-Level-Punkt (nicht mehr unter /modules/)
-const moduleHref = (key: string) =>
-  key === 'tickets' ? `/server/${guildId}/tickets/` : `/server/${guildId}/modules/${key.replace('_', '-')}/`;
+const moduleHref = (key: string) => {
+  if (key === 'tickets') return `/server/${guildId}/tickets/`;
+  if (key === 'boosts') return `/server/${guildId}/modules/welcome/#boosts`; // Tab von Welcome & Boosts
+  return `/server/${guildId}/modules/${key.replace('_', '-')}/`;
+};
 
 // Live-Streamer: bis zu 2 Namen anzeigen, Rest als "+N"
 const liveNames: string[] = stats?.live_streamers ?? [];

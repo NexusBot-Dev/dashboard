@@ -124,6 +124,26 @@ export const defaultBotData = {
   'embeds/schedule': (body) => ({ id: Number(body.embed_id), scheduled_at: '2030-03-04T09:30:00Z' }),
   'embeds/unschedule': (body) => ({ id: Number(body.embed_id) }),
 
+  'moderation/list-bans': {
+    bans: [
+      { user_id: '500000000000000001', username: 'max_mustermann', avatar_url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=', reason: 'Spam in #support' },
+      { user_id: '500000000000000002', username: 'Erika', avatar_url: null, reason: null },
+    ],
+  },
+  // Restzeit wird beim Rendern aus "until" berechnet — deshalb relativ zur aktuellen Zeit
+  'moderation/list-timeouts': () => {
+    const inMinutes = (mins) => new Date(Date.now() + mins * 60_000).toISOString();
+    return {
+      timeouts: [
+        { user_id: '600000000000000001', username: 'Tim', avatar_url: null, until: inMinutes(30.5) },
+        { user_id: '600000000000000002', username: 'Tina', avatar_url: null, until: inMinutes(150) },
+        { user_id: '600000000000000003', username: 'Theo', avatar_url: null, until: inMinutes(3 * 24 * 60 + 60) },
+      ],
+    };
+  },
+  'moderation/unban': (body) => ({ user_id: body.user_id }),
+  'moderation/remove-timeout': (body) => ({ user_id: body.user_id }),
+
   'modules/toggle': (body) => ({ modules: { ...body.changes } }),
 
   settings: (body) => ({ updated_fields: Object.keys(body.fields ?? {}), warnings: [] }),

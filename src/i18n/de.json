@@ -29,7 +29,7 @@
     "all_servers": "Alle Server anzeigen"
   },
   "levels": {
-    "title": "Level-System",
+    "title": "Levelsystem",
     "subtitle": "XP-Vergabe konfigurieren, Level-Rollen verwalten und die Bestenliste einsehen.",
     "xp_section_title": "XP-Vergabe",
     "xp_min_label": "Min. XP pro Nachricht",

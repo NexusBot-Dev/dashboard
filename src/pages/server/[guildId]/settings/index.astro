@@ -93,6 +93,7 @@ function premiumDetail(): string {
 }
 const premiumSourceLabel = premium?.source ? t(`settings.source_${premium.source}`) : '';
 
+// Texte für das Seiten-Skript (src/scripts/pages/settings.ts)
 const i18n = {
   save: t('common.save'),
   saving: t('common.saving'),
@@ -120,7 +121,7 @@ const i18n = {
     </div>
   </div>
 
-  <div id="settings-form" class="space-y-6" data-guild-id={guildId}>
+  <div id="settings-form" class="space-y-6" data-config={JSON.stringify({ guildId, i18n })}>
 
     <!-- Premium-Status -->
     <section class="rounded-xl glass-panel p-6">
@@ -319,133 +320,6 @@ const i18n = {
   </div>
 </DashboardLayout>
 
-<script define:vars={{ guildId, i18n }}>
-  function setupSettingsForm() {
-    const form = document.getElementById('settings-form');
-    const saveBar = document.getElementById('save-bar');
-    const saveBtn = document.getElementById('save-btn');
-    const discardBtn = document.getElementById('discard-btn');
-    const announcementsToggle = document.getElementById('announcements-toggle');
-    const colorInput = document.getElementById('accent-color-input');
-    const colorHex = document.getElementById('accent-color-hex');
-
-    if (!form || !saveBar || !saveBtn || !discardBtn) return;
-    if (form.dataset.bound === 'true') return;
-    form.dataset.bound = 'true';
-
-    function fieldValue(el) {
-      return el.getAttribute('role') === 'switch' ? el.getAttribute('aria-checked') : el.value;
-    }
-
-    function isDirty() {
-      return Array.from(form.querySelectorAll('[data-field]')).some(
-        (el) => fieldValue(el) !== el.dataset.initial
-      );
-    }
-
-    function refreshSaveBar() {
-      saveBar.classList.toggle('hidden', !isDirty());
-    }
-
-    function syncColorLabel() {
-      if (colorInput && colorHex) colorHex.textContent = colorInput.value.toUpperCase();
-    }
-
-    form.querySelectorAll('input[data-field], select[data-field]').forEach((el) => {
-      el.addEventListener('input', refreshSaveBar);
-      el.addEventListener('change', refreshSaveBar);
-    });
-
-    if (colorInput) colorInput.addEventListener('input', syncColorLabel);
-
-    if (announcementsToggle) {
-      announcementsToggle.addEventListener('click', () => {
-        const next = announcementsToggle.getAttribute('aria-checked') !== 'true';
-        announcementsToggle.setAttribute('aria-checked', String(next));
-        announcementsToggle.classList.toggle('bg-primary-500', next);
-        announcementsToggle.classList.toggle('bg-slate-300', !next);
-        announcementsToggle.classList.toggle('dark:bg-slate-700', !next);
-        const knob = announcementsToggle.querySelector('span');
-        knob?.classList.toggle('translate-x-6', next);
-        knob?.classList.toggle('translate-x-1', !next);
-        refreshSaveBar();
-      });
-    }
-
-    discardBtn.addEventListener('click', () => {
-      form.querySelectorAll('[data-field]').forEach((el) => {
-        if (el.getAttribute('role') === 'switch') {
-          const isEnabled = el.dataset.initial === 'true';
-          el.setAttribute('aria-checked', String(isEnabled));
-          el.classList.toggle('bg-primary-500', isEnabled);
-          el.classList.toggle('bg-slate-300', !isEnabled);
-          el.classList.toggle('dark:bg-slate-700', !isEnabled);
-          const knob = el.querySelector('span');
-          knob?.classList.toggle('translate-x-6', isEnabled);
-          knob?.classList.toggle('translate-x-1', !isEnabled);
-        } else {
-          el.value = el.dataset.initial;
-        }
-      });
-      syncColorLabel();
-      refreshSaveBar();
-    });
-
-    saveBtn.addEventListener('click', async () => {
-      const fields = {};
-      form.querySelectorAll('[data-field]').forEach((el) => {
-        const current = fieldValue(el);
-        if (current !== el.dataset.initial) {
-          fields[el.name] = el.getAttribute('role') === 'switch' ? current === 'true' : current;
-        }
-      });
-
-      if (Object.keys(fields).length === 0) return;
-
-      saveBtn.disabled = true;
-      saveBtn.textContent = i18n.saving;
-
-      try {
-        const res = await fetch(`/api/server/${guildId}/settings/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(fields),
-        });
-        const data = await res.json();
-
-        if (!data.ok) {
-          alert(i18n.saveErrorPrefix + (data.error || i18n.unknown));
-          return;
-        }
-
-        const warnings = data.data?.warnings ?? data.warnings ?? [];
-        if (warnings.length > 0) alert(warnings.join('\n'));
-
-        form.querySelectorAll('[data-field]').forEach((el) => {
-          el.dataset.initial = fieldValue(el);
-        });
-
-        const saveStatus = document.getElementById('save-status');
-        const originalText = saveStatus.textContent;
-        saveStatus.textContent = i18n.saved;
-        saveStatus.classList.add('text-primary-600', 'dark:text-primary-400');
-
-        setTimeout(() => {
-          refreshSaveBar();
-          saveStatus.textContent = originalText;
-          saveStatus.classList.remove('text-primary-600', 'dark:text-primary-400');
-        }, 1200);
-        return;
-      } catch (err) {
-        console.error(err);
-        alert(i18n.botUnreachable);
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = i18n.save;
-      }
-    });
-  }
-
-  setupSettingsForm();
-  document.addEventListener('astro:page-load', setupSettingsForm);
+<script>
+  import '../../../../scripts/pages/settings';
 </script>

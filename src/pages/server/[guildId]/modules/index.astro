@@ -69,6 +69,7 @@ if (botInfoResult) {
   guildIconUrl = botInfoResult.icon_url;
 }
 
+// Texte für das Seiten-Skript (src/scripts/pages/modules.ts)
 const i18n = {
   saving: t('common.saving'),
   saveChangesBtn: t('modules.save_changes_btn'),
@@ -98,7 +99,7 @@ const i18n = {
     </div>
   </div>
 
-  <div id="modules-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-20" data-guild-id={guildId}>
+  <div id="modules-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-20" data-config={JSON.stringify({ guildId, i18n })}>
     {modules.map((mod) => (
       <div class="rounded-xl glass-panel p-5 transition-all" data-module-card={mod.key} data-initial-enabled={String(mod.enabled)}>
         <div class="flex items-start justify-between mb-3">
@@ -127,111 +128,6 @@ const i18n = {
   </div>
 </DashboardLayout>
 
-<script define:vars={{ guildId, i18n }}>
-  function setupModuleToggles() {
-    const grid = document.getElementById('modules-grid');
-    const saveBar = document.getElementById('save-bar');
-    const saveStatus = document.getElementById('save-status');
-    const saveBtn = document.getElementById('save-btn');
-    const discardBtn = document.getElementById('discard-btn');
-    if (!grid || grid.dataset.bound === 'true') return;
-    grid.dataset.bound = 'true';
-
-    function getPendingChanges() {
-      const changes = {};
-      grid.querySelectorAll('[data-module-card]').forEach((card) => {
-        const key = card.dataset.moduleCard;
-        const initial = card.dataset.initialEnabled === 'true';
-        const btn = card.querySelector('[data-module-toggle]');
-        const current = btn.getAttribute('aria-checked') === 'true';
-        if (current !== initial) changes[key] = current;
-      });
-      return changes;
-    }
-
-    function refreshSaveBar() {
-      const changes = getPendingChanges();
-      const count = Object.keys(changes).length;
-      grid.querySelectorAll('[data-module-card]').forEach((card) => {
-        const key = card.dataset.moduleCard;
-        const willBeEnabled = changes[key];
-        card.classList.remove('ring-2', 'ring-primary-500', 'ring-amber-500');
-        if (key in changes) card.classList.add('ring-2', willBeEnabled ? 'ring-primary-500' : 'ring-amber-500');
-      });
-      saveBar.classList.toggle('hidden', count === 0);
-      saveStatus.textContent = (count === 1 ? i18n.changesCountSingularTemplate : i18n.changesCountPluralTemplate).replace('{count}', count);
-    }
-
-    grid.querySelectorAll('[data-module-toggle]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (btn.disabled) return;
-        const next = btn.getAttribute('aria-checked') !== 'true';
-        btn.setAttribute('aria-checked', String(next));
-        btn.classList.toggle('bg-primary-500', next);
-        btn.classList.toggle('bg-slate-300', !next);
-        btn.classList.toggle('dark:bg-slate-700', !next);
-        const knob = btn.querySelector('span');
-        knob?.classList.toggle('translate-x-6', next);
-        knob?.classList.toggle('translate-x-1', !next);
-        refreshSaveBar();
-      });
-    });
-
-    discardBtn.addEventListener('click', () => {
-      grid.querySelectorAll('[data-module-card]').forEach((card) => {
-        const initial = card.dataset.initialEnabled === 'true';
-        const btn = card.querySelector('[data-module-toggle]');
-        btn.setAttribute('aria-checked', String(initial));
-        btn.classList.toggle('bg-primary-500', initial);
-        btn.classList.toggle('bg-slate-300', !initial);
-        btn.classList.toggle('dark:bg-slate-700', !initial);
-        const knob = btn.querySelector('span');
-        knob?.classList.toggle('translate-x-6', initial);
-        knob?.classList.toggle('translate-x-1', !initial);
-      });
-      refreshSaveBar();
-    });
-
-    saveBtn.addEventListener('click', async () => {
-      const changes = getPendingChanges();
-      if (Object.keys(changes).length === 0) return;
-
-      saveBtn.disabled = true;
-      saveBtn.textContent = i18n.saving;
-
-      try {
-        const res = await fetch(`/api/server/${guildId}/module/modules/toggle/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ changes }),
-        });
-
-        let data;
-        try {
-          data = await res.json();
-        } catch {
-          throw new Error(i18n.unexpectedResponseFullTemplate.replace('{status}', res.status));
-        }
-        if (!res.ok || !data.ok) {
-          throw new Error(data.error ? `${i18n.serverErrorPrefix}${data.error}` : i18n.serverErrorStatusTemplate.replace('{status}', res.status));
-        }
-
-        grid.querySelectorAll('[data-module-card]').forEach((card) => {
-          const btn = card.querySelector('[data-module-toggle]');
-          card.dataset.initialEnabled = btn.getAttribute('aria-checked') === 'true' ? 'true' : 'false';
-        });
-
-        saveStatus.textContent = i18n.saved;
-        setTimeout(refreshSaveBar, 1200);
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = i18n.saveChangesBtn;
-      }
-    });
-  }
-
-  setupModuleToggles();
-  document.addEventListener('astro:page-load', setupModuleToggles);
+<script>
+  import '../../../../scripts/pages/modules';
 </script>

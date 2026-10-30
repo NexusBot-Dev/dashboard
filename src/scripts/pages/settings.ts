@@ -2,6 +2,7 @@
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, readPageConfig } from '../dashboard-api';
+import { setSwitch } from '../switch';
 
 interface SettingsConfig {
   guildId: string;
@@ -19,16 +20,6 @@ type FieldElement = HTMLInputElement | HTMLSelectElement | HTMLButtonElement;
 
 const isSwitch = (el: FieldElement) => el.getAttribute('role') === 'switch';
 const fieldValue = (el: FieldElement) => (isSwitch(el) ? el.getAttribute('aria-checked') : el.value);
-
-function setSwitch(el: HTMLElement, enabled: boolean) {
-  el.setAttribute('aria-checked', String(enabled));
-  el.classList.toggle('bg-primary-500', enabled);
-  el.classList.toggle('bg-slate-300', !enabled);
-  el.classList.toggle('dark:bg-slate-700', !enabled);
-  const knob = el.querySelector('span');
-  knob?.classList.toggle('translate-x-6', enabled);
-  knob?.classList.toggle('translate-x-1', !enabled);
-}
 
 // Eigener Request statt api.saveSettings: die Seite hat eigene Fehlertexte und zeigt Warnungen des Bots an
 async function postSettings(guildId: string, fields: Record<string, unknown>) {

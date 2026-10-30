@@ -16,7 +16,7 @@ export const ROLES = [
 export const defaultBotData = {
   'guild/info': {
     name: 'Testserver', icon_url: null, member_count: 42, bot_nickname: 'Nexus',
-    online: true, hierarchy_ok: true, boost_tier: 0, boost_count: 0,
+    online: true, hierarchy_ok: true, boost_tier: 1, boost_count: 3,
     uptime_since: '2026-01-01T00:00:00+00:00',
   },
   'guild/channels': { channels: CHANNELS },
@@ -94,6 +94,21 @@ export const defaultBotData = {
   }),
   'reaction_roles/delete-entry': (body) => ({ entry_id: Number(body.entry_id) }),
   'reaction_roles/delete-message': (body) => ({ message_id: body.message_id }),
+
+  'welcome/list': {
+    messages: [{ id: 1, message: 'Hallo {user}, willkommen auf **{server}**! <b>Mitglied {membercount}</b>' }],
+    limit_free: 2, limit_premium: 5,
+  },
+  'welcome/add-message': (body) => ({ id: 9, message: body.message }),
+  'welcome/edit-message': (body) => ({ id: Number(body.message_id), message: body.message }),
+  'welcome/delete-message': (body) => ({ id: Number(body.message_id) }),
+  'boosts/list': {
+    messages: [{ id: 1, message: 'Danke {user} für den Boost! **{server}** hat <b>{count}</b> Boosts' }],
+    limit_free: 2, limit_premium: 5,
+  },
+  'boosts/add-message': (body) => ({ id: 9, message: body.message }),
+  'boosts/edit-message': (body) => ({ id: Number(body.message_id), message: body.message }),
+  'boosts/delete-message': (body) => ({ id: Number(body.message_id) }),
 
   'modules/toggle': (body) => ({ modules: { ...body.changes } }),
 

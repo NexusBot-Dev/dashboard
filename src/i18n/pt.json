@@ -422,6 +422,7 @@
     "alert_date_time_required": "Informe a data e a hora.",
     "confirm_post_now": "Publicar este embed agora?",
     "alert_posted": "O embed foi publicado.",
+    "alert_posts_failed": "Salvo, mas não foi possível atualizar {count} mensagem(ns) já publicada(s) no Discord. Faltam permissões ao bot no canal?",
     "confirm_delete_embed": "Excluir mesmo este embed?",
     "unexpected_response": "Resposta inesperada (status {status})"
   },

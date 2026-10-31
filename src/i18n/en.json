@@ -422,6 +422,7 @@
     "alert_date_time_required": "Please provide a date and time.",
     "confirm_post_now": "Post this embed now?",
     "alert_posted": "Embed has been posted.",
+    "alert_posts_failed": "Saved, but {count} already posted message(s) could not be updated in Discord. Is the bot missing permissions in the channel?",
     "confirm_delete_embed": "Really delete this embed?",
     "unexpected_response": "Unexpected response (status {status})"
   },

@@ -228,7 +228,6 @@ test.describe('Bearbeiten', () => {
   });
 
   test('nicht aktualisierte Nachrichten in Discord werden gemeldet, gespeichert ist trotzdem', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: das Dashboard ignoriert posts_failed — in Discord bleibt still der alte Text stehen');
     // Bot konnte zwei gepostete Nachrichten nicht bearbeiten (z.B. fehlende Rechte im Channel)
     await resetBot({ 'embeds/edit': { data: { id: 1, posts_updated: 1, posts_removed: 0, posts_failed: 2 } } });
     const dialogs = collectDialogs(page);

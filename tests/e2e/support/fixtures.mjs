@@ -217,6 +217,37 @@ export const defaultBotData = {
   'giveaways/create': { id: 9 },
   'giveaways/cancel': { cancelled: true },
 
+  'stream_alerts/list': {
+    subscriptions: {
+      twitch: [{
+        monitored_channel_id: 11, subscription_id: 101, streamer_name: 'TwitchStar', channel_id: CHANNELS[0].id,
+        channel_name: CHANNELS[0].name, message: 'Er ist live!', live: true, active: true,
+      }],
+      youtube: [{
+        monitored_channel_id: 12, subscription_id: 102, streamer_name: 'TubeStar', channel_id: CHANNELS[1].id,
+        channel_name: null, message: null, live: false, active: false,
+      }],
+      kick: [],
+    },
+    limits: { twitch: { free: 1, premium: 5 }, youtube: { free: 1, premium: 3 }, kick: { free: 1, premium: 5 } },
+    premium_active: false,
+    ping_roles: { all: null, twitch: null, youtube: null, kick: null },
+  },
+  'stream_alerts/list-links': {
+    links: [{
+      id: 7,
+      a: { subscription_id: 101, platform: 'twitch', streamer_name: 'TwitchStar' },
+      b: { subscription_id: 102, platform: 'youtube', streamer_name: 'TubeStar' },
+    }],
+  },
+  // Wie der Bot: add meldet keine subscription_id zurück
+  'stream_alerts/add': (body) => ({ monitored_channel_id: 20, streamer_name: body.username, platform: body.platform }),
+  'stream_alerts/edit': (body) => ({ monitored_channel_id: body.monitored_channel_id }),
+  'stream_alerts/remove': (body) => ({ monitored_channel_id: body.monitored_channel_id }),
+  'stream_alerts/set-ping-role': (body) => ({ platform: body.platform, role_id: body.role_id }),
+  'stream_alerts/create-link': { id: 8 },
+  'stream_alerts/delete-link': (body) => ({ id: body.link_id }),
+
   'modules/toggle': (body) => ({ modules: { ...body.changes } }),
 
   settings: (body) => ({ updated_fields: Object.keys(body.fields ?? {}), warnings: [] }),

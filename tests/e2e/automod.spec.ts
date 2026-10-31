@@ -210,7 +210,6 @@ test.describe('Honeypot', () => {
 
 test.describe('Anzeige passt zum Bot', () => {
   test('Abbrechen verwirft ungespeicherte Keywords', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: nach Abbrechen steht beim nächsten Öffnen noch der verworfene Text da');
     await page.goto(PAGE);
     await page.locator('#edit-keywords-btn').click();
     await keywordsTextarea(page).fill('verworfen');
@@ -220,7 +219,6 @@ test.describe('Anzeige passt zum Bot', () => {
   });
 
   test('nach dem Speichern zeigt das Formular die gespeicherte Liste', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: das Formular behält die Roheingabe statt der gespeicherten Liste');
     await page.goto(PAGE);
     await page.locator('#edit-keywords-btn').click();
     await keywordsTextarea(page).fill('  Foo \n\nBAR');
@@ -231,7 +229,6 @@ test.describe('Anzeige passt zum Bot', () => {
   });
 
   test('Keywords speichern ohne Regel: der Schalter zeigt die neu angelegte, aktive Regel', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: der Bot legt die Regel aktiv an, der Schalter bleibt aber auf „aus“');
     // Gibt es noch keine Keyword-Regel, legt der Bot sie beim Speichern aktiv an und meldet das zurück
     await resetBot({
       ...withStatus({ keywords_enabled: false, keywords: [] }),
@@ -247,7 +244,6 @@ test.describe('Anzeige passt zum Bot', () => {
   });
 
   test('Regel umschalten: der Schalter folgt dem Zustand, den der Bot meldet', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: der Schalter dreht nur die Anzeige um, statt den neuen Zustand zu übernehmen');
     // Seite zeigt „an“, die Regel wurde aber inzwischen in Discord abgeschaltet → der Bot schaltet sie wieder an
     await resetBot({ 'automod/toggle-rule': { data: { rule_key: 'spam', enabled: true } } });
     await page.goto(PAGE);
@@ -258,7 +254,6 @@ test.describe('Anzeige passt zum Bot', () => {
   });
 
   test('Honeypot-Beschreibung nennt die Timeout-Dauer aus dem Bot', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: die Seite zeigt immer 7 Tage, egal was der Bot eingestellt hat');
     await resetBot(withStatus({ honeypot_timeout_days: 14 }));
     await page.goto(PAGE);
     await expect(page.getByText(t('automod.honeypot_desc', { days: 14 }))).toBeVisible({ timeout: 2000 });

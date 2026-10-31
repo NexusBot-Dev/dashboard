@@ -2,6 +2,7 @@
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages } from '../dashboard-api';
+import { setupScrollFade } from '../scroll-fade';
 
 interface ModerationConfig {
   guildId: string;
@@ -44,18 +45,6 @@ function refreshList(root: HTMLElement, key: string, i18n: ModerationConfig['i18
   // Leere Liste: „keine Bans“ statt „keine Treffer“
   root.querySelector(`[data-empty-list="${key}"]`)?.classList.toggle('hidden', items.length > 0);
   root.querySelector(`[data-empty-search="${key}"]`)?.classList.toggle('hidden', items.length === 0 || visibleCount > 0);
-}
-
-// Schatten am unteren Rand, solange die Liste noch weiter scrollt
-function setupScrollFade(list: HTMLElement) {
-  const updateFade = () => {
-    const hasOverflow = list.scrollHeight > list.clientHeight + 4;
-    const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
-    list.classList.toggle('scroll-fade', hasOverflow && !atBottom);
-  };
-  updateFade();
-  list.addEventListener('scroll', updateFade);
-  new ResizeObserver(updateFade).observe(list);
 }
 
 function setupModerationPage() {

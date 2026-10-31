@@ -215,7 +215,6 @@ test.describe('Abbrechen', () => {
 
 test.describe('Verlauf', () => {
   test('langer Verlauf zeigt unten einen Schatten, solange weiter gescrollt werden kann', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: der Schatten kam nur, wenn vorher die Moderations-Seite besucht wurde');
     const history = Array.from({ length: 15 }, (_, i) => ({ ...list.history[0], id: 100 + i, prize: `Preis ${i}` }));
     await resetBot({ 'giveaways/list': { data: { ...list, history } } });
     await page.goto(PAGE);

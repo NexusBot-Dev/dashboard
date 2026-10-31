@@ -192,6 +192,31 @@ export const defaultBotData = {
   }),
   'leveling/remove-role': (body) => ({ level: body.level }),
 
+  'giveaways/list': {
+    active: [
+      {
+        id: 1, prize: 'Nitro', status: 'running', winners_count: 2, participant_count: 17,
+        end_time: '2030-01-02T12:45:00Z', channel_id: CHANNELS[0].id, channel_name: CHANNELS[0].name,
+        message_url: 'https://discord.com/channels/100000000000000001/200000000000000001/800000000000000001',
+      },
+    ],
+    history: [
+      {
+        id: 2, prize: 'Steam-Key', status: 'ended', winners_count: 1, participant_count: 40,
+        end_time: '2026-05-01T18:00:00Z', channel_id: CHANNELS[0].id, channel_name: CHANNELS[0].name,
+        message_url: 'https://discord.com/channels/100000000000000001/200000000000000001/800000000000000002',
+      },
+      {
+        id: 3, prize: 'Merch', status: 'cancelled', winners_count: 3, participant_count: 5,
+        end_time: '2026-04-01T18:00:00Z', channel_id: CHANNELS[1].id, channel_name: null,
+        message_url: 'https://discord.com/channels/100000000000000001/200000000000000002/800000000000000003',
+      },
+    ],
+    limits: { max_prize: 200, max_description: 2000, max_winners: 20 },
+  },
+  'giveaways/create': { id: 9 },
+  'giveaways/cancel': { cancelled: true },
+
   'modules/toggle': (body) => ({ modules: { ...body.changes } }),
 
   settings: (body) => ({ updated_fields: Object.keys(body.fields ?? {}), warnings: [] }),

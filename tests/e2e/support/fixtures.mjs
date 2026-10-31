@@ -144,6 +144,18 @@ export const defaultBotData = {
   'moderation/unban': (body) => ({ user_id: body.user_id }),
   'moderation/remove-timeout': (body) => ({ user_id: body.user_id }),
 
+  'automod/status': {
+    spam_enabled: true, mentions_enabled: false, keywords_enabled: true,
+    keywords: ['spoiler', 'kaufen'],
+    shield_enabled: false, honeypot_channel_id: null, honeypot_timeout_days: 7, honeypot_catches: 0,
+  },
+  // Wie der Bot: toggle-rule meldet nur die Regel zurück, nicht den neuen Zustand
+  'automod/toggle-rule': (body) => ({ rule_key: body.rule_key }),
+  'automod/set-keywords': (body) => ({ keywords: body.keywords }),
+  'automod/toggle-shield': { shield_enabled: true },
+  'automod/create-honeypot': { channel_id: '200000000000000009', channel_name: 'honeypot-falle' },
+  'automod/delete-honeypot': { deleted: true },
+
   'modules/toggle': (body) => ({ modules: { ...body.changes } }),
 
   settings: (body) => ({ updated_fields: Object.keys(body.fields ?? {}), warnings: [] }),

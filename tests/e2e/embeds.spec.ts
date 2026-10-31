@@ -213,6 +213,35 @@ test.describe('Bearbeiten', () => {
     await expect.poll(() => dialogs).toContain(t('embeds.alert_channel_required'));
     expect(await botCalls('embeds/edit')).toHaveLength(0);
   });
+
+  test('alle geposteten Nachrichten aktualisiert: keine Meldung', async ({ page }) => {
+    await resetBot({ 'embeds/edit': { data: { id: 1, posts_updated: 2, posts_removed: 1, posts_failed: 0 } } });
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await row(page, 1).locator('[data-edit-embed]').click();
+    await fillForm(page, { description: 'Neu' });
+    await page.locator('#confirm-embed-btn').click();
+    await waitForBotCall('embeds/edit');
+    await expect(form(page)).toBeHidden();
+    await page.waitForTimeout(300);
+    expect(dialogs).toEqual([]);
+  });
+
+  test('nicht aktualisierte Nachrichten in Discord werden gemeldet, gespeichert ist trotzdem', async ({ page }) => {
+    test.fail(true, 'Bekannter Bug: das Dashboard ignoriert posts_failed — in Discord bleibt still der alte Text stehen');
+    // Bot konnte zwei gepostete Nachrichten nicht bearbeiten (z.B. fehlende Rechte im Channel)
+    await resetBot({ 'embeds/edit': { data: { id: 1, posts_updated: 1, posts_removed: 0, posts_failed: 2 } } });
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await row(page, 1).locator('[data-edit-embed]').click();
+    await fillForm(page, { description: 'Neu' });
+    await page.locator('#confirm-embed-btn').click();
+    await waitForBotCall('embeds/edit');
+    await expect.poll(() => dialogs.length, { timeout: 2000 }).toBe(1);
+    expect(dialogs[0]).toBe(t('embeds.alert_posts_failed', { count: 2 }));
+    await expect(form(page)).toBeHidden();
+    await expect(row(page, 1)).toContainText('Neu');
+  });
 });
 
 test.describe('Löschen, Posten, Zeitplan', () => {

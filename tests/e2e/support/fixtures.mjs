@@ -156,6 +156,42 @@ export const defaultBotData = {
   'automod/create-honeypot': { channel_id: '200000000000000009', channel_name: 'honeypot-falle' },
   'automod/delete-honeypot': { deleted: true },
 
+  'leveling/get-xp-settings': {
+    xp_min: 15, xp_max: 25, cooldown_seconds: 60, levelup_channel_id: null,
+    currency_name: 'Coins', points_min: 1, points_max: 5, shop_enabled: false,
+  },
+  'leveling/list-roles': {
+    roles: [
+      { level: 5, role_id: ROLES[0].id, role_name: 'Mods', role_color: '#ff0000' },
+      { level: 10, role_id: ROLES[1].id, role_name: 'Helfer', role_color: '#94a3b8' },
+    ],
+  },
+  'leveling/leaderboard': {
+    entries: [
+      { user_id: '510000000000000001', username: 'Anna', avatar_url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=', xp: 12345, level: 12 },
+      { user_id: '510000000000000002', username: 'Ben', avatar_url: null, xp: 800, level: 4 },
+      { user_id: '510000000000000003', username: 'Cleo', avatar_url: null, xp: 120, level: 1 },
+      { user_id: '510000000000000004', username: 'Dana', avatar_url: null, xp: 15, level: 0 },
+    ],
+  },
+  'leveling/get-excluded': {
+    excluded_ids: [CHANNELS[1].id],
+    targets: [
+      { id: '210000000000000001', name: 'Talk', type: 'category', category: null },
+      { id: CHANNELS[0].id, name: CHANNELS[0].name, type: 'channel', category: 'Talk' },
+      { id: CHANNELS[1].id, name: CHANNELS[1].name, type: 'channel', category: null },
+    ],
+    limit: 25,
+  },
+  'leveling/set-xp-settings': (body) => ({ xp_min: body.xp_min, xp_max: body.xp_max }),
+  'leveling/set-levelup-channel': (body) => ({ levelup_channel_id: body.channel_id ?? null }),
+  'leveling/set-excluded': (body) => ({ excluded_ids: body.channel_ids }),
+  'leveling/set-role': (body) => ({
+    level: body.level, role_id: body.role_id,
+    role_name: ROLES.find((r) => r.id === body.role_id)?.name ?? '?', role_color: '#00ff00',
+  }),
+  'leveling/remove-role': (body) => ({ level: body.level }),
+
   'modules/toggle': (body) => ({ modules: { ...body.changes } }),
 
   settings: (body) => ({ updated_fields: Object.keys(body.fields ?? {}), warnings: [] }),

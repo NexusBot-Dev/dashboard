@@ -1,0 +1,41 @@
+---
+// Eine Zeile der überwachten Kanäle. Wird für die gespeicherten Kanäle gerendert und — ohne sub — als
+// <template>, aus dem das Skript neue Zeilen klont (src/scripts/pages/stream-alerts.ts).
+import Badge from '../Badge.astro';
+
+export interface Subscription {
+  monitored_channel_id: number;
+  subscription_id: number;
+  streamer_name: string;
+  channel_id: string;
+  channel_name: string | null;
+  message: string | null;
+  live: boolean;
+  active: boolean;
+}
+
+interface Props {
+  sub?: Subscription;
+  platform?: string;
+  botOnline: boolean;
+}
+
+const { sub, platform = '', botOnline } = Astro.props;
+const t = Astro.locals.t;
+const live = sub?.live ?? false;
+const target = sub
+  ? `→ ${sub.channel_name ? `#${sub.channel_name}` : t('stream_alerts.channel_deleted')}${sub.message ? ` · "${sub.message}"` : ''}`
+  : '';
+---
+
+<div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-sub-row={sub?.monitored_channel_id ?? ''} data-subscription-id={sub?.subscription_id ?? ''} data-platform={platform} data-channel-id={sub?.channel_id ?? ''} data-message={sub?.message ?? ''}>
+  <span class={`w-2 h-2 rounded-full flex-shrink-0 ${live ? 'bg-primary-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+  <div class="min-w-0 flex-1">
+    <p class="text-sm font-medium text-slate-900 dark:text-white truncate" data-field="name">{sub?.streamer_name}</p>
+    <p class="text-xs text-slate-500 dark:text-slate-400" data-field="target">{target}</p>
+  </div>
+  {sub && !sub.active && <Badge variant="warning">{t('stream_alerts.inactive_limit')}</Badge>}
+  <Badge variant={live ? 'success' : 'neutral'}>{live ? t('stream_alerts.live') : t('stream_alerts.offline')}</Badge>
+  <button type="button" data-edit-sub disabled={!botOnline} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline flex-shrink-0 disabled:opacity-50">{t('common.edit')}</button>
+  <button type="button" data-remove-sub disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline flex-shrink-0 disabled:opacity-50">{t('common.remove')}</button>
+</div>

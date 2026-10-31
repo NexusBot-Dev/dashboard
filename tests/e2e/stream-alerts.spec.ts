@@ -316,7 +316,6 @@ test.describe('Verknüpfungen', () => {
 
 test.describe('Anzeige nach Änderungen', () => {
   test('nach dem Hinzufügen: Zähler steigt, bei vollem Kontingent wird Hinzufügen gesperrt', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: Zähler und Sperre bleiben bis zum Neuladen auf dem alten Stand');
     await page.goto(PAGE);
     await addKick(page);
     await expect(counters(page)).toContainText('Kick: 1/1', { timeout: 2000 });
@@ -324,7 +323,6 @@ test.describe('Anzeige nach Änderungen', () => {
   });
 
   test('nach dem Entfernen bei vollem Kontingent ist Hinzufügen wieder möglich', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: Hinzufügen bleibt bis zum Neuladen gesperrt');
     await resetBot(withSubs({
       twitch: [TWITCH],
       youtube: [{ ...YOUTUBE, active: true }],
@@ -339,7 +337,6 @@ test.describe('Anzeige nach Änderungen', () => {
   });
 
   test('letzten Kanal entfernt: der Hinweis „keine Kanäle“ erscheint', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: leere Liste ohne Hinweis bis zum Neuladen');
     await resetBot(withSubs({ twitch: [TWITCH] }));
     collectDialogs(page);
     await page.goto(PAGE);
@@ -349,14 +346,12 @@ test.describe('Anzeige nach Änderungen', () => {
   });
 
   test('neu angelegte Zeile zeigt den Offline-Status wie die übrigen', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: neue Zeilen haben einen leeren Platzhalter statt des Status');
     await page.goto(PAGE);
     await addKick(page);
     await expect(subRow(page, 20)).toContainText(t('stream_alerts.offline'), { timeout: 2000 });
   });
 
   test('Kanal entfernt: er verschwindet aus der Verknüpfungs-Auswahl, seine Verknüpfungen auch', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: entfernte Kanäle bleiben auswählbar, ihre Verknüpfungen stehen weiter da');
     collectDialogs(page);
     await page.goto(PAGE);
     await subRow(page, 12).locator('[data-remove-sub]').click();
@@ -368,7 +363,6 @@ test.describe('Anzeige nach Änderungen', () => {
   });
 
   test('neuer Kanal ist sofort verknüpfbar, wenn der Bot die Abo-ID mitliefert', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: neue Kanäle erscheinen erst nach dem Neuladen in der Verknüpfungs-Auswahl');
     await resetBot({ 'stream_alerts/add': { data: { monitored_channel_id: 20, subscription_id: 120, streamer_name: 'kickstar', platform: 'kick' } } });
     await page.goto(PAGE);
     await addKick(page);
@@ -377,7 +371,6 @@ test.describe('Anzeige nach Änderungen', () => {
   });
 
   test('letzte Verknüpfung getrennt: der Hinweis „keine Verknüpfungen“ erscheint', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: leere Liste ohne Hinweis bis zum Neuladen');
     collectDialogs(page);
     await page.goto(PAGE);
     await linkRow(page, 7).locator('[data-remove-link]').click();

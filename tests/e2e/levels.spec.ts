@@ -317,7 +317,6 @@ test.describe('Level-Rollen', () => {
 
 test.describe('Anzeige und Eingaben', () => {
   test('erste Level-Rolle: der Hinweis „keine Level-Rollen“ verschwindet', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: der Leer-Hinweis bleibt bis zum Neuladen stehen');
     await resetBot({ 'leveling/list-roles': { data: { roles: [] } } });
     await page.goto(PAGE);
     await page.locator('#add-level-role-btn').click();
@@ -329,7 +328,6 @@ test.describe('Anzeige und Eingaben', () => {
   });
 
   test('letzte Level-Rolle entfernt: der Hinweis „keine Level-Rollen“ erscheint', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: leere Liste ohne Hinweis bis zum Neuladen');
     await resetBot({ 'leveling/list-roles': { data: { roles: [defaultBotData['leveling/list-roles'].roles[0]] } } });
     collectDialogs(page);
     await page.goto(PAGE);
@@ -339,7 +337,6 @@ test.describe('Anzeige und Eingaben', () => {
   });
 
   test('Kommazahl bei XP wird abgelehnt statt still abgeschnitten', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: aus 12.5 wird ohne Hinweis 12 gespeichert');
     const dialogs = collectDialogs(page);
     await page.goto(PAGE);
     await minInput(page).fill('12.5');
@@ -349,7 +346,6 @@ test.describe('Anzeige und Eingaben', () => {
   });
 
   test('Kommazahl beim Level wird abgelehnt statt still abgeschnitten', async ({ page }) => {
-    test.fail(true, 'Bekannter Bug: aus Level 3.5 wird ohne Hinweis Level 3');
     const dialogs = collectDialogs(page);
     await page.goto(PAGE);
     await page.locator('#add-level-role-btn').click();

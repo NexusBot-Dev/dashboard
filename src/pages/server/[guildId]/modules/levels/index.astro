@@ -1,6 +1,7 @@
 ---
 import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
 import Badge from '../../../../../components/Badge.astro';
+import LevelRoleRow from '../../../../../components/LevelRoleRow.astro';
 import pool from '../../../../../lib/db';
 import { callGuildAction } from '../../../../../lib/botApi';
 import { intlLocale } from '../../../../../i18n';
@@ -71,7 +72,6 @@ function avatarFallback(userId: string) {
 const i18n = {
   save: t('common.save'),
   saving: t('common.saving'),
-  edit: t('common.edit'),
   remove: t('common.remove'),
   errorGeneric: t('common.error_generic'),
   errorServerTemplate: t('common.error_server'), // enthält "{status}"
@@ -88,6 +88,14 @@ const i18n = {
   excludeGroupChannels: t('levels.exclude_group_channels'),
   excludeCountTemplate: t('levels.exclude_count'), // enthält "{count}" und "{limit}"
 };
+
+// Liest src/scripts/pages/levels.ts aus data-config
+const pageConfig = {
+  guildId,
+  botOnline,
+  exclude: { ids: excludedIds, targets: excludeTargets, limit: excludeLimit },
+  i18n,
+};
 ---
 
 <DashboardLayout title={t('levels.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
@@ -102,438 +110,126 @@ const i18n = {
     </div>
   )}
 
-  <!-- XP-Vergabe -->
-  <section class="rounded-xl glass-panel p-6 mb-6">
-    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-4">{t('levels.xp_section_title')}</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.xp_min_label')}</label>
-        <input type="number" id="xp-min-input" min="1" max="1000" value={xpMin} data-initial={xpMin} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50" />
+  <div id="levels-page" data-config={JSON.stringify(pageConfig)}>
+    <!-- XP-Vergabe -->
+    <section class="rounded-xl glass-panel p-6 mb-6">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white mb-4">{t('levels.xp_section_title')}</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.xp_min_label')}</label>
+          <input type="number" id="xp-min-input" min="1" max="1000" value={xpMin} data-initial={xpMin} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.xp_max_label')}</label>
+          <input type="number" id="xp-max-input" min="1" max="1000" value={xpMax} data-initial={xpMax} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50" />
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">{t('levels.cooldown_label')}</p>
+          <p class="text-lg font-semibold text-slate-900 dark:text-white pt-1.5">{cooldownSeconds}s</p>
+        </div>
       </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.xp_max_label')}</label>
-        <input type="number" id="xp-max-input" min="1" max="1000" value={xpMax} data-initial={xpMax} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50" />
-      </div>
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">{t('levels.cooldown_label')}</p>
-        <p class="text-lg font-semibold text-slate-900 dark:text-white pt-1.5">{cooldownSeconds}s</p>
-      </div>
-    </div>
-    <button id="save-xp-btn" type="button" disabled class="mt-4 px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-      {t('common.save')}
-    </button>
-    <p class="mt-3 text-xs text-slate-400">{t('levels.cooldown_note')}</p>
-  </section>
-
-  <!-- Level-Up-Nachricht -->
-  <section class="rounded-xl glass-panel p-6 mb-6">
-    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('levels.levelup_section_title')}</h2>
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('levels.levelup_section_desc')}</p>
-    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.levelup_channel_label')}</label>
-    <select id="levelup-channel-select" data-initial={levelupChannelId} disabled={!botOnline} class="w-full sm:w-80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
-      <option value="" selected={levelupChannelId === ''}>{t('levels.levelup_channel_default')}</option>
-      {channels.map((ch) => (
-        <option value={ch.id} selected={ch.id === levelupChannelId}>#{ch.name}</option>
-      ))}
-    </select>
-    <div class="mt-4">
-      <button id="save-levelup-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+      <button id="save-xp-btn" type="button" disabled class="mt-4 px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
         {t('common.save')}
       </button>
-    </div>
-  </section>
+      <p class="mt-3 text-xs text-slate-400">{t('levels.cooldown_note')}</p>
+    </section>
 
-  <!-- Channels ohne XP -->
-  <section id="xp-exclude-section" class="rounded-xl glass-panel p-6 mb-6" data-excluded={JSON.stringify(excludedIds)} data-targets={JSON.stringify(excludeTargets)} data-limit={excludeLimit} data-offline={String(!botOnline)}>
-    <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('levels.exclude_section_title')}</h2>
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('levels.exclude_section_desc')}</p>
-    <div id="xp-excluded-list" class="flex flex-wrap gap-2 mb-1"></div>
-    <p id="xp-excluded-empty" class="text-sm text-slate-500 dark:text-slate-400 mb-1">{t('levels.exclude_none')}</p>
-    <p id="xp-exclude-count" class="text-xs text-slate-400 mb-4"></p>
-    <div class="flex flex-col sm:flex-row gap-3">
-      <select id="xp-exclude-select" disabled class="w-full sm:w-80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"></select>
-      <button id="add-xp-exclude-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-        {t('common.add')}
-      </button>
-    </div>
-  </section>
+    <!-- Level-Up-Nachricht -->
+    <section class="rounded-xl glass-panel p-6 mb-6">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('levels.levelup_section_title')}</h2>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('levels.levelup_section_desc')}</p>
+      <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.levelup_channel_label')}</label>
+      <select id="levelup-channel-select" data-initial={levelupChannelId} disabled={!botOnline} class="w-full sm:w-80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
+        <option value="" selected={levelupChannelId === ''}>{t('levels.levelup_channel_default')}</option>
+        {channels.map((ch) => (
+          <option value={ch.id} selected={ch.id === levelupChannelId}>#{ch.name}</option>
+        ))}
+      </select>
+      <div class="mt-4">
+        <button id="save-levelup-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          {t('common.save')}
+        </button>
+      </div>
+    </section>
 
-  <!-- Level-Rollen -->
-  <section class="rounded-xl glass-panel p-6 mb-6">
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('levels.roles_section_title')}</h2>
-      <button id="add-level-role-btn" type="button" disabled={!botOnline} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50">
-        + {t('common.add')}
-      </button>
-    </div>
+    <!-- Channels ohne XP -->
+    <section id="xp-exclude-section" class="rounded-xl glass-panel p-6 mb-6">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('levels.exclude_section_title')}</h2>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('levels.exclude_section_desc')}</p>
+      <div id="xp-excluded-list" class="flex flex-wrap gap-2 mb-1"></div>
+      <p id="xp-excluded-empty" class="text-sm text-slate-500 dark:text-slate-400 mb-1">{t('levels.exclude_none')}</p>
+      <p id="xp-exclude-count" class="text-xs text-slate-400 mb-4"></p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <select id="xp-exclude-select" disabled class="w-full sm:w-80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"></select>
+        <button id="add-xp-exclude-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          {t('common.add')}
+        </button>
+      </div>
+    </section>
 
-    <div id="level-roles-list" class="space-y-2">
-      {roles.map((r) => (
-        <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-level-role-row={r.level} data-role-id={r.role_id}>
-          <div class="w-24 flex-shrink-0"><Badge variant="primary">{t('levels.level_badge', { level: r.level })}</Badge></div>
-          <div class="flex items-center gap-2 flex-1 min-w-0">
-            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style={`background-color: ${r.role_color}`}></span>
-            <span class="text-sm font-medium text-slate-900 dark:text-white truncate">{r.role_name}</span>
+    <!-- Level-Rollen -->
+    <section class="rounded-xl glass-panel p-6 mb-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('levels.roles_section_title')}</h2>
+        <button id="add-level-role-btn" type="button" disabled={!botOnline} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50">
+          + {t('common.add')}
+        </button>
+      </div>
+
+      <div id="level-roles-list" class="space-y-2">
+        {roles.map((role) => <LevelRoleRow role={role} botOnline={botOnline} />)}
+      </div>
+      <p id="level-roles-empty" class:list={['text-sm text-slate-500 dark:text-slate-400 py-4', { hidden: roles.length > 0 }]}>{t('levels.no_roles')}</p>
+      <template id="level-role-template"><LevelRoleRow botOnline={botOnline} /></template>
+
+      <div id="level-role-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+        <p id="level-role-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('levels.role_form_add_title')}</p>
+        <div class="grid grid-cols-1 sm:grid-cols-[100px_1fr] gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.level_label')}</label>
+            <input type="number" id="new-level-input" min="1" max="1000" placeholder={t('levels.level_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
-          <div class="flex items-center gap-3 flex-shrink-0">
-            <button type="button" data-edit-level-role={r.level} disabled={!botOnline} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline disabled:opacity-50">{t('common.edit')}</button>
-            <button type="button" data-remove-level-role={r.level} disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline disabled:opacity-50">{t('common.remove')}</button>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.role_label')}</label>
+            <select id="new-role-select" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <option value="">{t('common.please_select')}</option>
+              {allRoles.map((r) => <option value={r.id}>{r.name}</option>)}
+            </select>
           </div>
         </div>
-      ))}
-    </div>
-    {roles.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('levels.no_roles')}</p>}
-
-    <div id="level-role-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-      <p id="level-role-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('levels.role_form_add_title')}</p>
-      <div class="grid grid-cols-1 sm:grid-cols-[100px_1fr] gap-3 mb-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.level_label')}</label>
-          <input type="number" id="new-level-input" min="1" max="1000" placeholder={t('levels.level_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.role_label')}</label>
-          <select id="new-role-select" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-            <option value="">{t('common.please_select')}</option>
-            {allRoles.map((r) => <option value={r.id}>{r.name}</option>)}
-          </select>
+        <div class="flex gap-2">
+          <button id="confirm-level-role-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+          <button id="cancel-level-role-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
         </div>
       </div>
-      <div class="flex gap-2">
-        <button id="confirm-level-role-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
-        <button id="cancel-level-role-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Leaderboard -->
-  <section class="rounded-xl glass-panel p-6">
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('levels.leaderboard_title')}</h2>
-      <span class="text-sm text-slate-500 dark:text-slate-400">{t('levels.top_label', { count: leaderboard.length })}</span>
-    </div>
-    <div class="space-y-2">
-      {leaderboard.map((entry, i) => (
-        <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-          <span class="w-6 text-center text-sm font-bold text-slate-400 flex-shrink-0">
-            {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
-          </span>
-          <img src={entry.avatar_url || avatarFallback(entry.user_id)} alt="" class="w-9 h-9 rounded-full flex-shrink-0" />
-          <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{entry.username}</p>
-            <p class="text-xs text-slate-500 dark:text-slate-400">{entry.xp.toLocaleString(intlLocale(lang))} XP</p>
+    <!-- Leaderboard -->
+    <section class="rounded-xl glass-panel p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('levels.leaderboard_title')}</h2>
+        <span class="text-sm text-slate-500 dark:text-slate-400">{t('levels.top_label', { count: leaderboard.length })}</span>
+      </div>
+      <div class="space-y-2">
+        {leaderboard.map((entry, i) => (
+          <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+            <span class="w-6 text-center text-sm font-bold text-slate-400 flex-shrink-0">
+              {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+            </span>
+            <img src={entry.avatar_url || avatarFallback(entry.user_id)} alt="" class="w-9 h-9 rounded-full flex-shrink-0" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{entry.username}</p>
+              <p class="text-xs text-slate-500 dark:text-slate-400">{entry.xp.toLocaleString(intlLocale(lang))} XP</p>
+            </div>
+            <Badge variant="neutral">{t('levels.level_badge', { level: entry.level })}</Badge>
           </div>
-          <Badge variant="neutral">{t('levels.level_badge', { level: entry.level })}</Badge>
-        </div>
-      ))}
-    </div>
-    {leaderboard.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('levels.no_entries')}</p>}
-  </section>
+        ))}
+      </div>
+      {leaderboard.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('levels.no_entries')}</p>}
+    </section>
+  </div>
 </DashboardLayout>
 
-<script define:vars={{ guildId, i18n }}>
-  async function callModuleAction(module, action, body = {}) {
-    const res = await fetch(`/api/server/${guildId}/module/${module}/${action}/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    let data;
-    try { data = await res.json(); } catch { throw new Error(i18n.errorServerTemplate.replace('{status}', res.status)); }
-    if (!res.ok || !data.ok) throw new Error(data.error ? `${i18n.errorGeneric}: ${data.error}` : i18n.errorServerTemplate.replace('{status}', res.status));
-    return data.data;
-  }
-
-  function setupXpSettings() {
-    const minInput = document.getElementById('xp-min-input');
-    const maxInput = document.getElementById('xp-max-input');
-    const saveBtn = document.getElementById('save-xp-btn');
-    if (!minInput || !maxInput || !saveBtn || saveBtn.dataset.bound === 'true') return;
-    saveBtn.dataset.bound = 'true';
-
-    function isDirty() {
-      return minInput.value !== minInput.dataset.initial || maxInput.value !== maxInput.dataset.initial;
-    }
-    function refresh() { saveBtn.disabled = !isDirty(); }
-    minInput.addEventListener('input', refresh);
-    maxInput.addEventListener('input', refresh);
-
-    saveBtn.addEventListener('click', async () => {
-      const xpMin = parseInt(minInput.value, 10);
-      const xpMax = parseInt(maxInput.value, 10);
-      if (!Number.isInteger(xpMin) || !Number.isInteger(xpMax)) { alert(i18n.alertInvalidXp); return; }
-      if (xpMin < 1 || xpMin > 1000 || xpMax < 1 || xpMax > 1000) { alert(i18n.alertInvalidXp); return; }
-      if (xpMin > xpMax) { alert(i18n.alertMinGtMax); return; }
-
-      saveBtn.disabled = true;
-      saveBtn.textContent = i18n.saving;
-      try {
-        await callModuleAction('leveling', 'set-xp-settings', { xp_min: xpMin, xp_max: xpMax });
-        minInput.dataset.initial = minInput.value;
-        maxInput.dataset.initial = maxInput.value;
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        saveBtn.textContent = i18n.save;
-        refresh();
-      }
-    });
-  }
-
-  function setupLevelUpChannel() {
-    const select = document.getElementById('levelup-channel-select');
-    const saveBtn = document.getElementById('save-levelup-btn');
-    if (!select || !saveBtn || saveBtn.dataset.bound === 'true') return;
-    saveBtn.dataset.bound = 'true';
-
-    function refresh() { saveBtn.disabled = select.value === select.dataset.initial; }
-    select.addEventListener('change', refresh);
-
-    saveBtn.addEventListener('click', async () => {
-      saveBtn.disabled = true;
-      saveBtn.textContent = i18n.saving;
-      try {
-        await callModuleAction('leveling', 'set-levelup-channel', { channel_id: select.value || null });
-        select.dataset.initial = select.value;
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        saveBtn.textContent = i18n.save;
-        refresh();
-      }
-    });
-  }
-
-  function setupXpExclude() {
-    const section = document.getElementById('xp-exclude-section');
-    const select = document.getElementById('xp-exclude-select');
-    const addBtn = document.getElementById('add-xp-exclude-btn');
-    const list = document.getElementById('xp-excluded-list');
-    const emptyNote = document.getElementById('xp-excluded-empty');
-    const countNote = document.getElementById('xp-exclude-count');
-    if (!section || !select || !addBtn || !list || addBtn.dataset.bound === 'true') return;
-    addBtn.dataset.bound = 'true';
-
-    // Der Zustand kommt aus dem DOM, nicht aus dem Skript-Scope (Seitenwechsel per ClientRouter)
-    let targets = [];
-    let ids = [];
-    try {
-      targets = JSON.parse(section.dataset.targets || '[]');
-      ids = JSON.parse(section.dataset.excluded || '[]');
-    } catch { /* leer lassen */ }
-    const limit = Number(section.dataset.limit) || 25;
-    const offline = section.dataset.offline === 'true';
-    const byId = new Map(targets.map((item) => [item.id, item]));
-    let busy = false;
-
-    function chipText(item) { return (item.type === 'category' ? '\u{1F4C1} ' : '#') + item.name; }
-    function optionText(item) {
-      if (item.type === 'category') return item.name;
-      return '#' + item.name + (item.category ? ' \u00B7 ' + item.category : '');
-    }
-
-    function refreshControls() {
-      const full = ids.length >= limit;
-      select.disabled = offline || busy || full || select.options.length <= 1;
-      addBtn.disabled = select.disabled || !select.value;
-      countNote.textContent = i18n.excludeCountTemplate.replace('{count}', ids.length).replace('{limit}', limit);
-    }
-
-    function renderChips() {
-      list.replaceChildren();
-      ids.forEach((id) => {
-        const item = byId.get(id);
-        if (!item) return;
-        const chip = document.createElement('span');
-        chip.className = 'inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700';
-        const label = document.createElement('span');
-        label.textContent = chipText(item);
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.textContent = '\u00D7';
-        removeBtn.setAttribute('aria-label', i18n.remove + ': ' + label.textContent);
-        removeBtn.disabled = offline;
-        removeBtn.className = 'w-5 h-5 inline-flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40';
-        removeBtn.addEventListener('click', () => save(ids.filter((x) => x !== id)));
-        chip.append(label, removeBtn);
-        list.appendChild(chip);
-      });
-      emptyNote.classList.toggle('hidden', ids.length > 0);
-    }
-
-    function renderSelect() {
-      select.replaceChildren(new Option(i18n.excludeSelectPlaceholder, ''));
-      [['category', i18n.excludeGroupCategories], ['channel', i18n.excludeGroupChannels]].forEach(([type, groupLabel]) => {
-        const items = targets.filter((item) => item.type === type && !ids.includes(item.id));
-        if (items.length === 0) return;
-        const group = document.createElement('optgroup');
-        group.label = groupLabel;
-        items.forEach((item) => group.appendChild(new Option(optionText(item), item.id)));
-        select.appendChild(group);
-      });
-      refreshControls();
-    }
-
-    async function save(nextIds) {
-      if (busy || offline) return;
-      busy = true;
-      refreshControls();
-      try {
-        const result = await callModuleAction('leveling', 'set-excluded', { channel_ids: nextIds });
-        ids = result.excluded_ids;
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        busy = false;
-        renderChips();
-        renderSelect();
-      }
-    }
-
-    select.addEventListener('change', refreshControls);
-    addBtn.addEventListener('click', () => { if (select.value) save([...ids, select.value]); });
-
-    renderChips();
-    renderSelect();
-  }
-
-  function setupLevelRoles() {
-    const addBtn = document.getElementById('add-level-role-btn');
-    const form = document.getElementById('level-role-form');
-    const formTitle = document.getElementById('level-role-form-title');
-    const confirmBtn = document.getElementById('confirm-level-role-btn');
-    const cancelBtn = document.getElementById('cancel-level-role-btn');
-    const levelInput = document.getElementById('new-level-input');
-    const roleSelect = document.getElementById('new-role-select');
-    const list = document.getElementById('level-roles-list');
-
-    if (!addBtn || addBtn.dataset.bound === 'true') return;
-    addBtn.dataset.bound = 'true';
-
-    let editingLevel = null;
-
-    function openForm(mode, row) {
-      editingLevel = mode === 'edit' ? row.dataset.levelRoleRow : null;
-      formTitle.textContent = mode === 'edit' ? i18n.roleFormEditTitleTemplate.replace('{level}', editingLevel) : i18n.roleFormAddTitle;
-      if (mode === 'edit' && row) {
-        levelInput.value = row.dataset.levelRoleRow;
-        levelInput.disabled = true;
-        roleSelect.value = row.dataset.roleId;
-      } else {
-        levelInput.value = '';
-        levelInput.disabled = false;
-        roleSelect.value = '';
-      }
-      form.classList.remove('hidden');
-      levelInput.focus();
-    }
-    function closeForm() { form.classList.add('hidden'); editingLevel = null; levelInput.disabled = false; }
-
-    function buildRoleRow(level, result) {
-      const row = document.createElement('div');
-      row.className = 'flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800';
-      row.dataset.levelRoleRow = String(level);
-      row.dataset.roleId = result.role_id;
-
-      const badgeCell = document.createElement('div');
-      badgeCell.className = 'w-24 flex-shrink-0';
-      const badge = document.createElement('span');
-      badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300 border border-primary-200 dark:border-primary-800';
-      badge.textContent = i18n.levelBadgeTemplate.replace('{level}', level);
-      badgeCell.appendChild(badge);
-
-      const roleCell = document.createElement('div');
-      roleCell.className = 'flex items-center gap-2 flex-1 min-w-0';
-      const dot = document.createElement('span');
-      dot.className = 'w-2.5 h-2.5 rounded-full flex-shrink-0';
-      dot.style.backgroundColor = result.role_color;
-      const name = document.createElement('span');
-      name.className = 'text-sm font-medium text-slate-900 dark:text-white truncate';
-      name.textContent = result.role_name;
-      roleCell.append(dot, name);
-
-      const actions = document.createElement('div');
-      actions.className = 'flex items-center gap-3 flex-shrink-0';
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.dataset.editLevelRole = String(level);
-      editBtn.className = 'text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline';
-      editBtn.textContent = i18n.edit;
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.dataset.removeLevelRole = String(level);
-      removeBtn.className = 'text-xs font-medium text-red-600 dark:text-red-400 hover:underline';
-      removeBtn.textContent = i18n.remove;
-      actions.append(editBtn, removeBtn);
-
-      row.append(badgeCell, roleCell, actions);
-      return row;
-    }
-
-    addBtn.addEventListener('click', () => openForm('add'));
-    cancelBtn.addEventListener('click', closeForm);
-
-    confirmBtn.addEventListener('click', async () => {
-      const level = parseInt(levelInput.value, 10);
-      if (!Number.isInteger(level) || level < 1 || level > 1000) { alert(i18n.alertInvalidLevel); return; }
-
-      const roleOpt = roleSelect.selectedOptions[0];
-      if (!roleOpt || !roleOpt.value) { alert(i18n.alertNoRole); return; }
-
-      confirmBtn.disabled = true;
-      try {
-        const result = await callModuleAction('leveling', 'set-role', { level, role_id: roleOpt.value });
-
-        const newRow = buildRoleRow(level, result);
-        const existing = list.querySelector(`[data-level-role-row="${level}"]`);
-        if (existing) existing.replaceWith(newRow);
-        else list.appendChild(newRow);
-
-        const rows = Array.from(list.querySelectorAll('[data-level-role-row]'));
-        const sorted = rows.sort((a, b) => Number(a.dataset.levelRoleRow) - Number(b.dataset.levelRoleRow));
-        sorted.forEach((r) => list.appendChild(r));
-
-        bindRowButtons(newRow);
-        closeForm();
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        confirmBtn.disabled = false;
-      }
-    });
-
-    function bindRowButtons(row) {
-      const editBtn = row.querySelector('[data-edit-level-role]');
-      const removeBtn = row.querySelector('[data-remove-level-role]');
-      if (editBtn && editBtn.dataset.bound !== 'true') {
-        editBtn.dataset.bound = 'true';
-        editBtn.addEventListener('click', () => openForm('edit', row));
-      }
-      if (removeBtn && removeBtn.dataset.bound !== 'true') {
-        removeBtn.dataset.bound = 'true';
-        removeBtn.addEventListener('click', async () => {
-          const level = removeBtn.dataset.removeLevelRole;
-          if (!confirm(i18n.confirmRemoveRoleTemplate.replace('{level}', level))) return;
-          try {
-            await callModuleAction('leveling', 'remove-role', { level: Number(level) });
-            row.remove();
-          } catch (err) {
-            alert(err.message);
-          }
-        });
-      }
-    }
-    document.querySelectorAll('[data-level-role-row]').forEach(bindRowButtons);
-  }
-
-  setupXpSettings();
-  setupLevelUpChannel();
-  setupXpExclude();
-  setupLevelRoles();
-  document.addEventListener('astro:page-load', () => {
-    setupXpSettings();
-    setupLevelUpChannel();
-    setupXpExclude();
-    setupLevelRoles();
-  });
+<script>
+  import '../../../../../scripts/pages/levels';
 </script>

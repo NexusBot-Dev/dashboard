@@ -132,6 +132,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
         </button>
         <div
           id="lang-dropdown"
+          data-text-error={t('common.lang_change_failed')}
           class="hidden absolute right-0 mt-2 w-36 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-sm"
         >
           {Object.entries(LANG_LABELS).map(([code, meta]) => (
@@ -362,10 +363,11 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lang }),
           });
-          if (!res.ok) throw new Error('Sprache konnte nicht gesetzt werden');
+          if (!res.ok) throw new Error(res.statusText);
           window.location.reload();
         } catch (err) {
-          alert(err.message);
+          console.error(err);
+          alert(dropdown.dataset.textError);
         }
       });
     });

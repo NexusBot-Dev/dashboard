@@ -26,7 +26,8 @@
     "no_channel": "— No channel —",
     "channel_id_placeholder": "Channel ID (bot offline, no names available)",
     "no_other_servers": "No other servers available",
-    "all_servers": "View all servers"
+    "all_servers": "View all servers",
+    "lang_change_failed": "Could not change the language. Please try again."
   },
   "levels": {
     "title": "Level System",
@@ -547,5 +548,16 @@
     "status_ended": "Ended",
     "status_cancelled": "Cancelled",
     "unexpected_response": "Unexpected response (status {status})"
+  },
+  "api_errors": {
+    "rate_limited": "Too many requests — please wait a moment and try again.",
+    "bot_unreachable": "Nexus is currently unreachable. Please try again later.",
+    "discord_unavailable": "Discord is not responding right now. Please try again later.",
+    "guild_access_denied": "You don't have permission on this server (Administrator or Manage Server required).",
+    "forbidden": "You don't have permission on this server (Administrator or Manage Server required).",
+    "unauthorized": "Your session has expired. Please log in again.",
+    "internal_error": "An internal error occurred in Nexus. Please try again later.",
+    "invalid_request": "Invalid request. Please reload the page and try again.",
+    "unknown": "Unknown error ({code})"
   }
 }

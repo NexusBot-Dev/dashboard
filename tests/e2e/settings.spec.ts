@@ -188,6 +188,121 @@ test.describe('Bearbeiten', () => {
   });
 });
 
+test.describe('Danger Zone', () => {
+  const CONFIRM_WORD = t('settings.danger_confirm_word');
+  const zone = (page: Page) => page.locator('#danger-zone');
+  const dialog = (page: Page) => page.locator('#danger-dialog');
+  const wordInput = (page: Page) => page.locator('#danger-confirm-input');
+  const confirmBtn = (page: Page) => page.locator('#danger-confirm-btn');
+  const leaveBtn = (page: Page) => zone(page).getByRole('button', { name: t('settings.danger_leave_label'), exact: true });
+  const deleteBtn = (page: Page) => zone(page).getByRole('button', { name: t('settings.danger_delete_label'), exact: true });
+
+  test.afterEach(async () => {
+    await dbQuery('UPDATE guild_settings SET left_at = NULL WHERE guild_id = ?', [GUILD_ID]);
+  });
+
+  test('Owner sieht beide Aktionen aktiv, ohne Hinweis', async ({ page }) => {
+    await page.goto(PAGE);
+    await expect(leaveBtn(page)).toBeEnabled();
+    await expect(deleteBtn(page)).toBeEnabled();
+    await expect(page.locator('#danger-disabled-hint')).toHaveCount(0);
+    await expect(dialog(page)).toBeHidden();
+  });
+
+  test('Bestätigen erst mit dem Bestätigungswort; Abbrechen sendet nichts', async ({ page }) => {
+    await page.goto(PAGE);
+    await leaveBtn(page).click();
+
+    await expect(dialog(page)).toBeVisible();
+    await expect(page.locator('#danger-dialog-title')).toHaveText(t('settings.danger_dialog_leave_title', { server: 'Testserver' }));
+    await expect(page.locator('#danger-dialog-text')).toHaveText(t('settings.danger_dialog_leave_text'));
+    await expect(wordInput(page)).toBeFocused();
+    await expect(confirmBtn(page)).toBeDisabled();
+
+    // Das Wort steht im Dialog — nicht der Servername
+    await expect(page.locator('label[for="danger-confirm-input"] strong')).toHaveText(CONFIRM_WORD);
+    await wordInput(page).fill('Testserver');
+    await expect(confirmBtn(page)).toBeDisabled();
+    await wordInput(page).press('Enter'); // Enter mit falschem Wort löst nichts aus
+    await wordInput(page).fill(`  ${CONFIRM_WORD.toLowerCase()} `); // Groß-/Kleinschreibung und Leerzeichen egal
+    await expect(confirmBtn(page)).toBeEnabled();
+
+    await page.locator('#danger-cancel-btn').click();
+    await expect(dialog(page)).toBeHidden();
+    await page.waitForTimeout(300);
+    expect(await botCalls('guild/leave')).toHaveLength(0);
+
+    // Erneutes Öffnen startet leer
+    await deleteBtn(page).click();
+    await expect(wordInput(page)).toHaveValue('');
+    await expect(confirmBtn(page)).toBeDisabled();
+    await expect(page.locator('#danger-dialog-title')).toHaveText(t('settings.danger_dialog_delete_title', { server: 'Testserver' }));
+  });
+
+  test('Nexus entfernen: delete_now = false, danach Serverliste', async ({ page }) => {
+    await page.goto(PAGE);
+    await leaveBtn(page).click();
+    await wordInput(page).fill(CONFIRM_WORD);
+    await confirmBtn(page).click();
+
+    expect((await waitForBotCall('guild/leave')).delete_now).toBe(false);
+    await expect(page).toHaveURL(/\/server\/$/);
+  });
+
+  test('Entfernen und löschen: delete_now = true, Enter bestätigt', async ({ page }) => {
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await deleteBtn(page).click();
+    await expect(confirmBtn(page)).toHaveText(t('settings.danger_delete_label'));
+    await wordInput(page).fill(CONFIRM_WORD);
+    await wordInput(page).press('Enter');
+
+    expect((await waitForBotCall('guild/leave')).delete_now).toBe(true);
+    await expect(page).toHaveURL(/\/server\/$/);
+    expect(dialogs).toEqual([]);
+  });
+
+  test('Löschen fehlgeschlagen: Hinweis auf die 7 Tage, trotzdem Serverliste', async ({ page }) => {
+    await resetBot({ 'guild/leave': { data: { left: true, deleted: false } } });
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await deleteBtn(page).click();
+    await wordInput(page).fill(CONFIRM_WORD);
+    await confirmBtn(page).click();
+
+    await expect.poll(() => dialogs).toEqual([t('settings.danger_delete_failed')]);
+    await expect(page).toHaveURL(/\/server\/$/);
+  });
+
+  test('Fehler des Bots: Meldung im Dialog, erneut versuchbar', async ({ page }) => {
+    await resetBot({ 'guild/leave': { status: 400, error: 'Nur der Server-Owner kann Nexus entfernen' } });
+    await page.goto(PAGE);
+    await leaveBtn(page).click();
+    await wordInput(page).fill(CONFIRM_WORD);
+    await confirmBtn(page).click();
+
+    await expect(page.locator('#danger-dialog-error')).toHaveText(`${t('common.error_generic')}: Nur der Server-Owner kann Nexus entfernen`);
+    await expect(dialog(page)).toBeVisible();
+    await expect(confirmBtn(page)).toBeEnabled();
+    await expect(confirmBtn(page)).toHaveText(t('settings.danger_leave_label'));
+    await expect(wordInput(page)).toBeEnabled();
+    await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/settings/$`));
+
+    await confirmBtn(page).click();
+    await waitForBotCall('guild/leave', 1);
+  });
+
+  test('Serverliste: entfernter Server (left_at gesetzt) erscheint mit Einladungs-Link', async ({ page }) => {
+    await page.goto('/server/');
+    await expect(page.locator(`a[href="/server/${GUILD_ID}/"]`)).toBeVisible();
+
+    await dbQuery('UPDATE guild_settings SET left_at = NOW() WHERE guild_id = ?', [GUILD_ID]);
+    await page.goto('/server/');
+    await expect(page.locator(`a[href="/server/${GUILD_ID}/"]`)).toHaveCount(0);
+    await expect(page.locator(`a[href*="guild_id=${GUILD_ID}"]`)).toBeVisible();
+  });
+});
+
 test.describe('API-Proxy', () => {
   test('fremder Server: Speichern wird abgewiesen und erreicht den Bot nicht', async ({ page }) => {
     await page.goto(PAGE);

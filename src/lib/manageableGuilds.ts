@@ -35,7 +35,8 @@ export async function getManageableGuilds(
   if (guildIds.length > 0) {
     const placeholders = guildIds.map(() => '?').join(',');
     const [rows] = await pool.query(
-      `SELECT guild_id FROM guild_settings WHERE guild_id IN (${placeholders})`,
+      // left_at: Nexus wurde entfernt, die Daten liegen nur noch bis zur automatischen Löschung da
+      `SELECT guild_id FROM guild_settings WHERE guild_id IN (${placeholders}) AND left_at IS NULL`,
       guildIds
     );
     botGuildIds = new Set((rows as any[]).map((r) => String(r.guild_id)));

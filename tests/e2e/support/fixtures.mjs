@@ -22,6 +22,7 @@ export const defaultBotData = {
   'guild/channels': { channels: CHANNELS },
   'guild/roles': { roles: ROLES },
   'guild/health-issues': { issues: [] },   // Glocke im Header, auf jeder Seite
+  'guild/leave': (body) => ({ left: true, deleted: body.delete_now === true }),   // Danger Zone (Settings)
 
   'tickets/list-categories': {
     categories: [

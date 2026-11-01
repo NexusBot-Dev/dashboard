@@ -1,7 +1,7 @@
 // Browser-Logik der Settings-Seite (/server/<id>/settings/).
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
-import { byId, readPageConfig } from '../dashboard-api';
+import { byId, createDashboardApi, readPageConfig, type ApiMessages } from '../dashboard-api';
 import { setSwitch } from '../switch';
 
 interface SettingsConfig {
@@ -123,4 +123,103 @@ function setupSettingsPage() {
   });
 }
 
+interface DangerZoneConfig {
+  guildId: string;
+  confirmWord: string;
+  i18n: ApiMessages & {
+    leaveTitle: string;
+    leaveText: string;
+    leaveConfirm: string;
+    deleteTitle: string;
+    deleteText: string;
+    deleteConfirm: string;
+    working: string;
+    deleteFailed: string;
+  };
+}
+
+// Danger Zone: "Nexus entfernen" (wie ein Kick, 7 Tage Wiederherstellung) und dasselbe mit
+// sofortigem Löschen — beides ist guild/leave, nur delete_now unterscheidet sich.
+function setupDangerZone() {
+  const root = byId('danger-zone');
+  const dialog = byId<HTMLDialogElement>('danger-dialog');
+  const form = byId<HTMLFormElement>('danger-form');
+  const title = byId('danger-dialog-title');
+  const text = byId('danger-dialog-text');
+  const input = byId<HTMLInputElement>('danger-confirm-input');
+  const error = byId('danger-dialog-error');
+  const cancelBtn = byId<HTMLButtonElement>('danger-cancel-btn');
+  const confirmBtn = byId<HTMLButtonElement>('danger-confirm-btn');
+  if (!root || !dialog || !form || !title || !text || !input || !error || !cancelBtn || !confirmBtn) return;
+  if (root.dataset.bound === 'true') return;
+  root.dataset.bound = 'true';
+
+  const { guildId, confirmWord, i18n } = readPageConfig<DangerZoneConfig>(root);
+  const api = createDashboardApi(guildId, i18n);
+  let deleteNow = false;
+  let busy = false;
+
+  // Groß-/Kleinschreibung egal: "entfernen" zählt wie "ENTFERNEN"
+  const wordMatches = () => input.value.trim().toUpperCase() === confirmWord.toUpperCase();
+  const confirmLabel = () => (deleteNow ? i18n.deleteConfirm : i18n.leaveConfirm);
+  const showError = (message: string | null) => {
+    error.textContent = message ?? '';
+    error.classList.toggle('hidden', !message);
+  };
+
+  root.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-danger-action]');
+    if (!button || button.disabled) return;
+    deleteNow = button.dataset.dangerAction === 'delete';
+    title.textContent = deleteNow ? i18n.deleteTitle : i18n.leaveTitle;
+    text.textContent = deleteNow ? i18n.deleteText : i18n.leaveText;
+    confirmBtn.textContent = confirmLabel();
+    confirmBtn.disabled = true;
+    input.value = '';
+    showError(null);
+    dialog.showModal();
+    input.focus();
+  });
+
+  input.addEventListener('input', () => {
+    confirmBtn.disabled = busy || !wordMatches();
+  });
+
+  cancelBtn.addEventListener('click', () => dialog.close());
+
+  // Während der Bot arbeitet, darf der Dialog nicht per Escape verschwinden
+  dialog.addEventListener('cancel', (event) => {
+    if (busy) event.preventDefault();
+  });
+
+  // Bestätigen-Button ist der Submit-Button: Enter im Eingabefeld löst ihn aus, aber nur, wenn er aktiv ist
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (busy || !wordMatches()) return;
+    busy = true;
+    confirmBtn.disabled = true;
+    cancelBtn.disabled = true;
+    input.disabled = true;
+    confirmBtn.textContent = i18n.working;
+    showError(null);
+
+    try {
+      const result = await api.callModuleAction<{ left: boolean; deleted: boolean }>('guild', 'leave', {
+        delete_now: deleteNow,
+      });
+      if (deleteNow && !result.deleted) alert(i18n.deleteFailed);
+      // Komplett neu laden: die Serverliste zeigt den Server danach mit Einladungs-Link
+      window.location.assign('/server/');
+    } catch (err) {
+      showError(err instanceof Error ? err.message : String(err));
+      busy = false;
+      cancelBtn.disabled = false;
+      input.disabled = false;
+      confirmBtn.textContent = confirmLabel();
+      confirmBtn.disabled = !wordMatches();
+    }
+  });
+}
+
 document.addEventListener('astro:page-load', setupSettingsPage);
+document.addEventListener('astro:page-load', setupDangerZone);

@@ -40,6 +40,7 @@ export const defaultBotData = {
     panel_message_id: '900000000000000001',
     panel_title: '🎫 Support',
     panel_description: 'Hallo **Welt**',
+    panel_mode: 'buttons',
     closure_timeout_hours: 24,
     deletion_delay_hours: 48,
     closure_options: [12, 24, 48],

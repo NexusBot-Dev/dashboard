@@ -157,7 +157,7 @@
     "panel_needs_categories": "Crea al menos una categoría antes de publicar un panel.",
     "panel_mode_label": "Visualización",
     "panel_mode_buttons": "Botones",
-    "panel_mode_dropdown_soon": "Menú desplegable (próximamente)",
+    "panel_mode_dropdown": "Menú desplegable",
     "panel_channel_hint": "Si eliges otro canal, Nexus vuelve a publicar el panel y elimina el anterior.",
     "update_panel_btn": "Actualizar panel",
     "confirm_move_panel": "El panel se publicará de nuevo en #{channel} y se eliminará el anterior. ¿Continuar?",

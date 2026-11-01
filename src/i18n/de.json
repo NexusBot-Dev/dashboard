@@ -157,7 +157,7 @@
     "panel_needs_categories": "Lege zuerst mindestens eine Kategorie an, bevor du ein Panel postest.",
     "panel_mode_label": "Darstellung",
     "panel_mode_buttons": "Buttons",
-    "panel_mode_dropdown_soon": "Dropdown (bald verfügbar)",
+    "panel_mode_dropdown": "Dropdown",
     "panel_channel_hint": "Bei einem anderen Channel postet Nexus das Panel neu und löscht das alte.",
     "update_panel_btn": "Panel aktualisieren",
     "confirm_move_panel": "Das Panel wird in #{channel} neu gepostet und das alte gelöscht. Fortfahren?",

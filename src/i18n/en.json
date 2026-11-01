@@ -157,7 +157,7 @@
     "panel_needs_categories": "Create at least one category before posting a panel.",
     "panel_mode_label": "Display",
     "panel_mode_buttons": "Buttons",
-    "panel_mode_dropdown_soon": "Dropdown (coming soon)",
+    "panel_mode_dropdown": "Dropdown",
     "panel_channel_hint": "If you pick a different channel, Nexus posts the panel again and deletes the old one.",
     "update_panel_btn": "Update panel",
     "confirm_move_panel": "The panel will be posted again in #{channel} and the old one deleted. Continue?",

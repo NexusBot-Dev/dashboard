@@ -157,7 +157,7 @@
     "panel_needs_categories": "Crie pelo menos uma categoria antes de publicar um painel.",
     "panel_mode_label": "Exibição",
     "panel_mode_buttons": "Botões",
-    "panel_mode_dropdown_soon": "Menu suspenso (em breve)",
+    "panel_mode_dropdown": "Menu suspenso",
     "panel_channel_hint": "Se você escolher outro canal, o Nexus publica o painel novamente e exclui o antigo.",
     "update_panel_btn": "Atualizar painel",
     "confirm_move_panel": "O painel será publicado novamente em #{channel} e o antigo será excluído. Continuar?",

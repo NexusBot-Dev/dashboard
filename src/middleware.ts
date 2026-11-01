@@ -2,6 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { getSession } from './lib/session';
 import { userHasGuildAccess } from './lib/guildAccess';
 import { getLang, t as translate } from './i18n';
+import { apiErrorMessage } from './lib/apiErrors';
 import { OWNER_DISCORD_ID } from './lib/secrets';
 import { OWNER_ONLY_MODULE_KEYS } from './config';
 
@@ -44,7 +45,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (!session) {
     const isApiRoute = pathname.startsWith('/api/');
     if (isApiRoute) {
-      return new Response(JSON.stringify({ ok: false, error: 'unauthorized' }), {
+      return new Response(JSON.stringify({ ok: false, error: apiErrorMessage(context.locals.t, 'unauthorized') }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -74,7 +75,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (!hasAccess) {
       const isApiRoute = pathname.startsWith('/api/');
       if (isApiRoute) {
-        return new Response(JSON.stringify({ ok: false, error: 'forbidden' }), {
+        return new Response(JSON.stringify({ ok: false, error: apiErrorMessage(context.locals.t, 'forbidden') }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' },
         });

@@ -20,6 +20,7 @@ interface EmbedsConfig {
     alertDateTimeRequired: string;
     confirmPostNow: string;
     alertPosted: string;
+    alertPostsFailedTemplate: string; // enthält "{count}"
     confirmDeleteEmbed: string;
   };
 }
@@ -111,9 +112,11 @@ function setupEmbeds(list: HTMLElement, api: DashboardApi, config: EmbedsConfig)
     confirmBtn.disabled = true;
     try {
       if (editingId) {
-        await api.callModuleAction('embeds', 'edit', { embed_id: editingId, title, description, channel_id: channelId });
+        const result = await api.callModuleAction<{ posts_failed?: number }>('embeds', 'edit', { embed_id: editingId, title, description, channel_id: channelId });
         const row = list.querySelector<HTMLElement>(`[data-embed-row="${CSS.escape(editingId)}"]`);
         if (row) fillRow(row, { name, title, description, channelId, channelName });
+        // Gespeichert ist es — aber bereits gepostete Nachrichten zeigen in Discord sonst still den alten Stand
+        if (result?.posts_failed) alert(i18n.alertPostsFailedTemplate.replace('{count}', String(result.posts_failed)));
       } else {
         const result = await api.callModuleAction<{ id: number }>('embeds', 'add', { name, title, description, channel_id: channelId });
         const row = (rowTemplate.content.firstElementChild as HTMLElement).cloneNode(true) as HTMLElement;

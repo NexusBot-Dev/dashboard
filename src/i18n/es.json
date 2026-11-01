@@ -26,7 +26,8 @@
     "no_channel": "— Sin canal —",
     "channel_id_placeholder": "ID del canal (bot sin conexión, no hay nombres disponibles)",
     "no_other_servers": "No hay más servidores disponibles",
-    "all_servers": "Ver todos los servidores"
+    "all_servers": "Ver todos los servidores",
+    "lang_change_failed": "No se pudo cambiar el idioma. Inténtalo de nuevo."
   },
   "levels": {
     "title": "Sistema de niveles",
@@ -157,7 +158,7 @@
     "panel_needs_categories": "Crea al menos una categoría antes de publicar un panel.",
     "panel_mode_label": "Visualización",
     "panel_mode_buttons": "Botones",
-    "panel_mode_dropdown_soon": "Menú desplegable (próximamente)",
+    "panel_mode_dropdown": "Menú desplegable",
     "panel_channel_hint": "Si eliges otro canal, Nexus vuelve a publicar el panel y elimina el anterior.",
     "update_panel_btn": "Actualizar panel",
     "confirm_move_panel": "El panel se publicará de nuevo en #{channel} y se eliminará el anterior. ¿Continuar?",
@@ -219,7 +220,25 @@
     "save_error_prefix": "Error al guardar: ",
     "unknown": "desconocido",
     "saved": "✓ Guardado",
-    "bot_unreachable": "No se puede contactar con el bot. Inténtalo de nuevo más tarde."
+    "bot_unreachable": "No se puede contactar con el bot. Inténtalo de nuevo más tarde.",
+    "unexpected_response": "Respuesta inesperada (estado {status})",
+    "danger_title": "Zona de peligro",
+    "danger_desc": "Estas acciones eliminan a Nexus de tu servidor. Solo el propietario del servidor puede realizarlas.",
+    "danger_owner_only": "Solo el propietario del servidor puede eliminar a Nexus.",
+    "danger_bot_offline": "Nexus no está disponible en este momento. Inténtalo de nuevo más tarde.",
+    "danger_leave_label": "Eliminar Nexus",
+    "danger_leave_desc": "Nexus abandona el servidor. Tu configuración se conserva durante 7 días y se puede restaurar si vuelves a invitar a Nexus.",
+    "danger_delete_label": "Eliminar Nexus y borrar todos los datos",
+    "danger_delete_desc": "Nexus abandona el servidor y borra de inmediato todos los datos de este servidor. No se puede deshacer.",
+    "danger_dialog_leave_title": "¿Eliminar Nexus de {server}?",
+    "danger_dialog_leave_text": "Nexus abandona el servidor. Tu configuración y tus datos se conservan durante 7 días; si vuelves a invitar a Nexus en ese tiempo, puedes restaurarlos. Después se borran automáticamente.",
+    "danger_dialog_delete_title": "¿Eliminar Nexus y borrar todos los datos de {server}?",
+    "danger_dialog_delete_text": "Nexus abandona el servidor y borra de inmediato toda la configuración y los datos de este servidor, p. ej. niveles, advertencias, tickets, sorteos y embeds. No se puede deshacer. Un Premium activo se conserva.",
+    "danger_dialog_discord_note": "Los mensajes y canales en Discord, p. ej. paneles de roles por reacción o canales de tickets, no se eliminan.",
+    "danger_dialog_confirm_label": "Escribe esta palabra para confirmar:",
+    "danger_confirm_word": "ELIMINAR",
+    "danger_working": "Eliminando…",
+    "danger_delete_failed": "Nexus abandonó el servidor, pero los datos no se pudieron borrar de inmediato. Se borrarán automáticamente después de 7 días."
   },
   "boost": {
     "title": "Boosts",
@@ -440,6 +459,7 @@
     "alert_date_time_required": "Indica la fecha y la hora.",
     "confirm_post_now": "¿Publicar este embed ahora?",
     "alert_posted": "El embed se ha publicado.",
+    "alert_posts_failed": "Guardado, pero {count} mensaje(s) ya publicado(s) no se pudieron actualizar en Discord. ¿Le faltan permisos al bot en el canal?",
     "confirm_delete_embed": "¿Eliminar realmente este embed?",
     "unexpected_response": "Respuesta inesperada (estado {status})"
   },
@@ -546,5 +566,16 @@
     "status_ended": "Finalizado",
     "status_cancelled": "Cancelado",
     "unexpected_response": "Respuesta inesperada (estado {status})"
+  },
+  "api_errors": {
+    "rate_limited": "Demasiadas solicitudes — espera un momento e inténtalo de nuevo.",
+    "bot_unreachable": "Nexus no está disponible en este momento. Inténtalo de nuevo más tarde.",
+    "discord_unavailable": "Discord no responde en este momento. Inténtalo de nuevo más tarde.",
+    "guild_access_denied": "No tienes permiso en este servidor (se requiere Administrador o Gestionar servidor).",
+    "forbidden": "No tienes permiso en este servidor (se requiere Administrador o Gestionar servidor).",
+    "unauthorized": "Tu sesión ha caducado. Vuelve a iniciar sesión.",
+    "internal_error": "Se produjo un error interno en Nexus. Inténtalo de nuevo más tarde.",
+    "invalid_request": "Solicitud no válida. Recarga la página e inténtalo de nuevo.",
+    "unknown": "Error desconocido ({code})"
   }
 }

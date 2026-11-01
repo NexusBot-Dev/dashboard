@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t } from './support/helpers';
-import { CHANNELS, ROLES } from './support/fixtures.mjs';
+import { CHANNELS, ROLES, defaultBotData } from './support/fixtures.mjs';
 import { FOREIGN_GUILD_ID, GUILD_ID, USER_ID } from './support/env.mjs';
 
 // Diese Tests prüfen nur, was der Nutzer sieht und was beim Bot ankommt — nicht, wie der
@@ -50,6 +50,7 @@ test.describe('Übersicht & Navigation', () => {
     await resetBot({ 'tickets/get-settings': { status: 500, error: 'internal_error' } });
     await page.goto(guildPath('tickets/'));
     await expect(page.getByText(t('common.bot_offline'))).toBeVisible();
+    await expect(page.locator('#panel-mode-select')).toBeDisabled();
   });
 });
 
@@ -117,6 +118,32 @@ test.describe('Panel', () => {
     const body = await waitForBotCall('tickets/post-panel');
     expect(body).toMatchObject({ title: 'Hilfe', description: 'Schreib uns!', channel_id: CHANNELS[0].id });
     await expect.poll(() => dialogs).toContain(t('tickets.alert_panel_updated'));
+  });
+
+  test('Darstellung: gespeicherte ist vorausgewählt, die gewählte wird mitgeschickt', async ({ page }) => {
+    collectDialogs(page);
+    await page.goto(guildPath('tickets/#panel'));
+    const modeSelect = page.locator('#panel-mode-select');
+    await expect(modeSelect).toBeEnabled();
+    await expect(modeSelect).toHaveValue('buttons');
+
+    await modeSelect.selectOption('dropdown');
+    await page.locator('#post-panel-btn').click();
+    expect(await waitForBotCall('tickets/post-panel')).toMatchObject({ panel_mode: 'dropdown' });
+  });
+
+  test('Darstellung „Dropdown“ aus dem Bot ist vorausgewählt', async ({ page }) => {
+    await resetBot({ 'tickets/get-settings': { data: { ...defaultBotData['tickets/get-settings'], panel_mode: 'dropdown' } } });
+    await page.goto(guildPath('tickets/#panel'));
+    await expect(page.locator('#panel-mode-select')).toHaveValue('dropdown');
+    await expect(page.locator('#panel-mode-select option[value="dropdown"]')).toHaveText(t('tickets.panel_mode_dropdown'));
+  });
+
+  test('ohne Angabe vom Bot (ältere Version) gelten Buttons', async ({ page }) => {
+    const { panel_mode: _, ...withoutMode } = defaultBotData['tickets/get-settings'];
+    await resetBot({ 'tickets/get-settings': { data: withoutMode } });
+    await page.goto(guildPath('tickets/#panel'));
+    await expect(page.locator('#panel-mode-select')).toHaveValue('buttons');
   });
 
   test('Panel in anderen Channel verschieben fragt vorher nach', async ({ page }) => {

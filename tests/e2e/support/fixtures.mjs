@@ -22,6 +22,7 @@ export const defaultBotData = {
   'guild/channels': { channels: CHANNELS },
   'guild/roles': { roles: ROLES },
   'guild/health-issues': { issues: [] },   // Glocke im Header, auf jeder Seite
+  'guild/leave': (body) => ({ left: true, deleted: body.delete_now === true }),   // Danger Zone (Settings)
 
   'tickets/list-categories': {
     categories: [
@@ -40,6 +41,7 @@ export const defaultBotData = {
     panel_message_id: '900000000000000001',
     panel_title: '🎫 Support',
     panel_description: 'Hallo **Welt**',
+    panel_mode: 'buttons',
     closure_timeout_hours: 24,
     deletion_delay_hours: 48,
     closure_options: [12, 24, 48],

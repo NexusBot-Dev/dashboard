@@ -1,16 +1,17 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../../../../lib/session';
 import { callBotModuleAction, BotApiError } from '../../../../../../lib/botApi';
+import { apiErrorMessage } from '../../../../../../lib/apiErrors';
 
-export const POST: APIRoute = async ({ params, request, cookies }) => {
+export const POST: APIRoute = async ({ params, request, cookies, locals }) => {
   const session = await getSession(cookies);
   if (!session) {
-    return new Response(JSON.stringify({ ok: false, error: 'unauthorized' }), { status: 401 });
+    return new Response(JSON.stringify({ ok: false, error: apiErrorMessage(locals.t, 'unauthorized') }), { status: 401 });
   }
 
   const { guildId, module, action } = params;
   if (!guildId || !module || !action) {
-    return new Response(JSON.stringify({ ok: false, error: 'invalid_request' }), { status: 400 });
+    return new Response(JSON.stringify({ ok: false, error: apiErrorMessage(locals.t, 'invalid_request') }), { status: 400 });
   }
 
   let body: Record<string, unknown> = {};
@@ -21,7 +22,7 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
   }
 
   try {
-    const data = await callBotModuleAction(module, action, guildId, body, session.discordUserId);
+    const data = await callBotModuleAction(module, action, guildId, body, session.discordUserId, locals.lang);
     return new Response(JSON.stringify({ ok: true, data }), { status: 200 });
   } catch (err) {
     console.error(`Modul-Aktion fehlgeschlagen (${module}/${action}):`, err);
@@ -29,7 +30,7 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
     // Der Bot ist erreichbar, drosselt aber — das ist nicht "offline".
     if (err instanceof BotApiError && err.isRateLimited) {
       return new Response(
-        JSON.stringify({ ok: false, error: 'rate_limited', retry_after: err.retryAfter ?? null }),
+        JSON.stringify({ ok: false, error: apiErrorMessage(locals.t, 'rate_limited'), retry_after: err.retryAfter ?? null }),
         { status: 429 }
       );
     }
@@ -37,9 +38,9 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
     // Der Bot hat geantwortet, die Aktion aber fachlich abgelehnt (z.B. fehlende Rechte) —
     // seine Meldung durchreichen. Nur Netzwerkfehler und 5xx heißen wirklich "nicht erreichbar".
     if (err instanceof BotApiError && err.status >= 400 && err.status < 500) {
-      return new Response(JSON.stringify({ ok: false, error: err.code }), { status: err.status });
+      return new Response(JSON.stringify({ ok: false, error: apiErrorMessage(locals.t, err.code) }), { status: err.status });
     }
 
-    return new Response(JSON.stringify({ ok: false, error: 'bot_unreachable' }), { status: 502 });
+    return new Response(JSON.stringify({ ok: false, error: apiErrorMessage(locals.t, 'bot_unreachable') }), { status: 502 });
   }
 };

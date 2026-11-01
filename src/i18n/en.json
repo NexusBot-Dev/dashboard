@@ -26,7 +26,8 @@
     "no_channel": "— No channel —",
     "channel_id_placeholder": "Channel ID (bot offline, no names available)",
     "no_other_servers": "No other servers available",
-    "all_servers": "View all servers"
+    "all_servers": "View all servers",
+    "lang_change_failed": "Could not change the language. Please try again."
   },
   "levels": {
     "title": "Level System",
@@ -157,7 +158,7 @@
     "panel_needs_categories": "Create at least one category before posting a panel.",
     "panel_mode_label": "Display",
     "panel_mode_buttons": "Buttons",
-    "panel_mode_dropdown_soon": "Dropdown (coming soon)",
+    "panel_mode_dropdown": "Dropdown",
     "panel_channel_hint": "If you pick a different channel, Nexus posts the panel again and deletes the old one.",
     "update_panel_btn": "Update panel",
     "confirm_move_panel": "The panel will be posted again in #{channel} and the old one deleted. Continue?",
@@ -219,7 +220,25 @@
     "save_error_prefix": "Error while saving: ",
     "unknown": "unknown",
     "saved": "✓ Saved",
-    "bot_unreachable": "Bot unreachable. Please try again later."
+    "bot_unreachable": "Bot unreachable. Please try again later.",
+    "unexpected_response": "Unexpected response (status {status})",
+    "danger_title": "Danger Zone",
+    "danger_desc": "These actions remove Nexus from your server. Only the server owner can perform them.",
+    "danger_owner_only": "Only the server owner can remove Nexus.",
+    "danger_bot_offline": "Nexus is currently unreachable. Please try again later.",
+    "danger_leave_label": "Remove Nexus",
+    "danger_leave_desc": "Nexus leaves the server. Your settings are kept for 7 days and can be restored if you invite Nexus again.",
+    "danger_delete_label": "Remove Nexus and delete all data",
+    "danger_delete_desc": "Nexus leaves the server and immediately deletes all data of this server. This cannot be undone.",
+    "danger_dialog_leave_title": "Remove Nexus from {server}?",
+    "danger_dialog_leave_text": "Nexus leaves the server. Your settings and data are kept for 7 days — if you invite Nexus again within that time, you can restore them. After that they are deleted automatically.",
+    "danger_dialog_delete_title": "Remove Nexus and delete all data of {server}?",
+    "danger_dialog_delete_text": "Nexus leaves the server and immediately deletes all settings and data of this server, e.g. levels, warnings, tickets, giveaways and embeds. This cannot be undone. An active Premium is kept.",
+    "danger_dialog_discord_note": "Messages and channels on Discord, e.g. reaction role panels or ticket channels, are not removed.",
+    "danger_dialog_confirm_label": "Type this word to confirm:",
+    "danger_confirm_word": "REMOVE",
+    "danger_working": "Removing…",
+    "danger_delete_failed": "Nexus left the server, but the data could not be deleted right away. It will be deleted automatically after 7 days."
   },
   "boost": {
     "title": "Boosts",
@@ -440,6 +459,7 @@
     "alert_date_time_required": "Please provide a date and time.",
     "confirm_post_now": "Post this embed now?",
     "alert_posted": "Embed has been posted.",
+    "alert_posts_failed": "Saved, but {count} already posted message(s) could not be updated in Discord. Is the bot missing permissions in the channel?",
     "confirm_delete_embed": "Really delete this embed?",
     "unexpected_response": "Unexpected response (status {status})"
   },
@@ -546,5 +566,16 @@
     "status_ended": "Ended",
     "status_cancelled": "Cancelled",
     "unexpected_response": "Unexpected response (status {status})"
+  },
+  "api_errors": {
+    "rate_limited": "Too many requests — please wait a moment and try again.",
+    "bot_unreachable": "Nexus is currently unreachable. Please try again later.",
+    "discord_unavailable": "Discord is not responding right now. Please try again later.",
+    "guild_access_denied": "You don't have permission on this server (Administrator or Manage Server required).",
+    "forbidden": "You don't have permission on this server (Administrator or Manage Server required).",
+    "unauthorized": "Your session has expired. Please log in again.",
+    "internal_error": "An internal error occurred in Nexus. Please try again later.",
+    "invalid_request": "Invalid request. Please reload the page and try again.",
+    "unknown": "Unknown error ({code})"
   }
 }

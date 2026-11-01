@@ -47,7 +47,8 @@ async function rawCall(
   action: string,
   guildId: string,
   extra: Record<string, unknown>,
-  actingUserId?: string
+  actingUserId?: string,
+  lang?: string
 ) {
   const res = await fetch(`${BOT_INTERNAL_URL}/api/dashboard/module/${module}/${action}`, {
     method: 'POST',
@@ -55,7 +56,8 @@ async function rawCall(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${DASHBOARD_TOKEN}`,
     },
-    body: JSON.stringify({ ...extra, guild_id: guildId, acting_user_id: actingUserId }),
+    // lang: Sprache des Dashboards — der Bot antwortet mit Fehlern und Texten in dieser Sprache
+    body: JSON.stringify({ ...extra, guild_id: guildId, acting_user_id: actingUserId, lang }),
   });
 
   let data: any = null;
@@ -79,10 +81,11 @@ async function callWithRetry(
   action: string,
   guildId: string,
   extra: Record<string, unknown>,
-  actingUserId?: string
+  actingUserId?: string,
+  lang?: string
 ) {
   try {
-    return await rawCall(module, action, guildId, extra, actingUserId);
+    return await rawCall(module, action, guildId, extra, actingUserId, lang);
   } catch (err) {
     if (
       err instanceof BotApiError &&
@@ -92,7 +95,7 @@ async function callWithRetry(
     ) {
       const wait = Math.min(Math.max((err.retryAfter ?? 1) * 1000, 300), RETRY_MAX_WAIT_MS);
       await sleep(wait);
-      return rawCall(module, action, guildId, extra, actingUserId);
+      return rawCall(module, action, guildId, extra, actingUserId, lang);
     }
     throw err;
   }
@@ -103,11 +106,12 @@ export async function callBotModuleAction(
   action: string,
   guildId: string,
   extra: Record<string, unknown> = {},
-  actingUserId?: string
+  actingUserId?: string,
+  lang?: string
 ) {
   const cacheable = CACHEABLE.has(`${module}/${action}`) && Object.keys(extra).length === 0;
   if (!cacheable) {
-    return callWithRetry(module, action, guildId, extra, actingUserId);
+    return callWithRetry(module, action, guildId, extra, actingUserId, lang);
   }
 
   const key = `${guildId}:${module}/${action}`;
@@ -123,7 +127,7 @@ export async function callBotModuleAction(
   // 3. Frisch holen; bei vorübergehenden Fehlern notfalls alter Stand
   const promise = (async () => {
     try {
-      const data = await callWithRetry(module, action, guildId, extra, actingUserId);
+      const data = await callWithRetry(module, action, guildId, extra, actingUserId, lang);
       cache.delete(key); // ans Ende der Einfüge-Reihenfolge
       cache.set(key, { data, at: Date.now() });
       while (cache.size > MAX_ENTRIES) {
@@ -147,12 +151,12 @@ export async function callBotModuleAction(
 }
 
 export async function callGuildAction(
-  Astro: { locals: { session?: { discordUserId: string } | null } },
+  Astro: { locals: { session?: { discordUserId: string } | null; lang?: string } },
   module: string,
   action: string,
   guildId: string,
   extra: Record<string, unknown> = {}
 ) {
   const session = Astro.locals.session;
-  return callBotModuleAction(module, action, guildId, extra, session?.discordUserId);
+  return callBotModuleAction(module, action, guildId, extra, session?.discordUserId, Astro.locals.lang);
 }

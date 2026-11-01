@@ -37,6 +37,8 @@ export async function waitForBotCall(key: string, index = 0): Promise<any> {
   // Jeder Aufruf muss den eingeloggten User und den Server mitbringen — sonst lehnt der echte Bot ab
   expect(body.acting_user_id).toBe(USER_ID);
   expect(body.guild_id).toBe(GUILD_ID);
+  // ...und die Dashboard-Sprache (Browser in den Tests: de-DE) — sonst antwortet der Bot in der Server-Sprache
+  expect(body.lang).toBe('de');
   return body;
 }
 

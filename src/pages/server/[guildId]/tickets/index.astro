@@ -76,6 +76,7 @@ const panelChannel = channels.find((c) => c.id === panelChannelId);
 const panelLink = hasPanel ? `https://discord.com/channels/${guildId}/${panelChannelId}/${panelMessageId}` : null;
 const panelTitle: string = ts?.panel_title ?? '🎫 Support';
 const panelDescription: string = ts?.panel_description ?? '';
+const panelMode: 'buttons' | 'dropdown' = ts?.panel_mode === 'dropdown' ? 'dropdown' : 'buttons';
 
 const closureHours: number | null = ts?.closure_timeout_hours ?? null;
 const deletionHours: number | null = ts?.deletion_delay_hours ?? null;
@@ -240,9 +241,9 @@ const i18n = {
 
           <div class="mb-3 max-w-xs">
             <label for="panel-mode-select" class={labelClass}>{t('tickets.panel_mode_label')}</label>
-            <select id="panel-mode-select" disabled class={inputClass}>
-              <option value="buttons" selected>{t('tickets.panel_mode_buttons')}</option>
-              <option value="dropdown">{t('tickets.panel_mode_dropdown_soon')}</option>
+            <select id="panel-mode-select" disabled={!botOnline} class={inputClass}>
+              <option value="buttons" selected={panelMode === 'buttons'}>{t('tickets.panel_mode_buttons')}</option>
+              <option value="dropdown" selected={panelMode === 'dropdown'}>{t('tickets.panel_mode_dropdown')}</option>
             </select>
           </div>
 

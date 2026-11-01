@@ -26,7 +26,8 @@
     "no_channel": "— Kein Channel —",
     "channel_id_placeholder": "Channel-ID (Bot offline, keine Namen verfügbar)",
     "no_other_servers": "Keine weiteren Server verfügbar",
-    "all_servers": "Alle Server anzeigen"
+    "all_servers": "Alle Server anzeigen",
+    "lang_change_failed": "Sprache konnte nicht geändert werden. Bitte erneut versuchen."
   },
   "levels": {
     "title": "Levelsystem",
@@ -157,7 +158,7 @@
     "panel_needs_categories": "Lege zuerst mindestens eine Kategorie an, bevor du ein Panel postest.",
     "panel_mode_label": "Darstellung",
     "panel_mode_buttons": "Buttons",
-    "panel_mode_dropdown_soon": "Dropdown (bald verfügbar)",
+    "panel_mode_dropdown": "Dropdown",
     "panel_channel_hint": "Bei einem anderen Channel postet Nexus das Panel neu und löscht das alte.",
     "update_panel_btn": "Panel aktualisieren",
     "confirm_move_panel": "Das Panel wird in #{channel} neu gepostet und das alte gelöscht. Fortfahren?",
@@ -219,7 +220,25 @@
     "save_error_prefix": "Fehler beim Speichern: ",
     "unknown": "unbekannt",
     "saved": "✓ Gespeichert",
-    "bot_unreachable": "Bot nicht erreichbar. Bitte später erneut versuchen."
+    "bot_unreachable": "Bot nicht erreichbar. Bitte später erneut versuchen.",
+    "unexpected_response": "Unerwartete Antwort (Status {status})",
+    "danger_title": "Danger Zone",
+    "danger_desc": "Diese Aktionen entfernen Nexus von deinem Server. Nur der Server-Owner kann sie ausführen.",
+    "danger_owner_only": "Nur der Server-Owner kann Nexus entfernen.",
+    "danger_bot_offline": "Nexus ist gerade nicht erreichbar. Bitte später erneut versuchen.",
+    "danger_leave_label": "Nexus entfernen",
+    "danger_leave_desc": "Nexus verlässt den Server. Deine Einstellungen bleiben 7 Tage gespeichert und lassen sich bei einer erneuten Einladung wiederherstellen.",
+    "danger_delete_label": "Nexus entfernen und alle Daten löschen",
+    "danger_delete_desc": "Nexus verlässt den Server und löscht sofort alle Daten dieses Servers. Das lässt sich nicht rückgängig machen.",
+    "danger_dialog_leave_title": "Nexus von {server} entfernen?",
+    "danger_dialog_leave_text": "Nexus verlässt den Server. Deine Einstellungen und Daten bleiben 7 Tage gespeichert — lädst du Nexus in dieser Zeit wieder ein, kannst du sie wiederherstellen. Danach werden sie automatisch gelöscht.",
+    "danger_dialog_delete_title": "Nexus entfernen und alle Daten von {server} löschen?",
+    "danger_dialog_delete_text": "Nexus verlässt den Server und löscht sofort alle Einstellungen und Daten dieses Servers, z. B. Level, Verwarnungen, Tickets, Giveaways und Embeds. Das lässt sich nicht rückgängig machen. Ein aktives Premium bleibt erhalten.",
+    "danger_dialog_discord_note": "Nachrichten und Kanäle auf Discord, z. B. Reaction-Role-Panels oder Ticket-Kanäle, bleiben bestehen.",
+    "danger_dialog_confirm_label": "Gib zur Bestätigung dieses Wort ein:",
+    "danger_confirm_word": "ENTFERNEN",
+    "danger_working": "Wird entfernt…",
+    "danger_delete_failed": "Nexus hat den Server verlassen, aber die Daten konnten nicht sofort gelöscht werden. Sie werden automatisch nach 7 Tagen gelöscht."
   },
   "boost": {
     "title": "Boosts",
@@ -440,6 +459,7 @@
     "alert_date_time_required": "Bitte Datum und Uhrzeit angeben.",
     "confirm_post_now": "Dieses Embed jetzt posten?",
     "alert_posted": "Embed wurde gepostet.",
+    "alert_posts_failed": "Gespeichert, aber {count} bereits gepostete Nachricht(en) konnten in Discord nicht aktualisiert werden. Fehlen dem Bot Rechte im Channel?",
     "confirm_delete_embed": "Dieses Embed wirklich löschen?",
     "unexpected_response": "Unerwartete Antwort (Status {status})"
   },
@@ -546,5 +566,16 @@
     "status_ended": "Beendet",
     "status_cancelled": "Abgebrochen",
     "unexpected_response": "Unerwartete Antwort (Status {status})"
+  },
+  "api_errors": {
+    "rate_limited": "Zu viele Anfragen — bitte kurz warten und erneut versuchen.",
+    "bot_unreachable": "Nexus ist gerade nicht erreichbar. Bitte später erneut versuchen.",
+    "discord_unavailable": "Discord antwortet gerade nicht. Bitte später erneut versuchen.",
+    "guild_access_denied": "Du hast auf diesem Server keine Berechtigung (Administrator oder Server verwalten nötig).",
+    "forbidden": "Du hast auf diesem Server keine Berechtigung (Administrator oder Server verwalten nötig).",
+    "unauthorized": "Deine Sitzung ist abgelaufen. Bitte neu anmelden.",
+    "internal_error": "Bei Nexus ist ein interner Fehler aufgetreten. Bitte später erneut versuchen.",
+    "invalid_request": "Ungültige Anfrage. Bitte die Seite neu laden und erneut versuchen.",
+    "unknown": "Unbekannter Fehler ({code})"
   }
 }

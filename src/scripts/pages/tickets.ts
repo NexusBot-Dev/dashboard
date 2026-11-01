@@ -125,6 +125,7 @@ function setupPanel(api: DashboardApi, i18n: I18n) {
   const channelSelect = byId<HTMLSelectElement>('panel-channel-select');
   const titleInput = byId<HTMLInputElement>('panel-title-input')!;
   const descInput = byId<HTMLTextAreaElement>('tickets-textarea')!;
+  const modeSelect = byId<HTMLSelectElement>('panel-mode-select');
 
   btn.addEventListener('click', async () => {
     const title = titleInput.value.trim();
@@ -147,6 +148,7 @@ function setupPanel(api: DashboardApi, i18n: I18n) {
     try {
       const body: Record<string, unknown> = { title, description };
       if (selected) body.channel_id = selected;
+      if (modeSelect) body.panel_mode = modeSelect.value;
       const result = await api.callModuleAction<{ edited: boolean }>('tickets', 'post-panel', body);
       alert(result.edited ? i18n.alertPanelUpdated : i18n.alertPanelPosted);
       location.reload();

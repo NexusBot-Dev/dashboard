@@ -112,6 +112,9 @@ function trackChanges(fields: Field[], saveBtn: HTMLButtonElement) {
     f.addEventListener('input', refresh);
     f.addEventListener('change', refresh);
   });
+  // Sofort einmal prüfen: Änderungen, die vor dem Verdrahten gemacht wurden (astro:page-load kommt erst
+  // nach dem vollständigen Laden), hätten sonst kein Ereignis ausgelöst und der Button bliebe aus
+  refresh();
   /** Gespeicherten Stand übernehmen (Werte vom Bot) */
   const commit = (values: Map<Field, string>) => {
     values.forEach((value, f) => { f.value = value; f.dataset.initial = value; });

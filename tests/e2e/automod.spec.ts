@@ -332,6 +332,36 @@ test.describe('Honeypot bearbeiten', () => {
   });
 });
 
+test.describe('Honeypot: Eingaben vor dem Verdrahten der Seite', () => {
+  // Auf langsamen Rechnern (z. B. im CI) kann man Felder ändern, bevor astro:page-load die Seite verdrahtet hat.
+  // Das Ereignis der Änderung geht dann ins Leere — der Speichern-Button muss trotzdem aktiv werden.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      const add = document.addEventListener.bind(document);
+      document.addEventListener = ((type: string, listener: any, options?: any) => {
+        if (type !== 'astro:page-load') return add(type, listener, options);
+        return add(type, (event: Event) => setTimeout(() => listener(event), 800), options);
+      }) as typeof document.addEventListener;
+    });
+  });
+
+  test('Bestrafung vor dem Verdrahten geändert: Speichern wird aktiv und schickt die Änderung', async ({ page }) => {
+    await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id }));
+    await page.goto(PAGE);
+    await page.locator('#honeypot-punish-bots').selectOption('ban');   // Seite ist noch nicht verdrahtet
+    await savePunishBtn(page).click();
+    expect(await waitForBotCall('automod/set-honeypot-punishment')).toEqual(expect.objectContaining({ bots: 'ban' }));
+  });
+
+  test('Text vor dem Verdrahten geändert: Speichern wird aktiv', async ({ page }) => {
+    await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id }));
+    await page.goto(PAGE);
+    await textInput(page).fill('Früh geändert');
+    await saveTextBtn(page).click();
+    expect(await waitForBotCall('automod/set-honeypot-text')).toEqual(expect.objectContaining({ warn_text: 'Früh geändert' }));
+  });
+});
+
 test.describe('Anzeige passt zum Bot', () => {
   test('Abbrechen verwirft ungespeicherte Keywords', async ({ page }) => {
     await page.goto(PAGE);

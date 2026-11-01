@@ -148,12 +148,19 @@ export const defaultBotData = {
     spam_enabled: true, mentions_enabled: false, keywords_enabled: true,
     keywords: ['spoiler', 'kaufen'],
     shield_enabled: false, honeypot_channel_id: null, honeypot_timeout_days: 7, honeypot_catches: 0,
+    honeypot_title: '⚠️ Achtung', honeypot_text: 'Nicht schreiben!',
+    honeypot_punish_members: 'timeout', honeypot_punish_bots: 'kick', honeypot_day_options: [1, 3, 7, 14, 28],
   },
   // Wie der Bot: toggle-rule meldet nur die Regel zurück, nicht den neuen Zustand
   'automod/toggle-rule': (body) => ({ rule_key: body.rule_key }),
   'automod/set-keywords': (body) => ({ keywords: body.keywords }),
   'automod/toggle-shield': { shield_enabled: true },
-  'automod/create-honeypot': { channel_id: '200000000000000009', channel_name: 'honeypot-falle' },
+  // Wie der Bot: leerer Titel → Standardtitel in der Server-Sprache
+  'automod/create-honeypot': (body) => ({
+    channel_id: '200000000000000009', channel_name: 'honeypot-falle', title: body.title || '⚠️ Achtung', text: body.warn_text,
+  }),
+  'automod/set-honeypot-text': (body) => ({ title: body.title || '⚠️ Achtung', text: body.warn_text, status: 'updated' }),
+  'automod/set-honeypot-punishment': (body) => ({ members: body.members ?? 'timeout', bots: body.bots ?? 'kick', days: body.days ?? 7 }),
   'automod/delete-honeypot': { deleted: true },
 
   'leveling/get-xp-settings': {

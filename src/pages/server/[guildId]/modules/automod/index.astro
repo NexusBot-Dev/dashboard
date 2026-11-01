@@ -3,9 +3,11 @@ import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
 import Switch from '../../../../../components/Switch.astro';
 import pool from '../../../../../lib/db';
 import { callGuildAction } from '../../../../../lib/botApi';
+import { intlLocale } from '../../../../../i18n';
 
 const { guildId } = Astro.params;
 const t = Astro.locals.t;
+const lang = Astro.locals.lang;
 
 let guildName = `Server ${guildId}`;
 let guildIconUrl: string | null = null;
@@ -13,7 +15,10 @@ let channels: { id: string; name: string }[] = [];
 let status: {
   spam_enabled: boolean; mentions_enabled: boolean; keywords_enabled: boolean;
   keywords: string[]; shield_enabled: boolean; honeypot_channel_id: string | null;
-  honeypot_timeout_days: number;
+  honeypot_timeout_days: number; honeypot_catches?: number;
+  // Seit /honeypot: Warn-Texte und Bestrafung (ältere Bot-Versionen liefern sie nicht)
+  honeypot_title?: string; honeypot_text?: string;
+  honeypot_punish_members?: string; honeypot_punish_bots?: string; honeypot_day_options?: number[];
 } | null = null;
 let botOnline = true;
 let premiumActive = false;
@@ -47,6 +52,20 @@ const honeypotChannelName = status?.honeypot_channel_id
   ? channels.find((c) => c.id === status!.honeypot_channel_id)?.name ?? null
   : null;
 
+// Honeypot — Standardwerte entsprechen dem bisherigen Verhalten (Mitglieder: Timeout, Bots: Kick)
+const PUNISHMENTS = ['timeout', 'kick', 'ban'] as const;
+const honeypotDays = status?.honeypot_timeout_days ?? 7;
+const dayOptions = [...new Set([...(status?.honeypot_day_options ?? [1, 3, 7, 14, 28]), honeypotDays])].sort((a, b) => a - b);
+const daysLabel = (days: number) => (days === 1 ? t('automod.days_option_one') : t('automod.days_option', { days }));
+const punishLabel = (action: string) => t(`automod.punish_${action}`);
+const punishMembers = status?.honeypot_punish_members ?? 'timeout';
+const punishBots = status?.honeypot_punish_bots ?? 'kick';
+const honeypotTitle = status?.honeypot_title ?? '';
+const honeypotText = status?.honeypot_text ?? '';
+const labelClass = 'block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5';
+const inputClass = 'w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50';
+const saveBtnClass = 'px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+
 const MENTION_LIMIT = 5;
 const SHIELD_WINDOW_SECONDS = 5;
 const SHIELD_SCORE_LIMIT = 3.0;
@@ -55,6 +74,11 @@ const i18n = {
   noKeywords: t('automod.no_keywords'),
   alertHoneypotRequired: t('automod.alert_honeypot_required'),
   confirmDeleteHoneypot: t('automod.confirm_delete_honeypot'),
+  alertWarnTextRequired: t('automod.alert_warn_text_required'),
+  alertTextReposted: t('automod.alert_text_reposted'),
+  alertTextSavedOnly: t('automod.alert_text_saved_only'),
+  save: t('common.save'),
+  saving: t('common.saving'),
   errorGeneric: t('common.error_generic'),
   errorServerTemplate: t('common.error_server'),
   unexpectedResponseTemplate: t('automod.unexpected_response'),
@@ -145,7 +169,7 @@ const pageConfig = { guildId, i18n };
       <section class="rounded-xl glass-panel p-6">
         <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('automod.honeypot_title')}</h2>
         <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
-          {t('automod.honeypot_desc', { days: status.honeypot_timeout_days })}
+          {t('automod.honeypot_desc')}
         </p>
 
         <div id="honeypot-active" class={status.honeypot_channel_id ? '' : 'hidden'}>
@@ -155,7 +179,51 @@ const pageConfig = { guildId, i18n };
             </p>
             <button id="delete-honeypot-btn" type="button" disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline disabled:opacity-50">{t('common.delete')}</button>
           </div>
-          <p class="mt-2 text-xs text-slate-400">{t('automod.delete_honeypot_note')}</p>
+          <p class="mt-2 text-xs text-slate-400">
+            <span id="honeypot-catches">{t('automod.honeypot_catches', { count: (status.honeypot_catches ?? 0).toLocaleString(intlLocale(lang)) })}</span>
+            · {t('automod.delete_honeypot_note')}
+          </p>
+
+          <!-- Warn-Nachricht im Channel: Speichern passt die Nachricht direkt an -->
+          <div class="mt-5 pt-5 border-t border-slate-200 dark:border-slate-800">
+            <h3 class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('automod.honeypot_message_title')}</h3>
+            <div class="mb-3">
+              <label for="honeypot-title-input" class={labelClass}>{t('automod.honeypot_title_label')}</label>
+              <input type="text" id="honeypot-title-input" maxlength="256" value={honeypotTitle} data-initial={honeypotTitle} placeholder={t('automod.honeypot_title_placeholder')} disabled={!botOnline} class={`${inputClass} max-w-sm`} />
+            </div>
+            <div class="mb-3">
+              <label for="honeypot-text-input" class={labelClass}>{t('automod.warn_text_label')}</label>
+              <textarea id="honeypot-text-input" rows="3" maxlength="1000" data-initial={honeypotText} disabled={!botOnline} class={`${inputClass} resize-y`}>{honeypotText}</textarea>
+            </div>
+            <button id="save-honeypot-text-btn" type="button" disabled class={saveBtnClass}>{t('common.save')}</button>
+          </div>
+
+          <!-- Bestrafung: getrennt für Mitglieder und Bots, Dauer gilt für Timeouts -->
+          <div class="mt-5 pt-5 border-t border-slate-200 dark:border-slate-800">
+            <h3 class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('automod.honeypot_punish_title')}</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-2">
+              <div>
+                <label for="honeypot-punish-members" class={labelClass}>{t('automod.punish_members_label')}</label>
+                <select id="honeypot-punish-members" data-initial={punishMembers} disabled={!botOnline} class={inputClass}>
+                  {PUNISHMENTS.map((p) => <option value={p} selected={p === punishMembers}>{punishLabel(p)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label for="honeypot-punish-bots" class={labelClass}>{t('automod.punish_bots_label')}</label>
+                <select id="honeypot-punish-bots" data-initial={punishBots} disabled={!botOnline} class={inputClass}>
+                  {PUNISHMENTS.map((p) => <option value={p} selected={p === punishBots}>{punishLabel(p)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label for="honeypot-days" class={labelClass}>{t('automod.timeout_days_label')}</label>
+                <select id="honeypot-days" data-initial={String(honeypotDays)} disabled={!botOnline} class={inputClass}>
+                  {dayOptions.map((d) => <option value={String(d)} selected={d === honeypotDays}>{daysLabel(d)}</option>)}
+                </select>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400 mb-3">{t('automod.punish_hint')}</p>
+            <button id="save-honeypot-punish-btn" type="button" disabled class={saveBtnClass}>{t('common.save')}</button>
+          </div>
         </div>
 
         <div id="honeypot-inactive" class={status.honeypot_channel_id ? 'hidden' : ''}>
@@ -166,9 +234,13 @@ const pageConfig = { guildId, i18n };
               <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('automod.channel_name_label')}</label>
               <input type="text" id="honeypot-name-input" maxlength="90" placeholder={t('automod.channel_name_placeholder')} class="w-full max-w-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
+            <div class="mb-3">
+              <label for="honeypot-new-title-input" class={labelClass}>{t('automod.honeypot_title_label')}</label>
+              <input type="text" id="honeypot-new-title-input" maxlength="256" placeholder={t('automod.honeypot_title_placeholder')} class={`${inputClass} max-w-sm`} />
+            </div>
             <div class="mb-4">
               <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('automod.warn_text_label')}</label>
-              <textarea id="honeypot-warntext-input" rows="2" maxlength="1000" placeholder="⚠️ Raid bot trap: Anyone posting here will be automatically timed out." class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+              <textarea id="honeypot-warntext-input" rows="2" maxlength="1000" placeholder={t('automod.warn_text_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
             </div>
             <div class="flex gap-2">
               <button id="confirm-honeypot-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.create')}</button>

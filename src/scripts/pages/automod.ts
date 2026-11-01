@@ -10,6 +10,11 @@ interface AutomodConfig {
     noKeywords: string;
     alertHoneypotRequired: string;
     confirmDeleteHoneypot: string;
+    alertWarnTextRequired: string;
+    alertTextReposted: string;
+    alertTextSavedOnly: string;
+    save: string;
+    saving: string;
   };
 }
 
@@ -97,10 +102,41 @@ function setupKeywords(root: HTMLElement, api: DashboardApi, i18n: I18n) {
   });
 }
 
+type Field = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
+/** Speichern-Button nur aktiv, wenn sich ein Feld gegenüber data-initial geändert hat */
+function trackChanges(fields: Field[], saveBtn: HTMLButtonElement) {
+  const changed = () => fields.filter((f) => f.value !== (f.dataset.initial ?? ''));
+  const refresh = () => { saveBtn.disabled = changed().length === 0; };
+  fields.forEach((f) => {
+    f.addEventListener('input', refresh);
+    f.addEventListener('change', refresh);
+  });
+  /** Gespeicherten Stand übernehmen (Werte vom Bot) */
+  const commit = (values: Map<Field, string>) => {
+    values.forEach((value, f) => { f.value = value; f.dataset.initial = value; });
+    refresh();
+  };
+  return { changed, refresh, commit };
+}
+
+async function withBusyButton(btn: HTMLButtonElement, i18n: I18n, work: () => Promise<void>) {
+  btn.disabled = true;
+  btn.textContent = i18n.saving;
+  try {
+    await work();
+  } catch (err) {
+    alert(errorMessage(err));
+  } finally {
+    btn.textContent = i18n.save;
+  }
+}
+
 function setupHoneypot(api: DashboardApi, i18n: I18n) {
   const createBtn = byId<HTMLButtonElement>('create-honeypot-btn');
   const form = byId('honeypot-form');
   const nameInput = byId<HTMLInputElement>('honeypot-name-input');
+  const newTitleInput = byId<HTMLInputElement>('honeypot-new-title-input');
   const warnTextInput = byId<HTMLTextAreaElement>('honeypot-warntext-input');
   const confirmBtn = byId<HTMLButtonElement>('confirm-honeypot-btn');
   const cancelBtn = byId<HTMLButtonElement>('cancel-honeypot-btn');
@@ -108,14 +144,26 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
   const activeSection = byId('honeypot-active');
   const channelLabel = byId('honeypot-channel-label');
   const deleteBtn = byId<HTMLButtonElement>('delete-honeypot-btn');
-  if (!createBtn || !form || !nameInput || !warnTextInput || !confirmBtn || !cancelBtn
-    || !inactiveSection || !activeSection || !channelLabel || !deleteBtn) return;
+  const titleInput = byId<HTMLInputElement>('honeypot-title-input');
+  const textInput = byId<HTMLTextAreaElement>('honeypot-text-input');
+  const saveTextBtn = byId<HTMLButtonElement>('save-honeypot-text-btn');
+  const punishMembers = byId<HTMLSelectElement>('honeypot-punish-members');
+  const punishBots = byId<HTMLSelectElement>('honeypot-punish-bots');
+  const daysSelect = byId<HTMLSelectElement>('honeypot-days');
+  const savePunishBtn = byId<HTMLButtonElement>('save-honeypot-punish-btn');
+  if (!createBtn || !form || !nameInput || !newTitleInput || !warnTextInput || !confirmBtn || !cancelBtn
+    || !inactiveSection || !activeSection || !channelLabel || !deleteBtn || !titleInput || !textInput
+    || !saveTextBtn || !punishMembers || !punishBots || !daysSelect || !savePunishBtn) return;
+
+  const texts = trackChanges([titleInput, textInput], saveTextBtn);
+  const punishment = trackChanges([punishMembers, punishBots, daysSelect], savePunishBtn);
 
   createBtn.addEventListener('click', () => form.classList.remove('hidden'));
   cancelBtn.addEventListener('click', () => form.classList.add('hidden'));
 
   confirmBtn.addEventListener('click', async () => {
     const name = nameInput.value.trim();
+    const title = newTitleInput.value.trim();
     const warnText = warnTextInput.value.trim();
     if (!name || !warnText) {
       alert(i18n.alertHoneypotRequired);
@@ -124,8 +172,12 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
 
     confirmBtn.disabled = true;
     try {
-      const result = await api.callModuleAction<{ channel_name: string }>('automod', 'create-honeypot', { name, warn_text: warnText });
+      const result = await api.callModuleAction<{ channel_name: string; title?: string; text?: string }>(
+        'automod', 'create-honeypot', { name, title, warn_text: warnText },
+      );
       channelLabel.textContent = `#${result.channel_name}`;
+      // Bearbeiten-Felder mit dem gespeicherten Stand füllen (Bot setzt bei leerem Titel den Standardtitel)
+      texts.commit(new Map<Field, string>([[titleInput, result.title ?? title], [textInput, result.text ?? warnText]]));
       inactiveSection.classList.add('hidden');
       activeSection.classList.remove('hidden');
       form.classList.add('hidden');
@@ -135,6 +187,34 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
       confirmBtn.disabled = false;
     }
   });
+
+  saveTextBtn.addEventListener('click', () => withBusyButton(saveTextBtn, i18n, async () => {
+    if (!textInput.value.trim()) {
+      alert(i18n.alertWarnTextRequired);
+      return;
+    }
+    const result = await api.callModuleAction<{ title: string; text: string; status: string }>(
+      'automod', 'set-honeypot-text', { title: titleInput.value.trim(), warn_text: textInput.value.trim() },
+    );
+    texts.commit(new Map<Field, string>([[titleInput, result.title], [textInput, result.text]]));
+    if (result.status === 'reposted') alert(i18n.alertTextReposted);
+    else if (result.status === 'saved_only') alert(i18n.alertTextSavedOnly);
+  }).finally(texts.refresh));
+
+  savePunishBtn.addEventListener('click', () => withBusyButton(savePunishBtn, i18n, async () => {
+    // Nur Geändertes schicken; Dauer als Zahl (der Bot prüft strikt)
+    const body: Record<string, unknown> = {};
+    for (const field of punishment.changed()) {
+      if (field === punishMembers) body.members = field.value;
+      else if (field === punishBots) body.bots = field.value;
+      else body.days = Number(field.value);
+    }
+    if (Object.keys(body).length === 0) return;
+    const result = await api.callModuleAction<{ members: string; bots: string; days: number }>('automod', 'set-honeypot-punishment', body);
+    punishment.commit(new Map<Field, string>([
+      [punishMembers, result.members], [punishBots, result.bots], [daysSelect, String(result.days)],
+    ]));
+  }).finally(punishment.refresh));
 
   deleteBtn.addEventListener('click', async () => {
     if (!confirm(i18n.confirmDeleteHoneypot)) return;

@@ -1,6 +1,7 @@
 ---
 import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
 import Switch from '../../../../../components/Switch.astro';
+import Tabs from '../../../../../components/Tabs.astro';
 import pool from '../../../../../lib/db';
 import { callGuildAction } from '../../../../../lib/botApi';
 import { intlLocale } from '../../../../../i18n';
@@ -84,6 +85,11 @@ const i18n = {
   unexpectedResponseTemplate: t('automod.unexpected_response'),
 };
 
+const tabs = [
+  { key: 'automod', label: t('automod.tab_automod') },
+  { key: 'honeypot', label: t('automod.tab_honeypot') },
+];
+
 // Liest src/scripts/pages/automod.ts aus data-config
 const pageConfig = { guildId, i18n };
 ---
@@ -101,7 +107,11 @@ const pageConfig = { guildId, i18n };
   )}
 
   {status && (
-    <div id="automod-page" data-config={JSON.stringify(pageConfig)} class="space-y-6">
+    <div id="automod-page" data-config={JSON.stringify(pageConfig)}>
+    <Tabs tabs={tabs} label={t('automod.title')} />
+
+    <!-- Tab: AutoMod (Regeln und Anti-Nuke Shield) -->
+    <div role="tabpanel" id="tab-panel-automod" aria-labelledby="tab-automod" data-tab-panel="automod" class="space-y-6">
       <!-- Anti-Spam -->
       <section class="rounded-xl glass-panel p-6">
         <div class="flex items-start justify-between gap-4">
@@ -164,8 +174,11 @@ const pageConfig = { guildId, i18n };
           <Switch checked={status.shield_enabled} id="shield-toggle" disabled={!botOnline} />
         </div>
       </section>
+    </div>
 
-      <!-- Honeypot -->
+    <!-- Tab: Honeypot -->
+    <div role="tabpanel" id="tab-panel-honeypot" aria-labelledby="tab-honeypot" data-tab-panel="honeypot" class="hidden space-y-6">
+      <!-- Status: Channel und Fänge — oder Erstellen -->
       <section class="rounded-xl glass-panel p-6">
         <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('automod.honeypot_title')}</h2>
         <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
@@ -183,47 +196,6 @@ const pageConfig = { guildId, i18n };
             <span id="honeypot-catches">{t('automod.honeypot_catches', { count: (status.honeypot_catches ?? 0).toLocaleString(intlLocale(lang)) })}</span>
             · {t('automod.delete_honeypot_note')}
           </p>
-
-          <!-- Warn-Nachricht im Channel: Speichern passt die Nachricht direkt an -->
-          <div class="mt-5 pt-5 border-t border-slate-200 dark:border-slate-800">
-            <h3 class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('automod.honeypot_message_title')}</h3>
-            <div class="mb-3">
-              <label for="honeypot-title-input" class={labelClass}>{t('automod.honeypot_title_label')}</label>
-              <input type="text" id="honeypot-title-input" maxlength="256" value={honeypotTitle} data-initial={honeypotTitle} placeholder={t('automod.honeypot_title_placeholder')} disabled={!botOnline} class={`${inputClass} max-w-sm`} />
-            </div>
-            <div class="mb-3">
-              <label for="honeypot-text-input" class={labelClass}>{t('automod.warn_text_label')}</label>
-              <textarea id="honeypot-text-input" rows="3" maxlength="1000" data-initial={honeypotText} disabled={!botOnline} class={`${inputClass} resize-y`}>{honeypotText}</textarea>
-            </div>
-            <button id="save-honeypot-text-btn" type="button" disabled class={saveBtnClass}>{t('common.save')}</button>
-          </div>
-
-          <!-- Bestrafung: getrennt für Mitglieder und Bots, Dauer gilt für Timeouts -->
-          <div class="mt-5 pt-5 border-t border-slate-200 dark:border-slate-800">
-            <h3 class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('automod.honeypot_punish_title')}</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-2">
-              <div>
-                <label for="honeypot-punish-members" class={labelClass}>{t('automod.punish_members_label')}</label>
-                <select id="honeypot-punish-members" data-initial={punishMembers} disabled={!botOnline} class={inputClass}>
-                  {PUNISHMENTS.map((p) => <option value={p} selected={p === punishMembers}>{punishLabel(p)}</option>)}
-                </select>
-              </div>
-              <div>
-                <label for="honeypot-punish-bots" class={labelClass}>{t('automod.punish_bots_label')}</label>
-                <select id="honeypot-punish-bots" data-initial={punishBots} disabled={!botOnline} class={inputClass}>
-                  {PUNISHMENTS.map((p) => <option value={p} selected={p === punishBots}>{punishLabel(p)}</option>)}
-                </select>
-              </div>
-              <div>
-                <label for="honeypot-days" class={labelClass}>{t('automod.timeout_days_label')}</label>
-                <select id="honeypot-days" data-initial={String(honeypotDays)} disabled={!botOnline} class={inputClass}>
-                  {dayOptions.map((d) => <option value={String(d)} selected={d === honeypotDays}>{daysLabel(d)}</option>)}
-                </select>
-              </div>
-            </div>
-            <p class="text-xs text-slate-400 mb-3">{t('automod.punish_hint')}</p>
-            <button id="save-honeypot-punish-btn" type="button" disabled class={saveBtnClass}>{t('common.save')}</button>
-          </div>
         </div>
 
         <div id="honeypot-inactive" class={status.honeypot_channel_id ? 'hidden' : ''}>
@@ -249,6 +221,50 @@ const pageConfig = { guildId, i18n };
           </div>
         </div>
       </section>
+
+      <!-- Warn-Nachricht im Channel: Speichern passt die Nachricht direkt an -->
+      <section id="honeypot-message-section" data-honeypot-detail class={status.honeypot_channel_id ? 'rounded-xl glass-panel p-6' : 'hidden rounded-xl glass-panel p-6'}>
+        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('automod.honeypot_message_title')}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('automod.honeypot_message_desc')}</p>
+        <div class="mb-3">
+          <label for="honeypot-title-input" class={labelClass}>{t('automod.honeypot_title_label')}</label>
+          <input type="text" id="honeypot-title-input" maxlength="256" value={honeypotTitle} data-initial={honeypotTitle} placeholder={t('automod.honeypot_title_placeholder')} disabled={!botOnline} class={`${inputClass} max-w-sm`} />
+        </div>
+        <div class="mb-3">
+          <label for="honeypot-text-input" class={labelClass}>{t('automod.warn_text_label')}</label>
+          <textarea id="honeypot-text-input" rows="3" maxlength="1000" data-initial={honeypotText} disabled={!botOnline} class={`${inputClass} resize-y`}>{honeypotText}</textarea>
+        </div>
+        <button id="save-honeypot-text-btn" type="button" disabled class={saveBtnClass}>{t('common.save')}</button>
+      </section>
+
+      <!-- Bestrafung: getrennt für Mitglieder und Bots, Dauer gilt für Timeouts -->
+      <section id="honeypot-punish-section" data-honeypot-detail class={status.honeypot_channel_id ? 'rounded-xl glass-panel p-6' : 'hidden rounded-xl glass-panel p-6'}>
+        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('automod.honeypot_punish_title')}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('automod.honeypot_punish_desc')}</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-2">
+          <div>
+            <label for="honeypot-punish-members" class={labelClass}>{t('automod.punish_members_label')}</label>
+            <select id="honeypot-punish-members" data-initial={punishMembers} disabled={!botOnline} class={inputClass}>
+              {PUNISHMENTS.map((p) => <option value={p} selected={p === punishMembers}>{punishLabel(p)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label for="honeypot-punish-bots" class={labelClass}>{t('automod.punish_bots_label')}</label>
+            <select id="honeypot-punish-bots" data-initial={punishBots} disabled={!botOnline} class={inputClass}>
+              {PUNISHMENTS.map((p) => <option value={p} selected={p === punishBots}>{punishLabel(p)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label for="honeypot-days" class={labelClass}>{t('automod.timeout_days_label')}</label>
+            <select id="honeypot-days" data-initial={String(honeypotDays)} disabled={!botOnline} class={inputClass}>
+              {dayOptions.map((d) => <option value={String(d)} selected={d === honeypotDays}>{daysLabel(d)}</option>)}
+            </select>
+          </div>
+        </div>
+        <p class="text-xs text-slate-400 mb-3">{t('automod.punish_hint')}</p>
+        <button id="save-honeypot-punish-btn" type="button" disabled class={saveBtnClass}>{t('common.save')}</button>
+      </section>
+    </div>
     </div>
   )}
 </DashboardLayout>

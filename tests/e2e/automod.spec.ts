@@ -1,11 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, delayPageWiring, expectNotWiredYet } from './support/helpers';
+import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t } from './support/helpers';
 import { CHANNELS, defaultBotData } from './support/fixtures.mjs';
 import { GUILD_ID } from './support/env.mjs';
 
 // AutoMod: Regeln an/aus, Keyword-Liste, Anti-Nuke-Shield und Honeypot-Channel.
 
 const PAGE = guildPath('modules/automod/');
+const HONEYPOT_PAGE = guildPath('modules/automod/#honeypot');
 const XSS = '<img src=x onerror="window.__xss=1">';
 const status = defaultBotData['automod/status'];
 const withStatus = (values: Record<string, unknown>) => ({ 'automod/status': { data: { ...status, ...values } } });
@@ -54,14 +55,14 @@ test.describe('Übersicht', () => {
   });
 
   test('ohne Honeypot gibt es den Erstellen-Button', async ({ page }) => {
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await expect(page.locator('#create-honeypot-btn')).toBeVisible();
     await expect(honeypotActive(page)).toBeHidden();
   });
 
   test('vorhandener Honeypot zeigt den Channel-Namen, unbekannter Channel die ID', async ({ page }) => {
     await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id }));
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await expect(page.locator('#honeypot-channel-label')).toHaveText(`#${CHANNELS[0].name}`);
     await expect(honeypotInactive(page)).toBeHidden();
 
@@ -161,7 +162,7 @@ test.describe('Keywords', () => {
 test.describe('Honeypot', () => {
   test('Erstellen: Pflichtfelder, Payload, danach aktiver Honeypot', async ({ page }) => {
     const dialogs = collectDialogs(page);
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await page.locator('#create-honeypot-btn').click();
     await page.locator('#honeypot-name-input').fill('falle');
     await page.locator('#confirm-honeypot-btn').click();
@@ -174,6 +175,8 @@ test.describe('Honeypot', () => {
     await expect(page.locator('#honeypot-channel-label')).toHaveText('#honeypot-falle');
     await expect(honeypotActive(page)).toBeVisible();
     await expect(honeypotInactive(page)).toBeHidden();
+    await expect(page.locator('#honeypot-message-section')).toBeVisible();
+    await expect(page.locator('#honeypot-punish-section')).toBeVisible();
     // Bearbeiten-Felder zeigen den gespeicherten Stand (leerer Titel → Standardtitel vom Bot)
     await expect(titleInput(page)).toHaveValue('⚠️ Achtung');
     await expect(textInput(page)).toHaveValue('Nicht schreiben!');
@@ -181,7 +184,7 @@ test.describe('Honeypot', () => {
   });
 
   test('Erstellen mit eigenem Titel', async ({ page }) => {
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await page.locator('#create-honeypot-btn').click();
     await page.locator('#honeypot-name-input').fill('falle');
     await page.locator('#honeypot-new-title-input').fill('  🚫 Finger weg  ');
@@ -194,7 +197,7 @@ test.describe('Honeypot', () => {
   test('Fehler beim Erstellen: Meldung, Formular bleibt offen', async ({ page }) => {
     await resetBot({ 'automod/create-honeypot': { status: 400, error: 'Es existiert bereits ein Honeypot — zuerst löschen' } });
     const dialogs = collectDialogs(page);
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await page.locator('#create-honeypot-btn').click();
     await page.locator('#honeypot-name-input').fill('falle');
     await page.locator('#honeypot-warntext-input').fill('Text');
@@ -207,18 +210,20 @@ test.describe('Honeypot', () => {
   test('Löschen: Rückfrage, danach wieder der Erstellen-Button', async ({ page }) => {
     await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id }));
     const dialogs = collectDialogs(page);
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await page.locator('#delete-honeypot-btn').click();
     await waitForBotCall('automod/delete-honeypot');
     expect(dialogs).toEqual([t('automod.confirm_delete_honeypot')]);
     await expect(honeypotActive(page)).toBeHidden();
     await expect(page.locator('#create-honeypot-btn')).toBeVisible();
+    await expect(page.locator('#honeypot-message-section')).toBeHidden();
+    await expect(page.locator('#honeypot-punish-section')).toBeHidden();
   });
 
   test('Löschen abgebrochen: nichts wird gesendet', async ({ page }) => {
     await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id }));
     const dialogs = collectDialogs(page, { accept: false });
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await page.locator('#delete-honeypot-btn').click();
     await expect.poll(() => dialogs.length).toBe(1);
     await page.waitForTimeout(300);
@@ -232,7 +237,7 @@ test.describe('Honeypot bearbeiten', () => {
 
   test('zeigt Fänge, Texte und Bestrafung aus dem Bot', async ({ page }) => {
     await resetBot(withStatus({ ...ACTIVE, honeypot_title: XSS, honeypot_text: 'Zeile 1\nZeile 2', honeypot_punish_members: 'ban', honeypot_punish_bots: 'timeout', honeypot_timeout_days: 14 }));
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await expect(page.locator('#honeypot-catches')).toHaveText(t('automod.honeypot_catches', { count: (1234).toLocaleString('de-DE') }));
     await expect(titleInput(page)).toHaveValue(XSS);
     await expect(textInput(page)).toHaveValue('Zeile 1\nZeile 2');
@@ -246,7 +251,7 @@ test.describe('Honeypot bearbeiten', () => {
 
   test('ältere Dauer (5 Tage) bleibt in der Auswahl', async ({ page }) => {
     await resetBot(withStatus({ ...ACTIVE, honeypot_timeout_days: 5 }));
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await expect(page.locator('#honeypot-days')).toHaveValue('5');
     await expect(page.locator('#honeypot-days option')).toHaveText(['1 Tag', '3 Tage', '5 Tage', '7 Tage', '14 Tage', '28 Tage'].map((x) => x));
   });
@@ -254,7 +259,7 @@ test.describe('Honeypot bearbeiten', () => {
   test('ältere Bot-Version ohne neue Felder: bisheriges Verhalten als Standard', async ({ page }) => {
     const { honeypot_title, honeypot_text, honeypot_punish_members, honeypot_punish_bots, honeypot_day_options, ...old } = status as any;
     await resetBot({ 'automod/status': { data: { ...old, ...ACTIVE } } });
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await expect(page.locator('#honeypot-punish-members')).toHaveValue('timeout');
     await expect(page.locator('#honeypot-punish-bots')).toHaveValue('kick');
     await expect(titleInput(page)).toHaveValue('');
@@ -262,7 +267,7 @@ test.describe('Honeypot bearbeiten', () => {
 
   test('Text speichern: erst nach Änderung möglich, schickt Titel und Text, übernimmt den Stand des Bots', async ({ page }) => {
     await resetBot(withStatus(ACTIVE));
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await textInput(page).fill('Neuer Text');
     await expect(saveTextBtn(page)).toBeEnabled();
     await textInput(page).fill('Nicht schreiben!');   // zurück auf den gespeicherten Stand
@@ -281,7 +286,7 @@ test.describe('Honeypot bearbeiten', () => {
   test('Text speichern: leerer Warntext wird nicht gesendet', async ({ page }) => {
     await resetBot(withStatus(ACTIVE));
     const dialogs = collectDialogs(page);
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await textInput(page).fill('   ');
     await saveTextBtn(page).click();
     await expect.poll(() => dialogs).toEqual([t('automod.alert_warn_text_required')]);
@@ -293,7 +298,7 @@ test.describe('Honeypot bearbeiten', () => {
     test(`Text speichern: Hinweis bei Status „${botStatus}“`, async ({ page }) => {
       await resetBot({ ...withStatus(ACTIVE), 'automod/set-honeypot-text': { data: { title: 'T', text: 'X', status: botStatus } } });
       const dialogs = collectDialogs(page);
-      await page.goto(PAGE);
+      await page.goto(HONEYPOT_PAGE);
       await textInput(page).fill('X');
       await saveTextBtn(page).click();
       await expect.poll(() => dialogs).toEqual([t(`automod.${key}`)]);
@@ -304,7 +309,7 @@ test.describe('Honeypot bearbeiten', () => {
   test('Text speichern: Fehler des Bots, Änderung bleibt', async ({ page }) => {
     await resetBot({ ...withStatus(ACTIVE), 'automod/set-honeypot-text': { status: 400, error: 'Es gibt keinen Honeypot.' } });
     const dialogs = collectDialogs(page);
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await textInput(page).fill('X');
     await saveTextBtn(page).click();
     await expect.poll(() => dialogs.join('\n')).toContain('Es gibt keinen Honeypot.');
@@ -314,7 +319,7 @@ test.describe('Honeypot bearbeiten', () => {
 
   test('Bestrafung speichern: nur Geändertes, Dauer als Zahl', async ({ page }) => {
     await resetBot(withStatus(ACTIVE));
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await page.locator('#honeypot-punish-bots').selectOption('ban');
     await page.locator('#honeypot-days').selectOption('14');
     await savePunishBtn(page).click();
@@ -332,27 +337,39 @@ test.describe('Honeypot bearbeiten', () => {
   });
 });
 
-test.describe('Honeypot: Eingaben vor dem Verdrahten der Seite', () => {
-  // Auf langsamen Rechnern (z. B. im CI) kann man Felder ändern, bevor astro:page-load die Seite verdrahtet hat.
-  // Das Ereignis der Änderung geht dann ins Leere — der Speichern-Button muss trotzdem aktiv werden.
-  test.beforeEach(async ({ page }) => { await delayPageWiring(page); });
-
-  test('Bestrafung vor dem Verdrahten geändert: Speichern wird aktiv und schickt die Änderung', async ({ page }) => {
-    await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id }));
+test.describe('Tabs', () => {
+  test('Start im AutoMod-Tab, der Honeypot liegt im eigenen Tab', async ({ page }) => {
     await page.goto(PAGE);
-    await page.locator('#honeypot-punish-bots').selectOption('ban');
-    await expectNotWiredYet(page);
-    await savePunishBtn(page).click();
-    expect(await waitForBotCall('automod/set-honeypot-punishment')).toEqual(expect.objectContaining({ bots: 'ban' }));
+    await expect(ruleSwitch(page, 'spam')).toBeVisible();
+    await expect(page.locator('#create-honeypot-btn')).toBeHidden();
+
+    await page.getByRole('tab', { name: t('automod.tab_honeypot') }).click();
+    await expect(page.locator('#create-honeypot-btn')).toBeVisible();
+    await expect(ruleSwitch(page, 'spam')).toBeHidden();
+    await expect(page).toHaveURL(/#honeypot$/);
+
+    await page.getByRole('tab', { name: t('automod.tab_automod') }).click();
+    await expect(ruleSwitch(page, 'spam')).toBeVisible();
   });
 
-  test('Text vor dem Verdrahten geändert: Speichern wird aktiv', async ({ page }) => {
+  test('#honeypot öffnet direkt den Honeypot-Tab, auch nach dem Neuladen', async ({ page }) => {
+    await page.goto(HONEYPOT_PAGE);
+    await expect(page.locator('#create-honeypot-btn')).toBeVisible();
+    await page.reload();
+    await expect(page.locator('#create-honeypot-btn')).toBeVisible();
+    await expect(ruleSwitch(page, 'spam')).toBeHidden();
+  });
+
+  test('ohne Honeypot gibt es nur den Erstellen-Bereich, mit Honeypot alle drei Bereiche', async ({ page }) => {
+    await page.goto(HONEYPOT_PAGE);
+    await expect(page.locator('#honeypot-message-section')).toBeHidden();
+    await expect(page.locator('#honeypot-punish-section')).toBeHidden();
+
     await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id }));
-    await page.goto(PAGE);
-    await textInput(page).fill('Früh geändert');
-    await expectNotWiredYet(page);
-    await saveTextBtn(page).click();
-    expect(await waitForBotCall('automod/set-honeypot-text')).toEqual(expect.objectContaining({ warn_text: 'Früh geändert' }));
+    await page.reload();
+    await expect(page.locator('#honeypot-message-section')).toBeVisible();
+    await expect(page.locator('#honeypot-punish-section')).toBeVisible();
+    await expect(page.locator('#create-honeypot-btn')).toBeHidden();
   });
 });
 
@@ -402,7 +419,7 @@ test.describe('Anzeige passt zum Bot', () => {
   });
 
   test('Honeypot-Beschreibung verweist auf /honeypot', async ({ page }) => {
-    await page.goto(PAGE);
+    await page.goto(HONEYPOT_PAGE);
     await expect(page.getByText(t('automod.honeypot_desc'))).toBeVisible({ timeout: 2000 });
   });
 });

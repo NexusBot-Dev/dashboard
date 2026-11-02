@@ -3,6 +3,7 @@
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
 import { isSwitchOn, setSwitch } from '../switch';
+import { setupTabs } from '../tabs';
 
 interface AutomodConfig {
   guildId: string;
@@ -158,6 +159,14 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
     || !inactiveSection || !activeSection || !channelLabel || !deleteBtn || !titleInput || !textInput
     || !saveTextBtn || !punishMembers || !punishBots || !daysSelect || !savePunishBtn) return;
 
+  // Warn-Nachricht und Bestrafung gibt es nur bei einem vorhandenen Honeypot
+  const detailSections = Array.from(document.querySelectorAll<HTMLElement>('[data-honeypot-detail]'));
+  const showActive = (active: boolean) => {
+    activeSection.classList.toggle('hidden', !active);
+    inactiveSection.classList.toggle('hidden', active);
+    detailSections.forEach((section) => section.classList.toggle('hidden', !active));
+  };
+
   const texts = trackChanges([titleInput, textInput], saveTextBtn);
   const punishment = trackChanges([punishMembers, punishBots, daysSelect], savePunishBtn);
 
@@ -181,8 +190,7 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
       channelLabel.textContent = `#${result.channel_name}`;
       // Bearbeiten-Felder mit dem gespeicherten Stand füllen (Bot setzt bei leerem Titel den Standardtitel)
       texts.commit(new Map<Field, string>([[titleInput, result.title ?? title], [textInput, result.text ?? warnText]]));
-      inactiveSection.classList.add('hidden');
-      activeSection.classList.remove('hidden');
+      showActive(true);
       form.classList.add('hidden');
     } catch (err) {
       alert(errorMessage(err));
@@ -224,8 +232,7 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
     deleteBtn.disabled = true;
     try {
       await api.callModuleAction('automod', 'delete-honeypot');
-      activeSection.classList.add('hidden');
-      inactiveSection.classList.remove('hidden');
+      showActive(false);
     } catch (err) {
       alert(errorMessage(err));
     } finally {
@@ -244,6 +251,7 @@ function setupAutomodPage() {
   const { guildId, i18n } = readPageConfig<AutomodConfig>(root);
   const api = createDashboardApi(guildId, i18n);
 
+  setupTabs(root);
   setupSwitches(root, api);
   setupKeywords(root, api, i18n);
   setupHoneypot(api, i18n);

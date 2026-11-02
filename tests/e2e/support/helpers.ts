@@ -47,8 +47,9 @@ export function collectDialogs(page: Page, { accept = true } = {}) {
   const messages: string[] = [];
   page.on('dialog', async (dialog) => {
     messages.push(dialog.message());
-    if (dialog.type() === 'confirm' && !accept) await dialog.dismiss();
-    else await dialog.accept();
+    // Kommt der Dialog erst, während der Test schon endet, ist die Seite weg — das ist kein Fehler
+    if (dialog.type() === 'confirm' && !accept) await dialog.dismiss().catch(() => {});
+    else await dialog.accept().catch(() => {});
   });
   return messages;
 }
@@ -63,4 +64,27 @@ export async function dbQuery(sql: string, params: unknown[] = []) {
   } finally {
     await conn.end();
   }
+}
+
+/**
+ * Simuliert einen langsamen Rechner (z. B. im CI): astro:page-load-Handler laufen erst nach `ms`.
+ * So lassen sich Felder ändern, bevor die Seite verdrahtet ist. `expectNotWiredYet` belegt, dass die
+ * Eingabe wirklich vor dem Verdrahten passiert ist (sonst prüft der Test nichts).
+ */
+export async function delayPageWiring(page: Page, ms = 2000) {
+  await page.addInitScript((delay) => {
+    (window as any).__pageWired = false;
+    const add = document.addEventListener.bind(document);
+    document.addEventListener = ((type: string, listener: any, options?: any) => {
+      if (type !== 'astro:page-load') return add(type, listener, options);
+      return add(type, (event: Event) => setTimeout(() => {
+        (window as any).__pageWired = true;
+        typeof listener === 'function' ? listener(event) : listener.handleEvent(event);
+      }, delay), options);
+    }) as typeof document.addEventListener;
+  }, ms);
+}
+
+export async function expectNotWiredYet(page: Page) {
+  expect(await page.evaluate(() => (window as any).__pageWired), 'Eingabe kam erst nach dem Verdrahten').toBe(false);
 }

@@ -61,6 +61,9 @@ function setupSettingsPage() {
   });
 
   colorInput?.addEventListener('input', syncColorLabel);
+  // Sofort einmal prüfen: Änderungen vor dem Verdrahten (astro:page-load kommt erst nach dem Laden) lösen kein Ereignis aus
+  syncColorLabel();
+  refreshSaveBar();
 
   announcementsToggle?.addEventListener('click', () => {
     setSwitch(announcementsToggle, announcementsToggle.getAttribute('aria-checked') !== 'true');

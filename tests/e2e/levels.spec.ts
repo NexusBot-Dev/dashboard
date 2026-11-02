@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t } from './support/helpers';
+import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, delayPageWiring, expectNotWiredYet } from './support/helpers';
 import { CHANNELS, ROLES, defaultBotData } from './support/fixtures.mjs';
 import { GUILD_ID } from './support/env.mjs';
 
@@ -384,5 +384,27 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
     expect(await botCalls('leveling/set-excluded')).toHaveLength(1);
     expect(await botCalls('leveling/remove-role')).toHaveLength(1);
     await expect(chips(page)).toHaveCount(2);
+  });
+});
+
+test.describe('Eingaben vor dem Verdrahten der Seite', () => {
+  // Auf langsamen Rechnern (z. B. im CI) kann man Felder ändern, bevor astro:page-load die Seite verdrahtet hat.
+  // Das Ereignis der Änderung geht dann ins Leere — Speichern muss trotzdem möglich sein.
+  test.beforeEach(async ({ page }) => { await delayPageWiring(page); });
+
+  test('XP vor dem Verdrahten geändert: Speichern wird aktiv', async ({ page }) => {
+    await page.goto(PAGE);
+    await minInput(page).fill('10');
+    await expectNotWiredYet(page);
+    await saveXpBtn(page).click();
+    expect(await waitForBotCall('leveling/set-xp-settings')).toEqual(expect.objectContaining({ xp_min: 10 }));
+  });
+
+  test('Level-Up-Channel vor dem Verdrahten geändert: Speichern wird aktiv', async ({ page }) => {
+    await page.goto(PAGE);
+    await levelupSelect(page).selectOption(CHANNELS[0].id);
+    await expectNotWiredYet(page);
+    await saveLevelupBtn(page).click();
+    expect(await waitForBotCall('leveling/set-levelup-channel')).toMatchObject({ channel_id: CHANNELS[0].id });
   });
 });

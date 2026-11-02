@@ -46,6 +46,8 @@ function setupXpSettings(api: DashboardApi, i18n: I18n) {
   const refresh = () => { saveBtn.disabled = !isDirty(); };
   minInput.addEventListener('input', refresh);
   maxInput.addEventListener('input', refresh);
+  // Sofort einmal prüfen: Änderungen vor dem Verdrahten (astro:page-load kommt erst nach dem Laden) lösen kein Ereignis aus
+  refresh();
 
   saveBtn.addEventListener('click', async () => {
     // Number statt parseInt: aus „12.5“ würde sonst still 12
@@ -77,6 +79,8 @@ function setupLevelUpChannel(api: DashboardApi, i18n: I18n) {
 
   const refresh = () => { saveBtn.disabled = select.value === select.dataset.initial; };
   select.addEventListener('change', refresh);
+  // Sofort einmal prüfen: Änderungen vor dem Verdrahten (astro:page-load kommt erst nach dem Laden) lösen kein Ereignis aus
+  refresh();
 
   saveBtn.addEventListener('click', async () => {
     saveBtn.disabled = true;

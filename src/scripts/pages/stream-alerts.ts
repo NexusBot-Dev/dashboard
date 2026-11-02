@@ -35,7 +35,10 @@ function setupPingRoles(root: HTMLElement, api: DashboardApi, i18n: I18n) {
   if (!saveBtn || selects.length === 0) return;
 
   const isDirty = () => selects.some((s) => s.value !== s.dataset.initial);
-  selects.forEach((s) => s.addEventListener('change', () => { saveBtn.disabled = !isDirty(); }));
+  const refresh = () => { saveBtn.disabled = !isDirty(); };
+  selects.forEach((s) => s.addEventListener('change', refresh));
+  // Sofort einmal prüfen: Änderungen vor dem Verdrahten (astro:page-load kommt erst nach dem Laden) lösen kein Ereignis aus
+  refresh();
 
   saveBtn.addEventListener('click', async () => {
     saveBtn.disabled = true;

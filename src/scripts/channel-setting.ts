@@ -13,6 +13,8 @@ export function setupChannelSettings(api: DashboardApi, saveLabels: { save: stri
     const refresh = () => { saveBtn.disabled = select.value === select.dataset.initial; };
 
     select.addEventListener('change', refresh);
+    // Sofort einmal prüfen: Änderungen vor dem Verdrahten (astro:page-load kommt erst nach dem Laden) lösen kein Ereignis aus
+    refresh();
     saveBtn.addEventListener('click', async () => {
       saveBtn.disabled = true;
       saveBtn.textContent = saveLabels.saving;

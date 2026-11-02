@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, dbQuery } from './support/helpers';
+import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, dbQuery, delayPageWiring, expectNotWiredYet } from './support/helpers';
 import { CHANNELS } from './support/fixtures.mjs';
 import { FOREIGN_GUILD_ID, GUILD_ID } from './support/env.mjs';
 
@@ -338,5 +338,19 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
     expect((await waitForBotCall('settings')).fields).toEqual({ locale: 'en' });
     await page.waitForTimeout(500); // etwaige doppelte Aufrufe abwarten
     expect(await botCalls('settings')).toHaveLength(1);
+  });
+});
+
+test.describe('Eingaben vor dem Verdrahten der Seite', () => {
+  // Auf langsamen Rechnern (z. B. im CI) kann man Felder ändern, bevor astro:page-load die Seite verdrahtet hat.
+  // Das Ereignis der Änderung geht dann ins Leere — Speichern muss trotzdem möglich sein.
+  test.beforeEach(async ({ page }) => { await delayPageWiring(page); });
+
+  test('Sprache vor dem Verdrahten geändert: Speicherleiste erscheint und schickt die Änderung', async ({ page }) => {
+    await page.goto(PAGE);
+    await field(page, 'locale').selectOption('en');
+    await expectNotWiredYet(page);
+    await page.locator('#save-btn').click();
+    expect((await waitForBotCall('settings')).fields).toEqual({ locale: 'en' });
   });
 });

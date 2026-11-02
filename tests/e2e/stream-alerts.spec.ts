@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t } from './support/helpers';
+import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, delayPageWiring, expectNotWiredYet } from './support/helpers';
 import { CHANNELS, ROLES, defaultBotData } from './support/fixtures.mjs';
 import { GUILD_ID } from './support/env.mjs';
 
@@ -404,5 +404,19 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
     await page.waitForTimeout(500); // etwaige doppelte Aufrufe abwarten
     expect(await botCalls('stream_alerts/remove')).toHaveLength(1);
     expect(await botCalls('stream_alerts/delete-link')).toHaveLength(1);
+  });
+});
+
+test.describe('Eingaben vor dem Verdrahten der Seite', () => {
+  // Auf langsamen Rechnern (z. B. im CI) kann man Felder ändern, bevor astro:page-load die Seite verdrahtet hat.
+  // Das Ereignis der Änderung geht dann ins Leere — Speichern muss trotzdem möglich sein.
+  test.beforeEach(async ({ page }) => { await delayPageWiring(page); });
+
+  test('Ping-Rolle vor dem Verdrahten geändert: Speichern wird aktiv', async ({ page }) => {
+    await page.goto(PAGE);
+    await page.locator('[data-ping-role="all"]').selectOption(ROLES[1].id);
+    await expectNotWiredYet(page);
+    await savePingBtn(page).click();
+    expect(await waitForBotCall('stream_alerts/set-ping-role')).toMatchObject({ platform: 'all', role_id: ROLES[1].id });
   });
 });

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, dbQuery } from './support/helpers';
+import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, dbQuery, delayPageWiring, expectNotWiredYet } from './support/helpers';
 import { CHANNELS } from './support/fixtures.mjs';
 import { GUILD_ID } from './support/env.mjs';
 import { channelPicker, goodbye, messageEditor, navigateToArea, openArea, type MessageArea } from './support/welcome-areas';
@@ -370,4 +370,19 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
       expect(await botCalls(`${module}/add-message`)).toHaveLength(1);
     });
   }
+});
+
+test.describe('Eingaben vor dem Verdrahten der Seite', () => {
+  // Auf langsamen Rechnern (z. B. im CI) kann man Felder ändern, bevor astro:page-load die Seite verdrahtet hat.
+  // Das Ereignis der Änderung geht dann ins Leere — Speichern muss trotzdem möglich sein.
+  test.beforeEach(async ({ page }) => { await delayPageWiring(page); });
+
+  test('Welcome-Channel vor dem Verdrahten geändert: Speichern wird aktiv', async ({ page }) => {
+    await openArea(page, 'welcome');
+    const { select, saveBtn } = channelPicker(page, 'welcome');
+    await select.selectOption(CHANNELS[1].id);
+    await expectNotWiredYet(page);
+    await saveBtn.click();
+    expect((await waitForBotCall('settings')).fields).toEqual({ welcome_channel_id: CHANNELS[1].id });
+  });
 });

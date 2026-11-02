@@ -4,6 +4,8 @@
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
 import { isSwitchOn, setSwitch } from '../switch';
 import { setupTabs } from '../tabs';
+import { setupMarkdownToolbars } from '../markdown-toolbar';
+import { renderDiscordMarkdown } from '../../lib/discordMarkdown';
 
 interface AutomodConfig {
   guildId: string;
@@ -136,6 +138,17 @@ async function withBusyButton(btn: HTMLButtonElement, i18n: I18n, work: () => Pr
   }
 }
 
+/** Live-Vorschau eines Textfelds (Discord-Markdown). Rückgabe: Vorschau neu zeichnen — nach Änderungen per Code */
+function bindPreview(textarea: HTMLTextAreaElement, previewEl: HTMLElement) {
+  const update = () => {
+    const val = textarea.value.trim();
+    previewEl.innerHTML = val ? renderDiscordMarkdown(val) : '—';
+  };
+  textarea.addEventListener('input', update);
+  update();   // Eingaben vor dem Verdrahten
+  return update;
+}
+
 function setupHoneypot(api: DashboardApi, i18n: I18n) {
   const createBtn = byId<HTMLButtonElement>('create-honeypot-btn');
   const form = byId('honeypot-form');
@@ -155,9 +168,12 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
   const punishBots = byId<HTMLSelectElement>('honeypot-punish-bots');
   const daysSelect = byId<HTMLSelectElement>('honeypot-days');
   const savePunishBtn = byId<HTMLButtonElement>('save-honeypot-punish-btn');
+  const textPreview = byId('honeypot-text-preview');
+  const warnTextPreview = byId('honeypot-warntext-preview');
   if (!createBtn || !form || !nameInput || !newTitleInput || !warnTextInput || !confirmBtn || !cancelBtn
     || !inactiveSection || !activeSection || !channelLabel || !deleteBtn || !titleInput || !textInput
-    || !saveTextBtn || !punishMembers || !punishBots || !daysSelect || !savePunishBtn) return;
+    || !saveTextBtn || !punishMembers || !punishBots || !daysSelect || !savePunishBtn
+    || !textPreview || !warnTextPreview) return;
 
   // Warn-Nachricht und Bestrafung gibt es nur bei einem vorhandenen Honeypot
   const detailSections = Array.from(document.querySelectorAll<HTMLElement>('[data-honeypot-detail]'));
@@ -168,6 +184,8 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
   };
 
   const texts = trackChanges([titleInput, textInput], saveTextBtn);
+  const updateTextPreview = bindPreview(textInput, textPreview);
+  bindPreview(warnTextInput, warnTextPreview);
   const punishment = trackChanges([punishMembers, punishBots, daysSelect], savePunishBtn);
 
   createBtn.addEventListener('click', () => form.classList.remove('hidden'));
@@ -190,6 +208,7 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
       channelLabel.textContent = `#${result.channel_name}`;
       // Bearbeiten-Felder mit dem gespeicherten Stand füllen (Bot setzt bei leerem Titel den Standardtitel)
       texts.commit(new Map<Field, string>([[titleInput, result.title ?? title], [textInput, result.text ?? warnText]]));
+      updateTextPreview();
       showActive(true);
       form.classList.add('hidden');
     } catch (err) {
@@ -208,6 +227,7 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
       'automod', 'set-honeypot-text', { title: titleInput.value.trim(), warn_text: textInput.value.trim() },
     );
     texts.commit(new Map<Field, string>([[titleInput, result.title], [textInput, result.text]]));
+    updateTextPreview();
     if (result.status === 'reposted') alert(i18n.alertTextReposted);
     else if (result.status === 'saved_only') alert(i18n.alertTextSavedOnly);
   }).finally(texts.refresh));
@@ -252,6 +272,7 @@ function setupAutomodPage() {
   const api = createDashboardApi(guildId, i18n);
 
   setupTabs(root);
+  setupMarkdownToolbars();
   setupSwitches(root, api);
   setupKeywords(root, api, i18n);
   setupHoneypot(api, i18n);

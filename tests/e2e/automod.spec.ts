@@ -325,6 +325,9 @@ test.describe('Honeypot bearbeiten', () => {
     await savePunishBtn(page).click();
     expect(await waitForBotCall('automod/set-honeypot-punishment')).toEqual(expect.objectContaining({ bots: 'ban', days: 14 }));
     expect((await botCalls('automod/set-honeypot-punishment'))[0].body).not.toHaveProperty('members');
+    // Erst weiter, wenn die Seite mit dem Speichern fertig ist — während des Speicherns ist der Button ohnehin
+    // gesperrt, und die Antwort des Bots würde eine schon gemachte Auswahl wieder überschreiben
+    await expect(savePunishBtn(page)).toHaveText(t('common.save'));
     await expect(savePunishBtn(page)).toBeDisabled();
 
     // Neuer Ausgangsstand: erneut ändern schickt nur das Neue
@@ -334,6 +337,47 @@ test.describe('Honeypot bearbeiten', () => {
     expect(second.members).toBe('kick');
     expect(second).not.toHaveProperty('bots');
     expect(second).not.toHaveProperty('days');
+  });
+});
+
+test.describe('Honeypot: Markdown und Vorschau', () => {
+  test('Bearbeiten: Vorschau zeigt den gespeicherten Text formatiert und ohne HTML', async ({ page }) => {
+    await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id, honeypot_text: `**fett** ${XSS}` }));
+    await page.goto(HONEYPOT_PAGE);
+    const preview = page.locator('#honeypot-text-preview');
+    await expect(preview.locator('strong')).toHaveText('fett');
+    await expect(preview.locator('img')).toHaveCount(0);
+    await expect(preview).toContainText('<img src=x');
+    await expectNoXss(page);
+  });
+
+  test('Bearbeiten: Toolbar formatiert die Auswahl, Vorschau und Speichern folgen', async ({ page }) => {
+    await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id, honeypot_text: 'Achtung' }));
+    await page.goto(HONEYPOT_PAGE);
+    await expect(saveTextBtn(page)).toBeDisabled();
+    await textInput(page).selectText();
+    await page.locator('[data-md-toolbar="honeypot-text-input"] [data-md="bold"]').click();
+    await expect(textInput(page)).toHaveValue('**Achtung**');
+    await expect(page.locator('#honeypot-text-preview strong')).toHaveText('Achtung');
+    await expect(saveTextBtn(page)).toBeEnabled();
+  });
+
+  test('Erstellen: Toolbar und Vorschau am Warntext', async ({ page }) => {
+    await page.goto(HONEYPOT_PAGE);
+    await page.locator('#create-honeypot-btn').click();
+    const preview = page.locator('#honeypot-warntext-preview');
+    await expect(preview).toHaveText('—');
+    await page.locator('#honeypot-warntext-input').fill('Nicht schreiben');
+    await page.locator('#honeypot-warntext-input').selectText();
+    await page.locator('[data-md-toolbar="honeypot-warntext-input"] [data-md="italic"]').click();
+    await expect(page.locator('#honeypot-warntext-input')).toHaveValue('*Nicht schreiben*');
+    await expect(preview.locator('em')).toHaveText('Nicht schreiben');
+  });
+
+  test('Fänge und Hinweis sind durch „ · “ getrennt', async ({ page }) => {
+    await resetBot(withStatus({ honeypot_channel_id: CHANNELS[0].id }));
+    await page.goto(HONEYPOT_PAGE);
+    await expect(page.locator('#honeypot-catches').locator('xpath=..')).toContainText(' · ');
   });
 });
 

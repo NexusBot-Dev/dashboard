@@ -305,7 +305,6 @@
     "new_entry_form_title": "Neue Zuordnung",
     "role_label": "Rolle",
     "emoji_label": "Emoji",
-    "premium_custom_emoji_hint": "(Custom-Emojis nur Premium)",
     "emoji_placeholder": "😀 (Tipp: Win+. bzw. Cmd+Strg+Leertaste für den Emoji-Picker deines Systems)",
     "server_emojis_label": "Server-Emojis",
     "mode_label": "Modus",

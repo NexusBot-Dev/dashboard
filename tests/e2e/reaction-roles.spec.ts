@@ -59,15 +59,14 @@ test.describe('Übersicht', () => {
     await expect(page.locator('#new-message-btn')).toBeDisabled();
   });
 
-  test('ohne Premium sind Dropdown, Unique und Server-Emojis gesperrt', async ({ page }) => {
+  test('ohne Premium sind Dropdown und Unique gesperrt, Server-Emojis nicht', async ({ page }) => {
     await page.goto(PAGE);
     await expect(page.locator('#new-msg-display-mode option[value="dropdown"]')).toBeDisabled();
     await expect(page.locator('#entry-mode-select option[value="unique"]')).toBeDisabled();
-    await expect(page.locator('[data-custom-emoji]')).toBeDisabled();
+    await expect(page.locator('[data-custom-emoji]')).toBeEnabled();
   });
 
-  test('mit Premium übernimmt ein Klick auf ein Server-Emoji dessen Code', async ({ page }) => {
-    await resetBot(withPremium);
+  test('ohne Premium übernimmt ein Klick auf ein Server-Emoji dessen Code', async ({ page }) => {
     await page.goto(PAGE);
     await openEntryForm(page, MSG_REACTION);
     await page.locator('[data-custom-emoji]').click();

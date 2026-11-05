@@ -305,7 +305,6 @@
     "new_entry_form_title": "Nueva asignación",
     "role_label": "Rol",
     "emoji_label": "Emoji",
-    "premium_custom_emoji_hint": "(Emojis personalizados solo con Premium)",
     "emoji_placeholder": "😀 (Consejo: Win+. o Cmd+Ctrl+Espacio para el selector de emojis de tu sistema)",
     "server_emojis_label": "Emojis del servidor",
     "mode_label": "Modo",

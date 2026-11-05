@@ -35,11 +35,11 @@
   "dependencies": {
     "@astrojs/check": "^0.9.12",
     "@astrojs/mdx": "^8.1.2",
-    "@astrojs/node": "^11.1.9",
+    "@astrojs/node": "^11.1.10",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/space-grotesk": "^5.2.10",
     "@tailwindcss/vite": "^4.3.0",
-    "astro": "^7.4.5",
+    "astro": "^7.4.6",
     "mysql2": "^3.23.3",
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.0",

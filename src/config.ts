@@ -50,6 +50,10 @@ export const OWNER_ONLY_MODULE_KEYS: string[] = [
 export const SITE_TITLE = 'Nexus Hub';
 export const SITE_URL = 'https://dashboard.trynexus.de';
 export const BASE_URL = 'https://trynexus.de'
+// Nexus Premium: Server-Abo im Discord-Store (App-ID = Client-ID des Bots)
+export const DISCORD_APP_ID = '1510643364104765460';
+export const PREMIUM_SKU_ID = '1535637791466324080';
+export const PREMIUM_STORE_URL = `https://discord.com/application-directory/${DISCORD_APP_ID}/store/${PREMIUM_SKU_ID}`;
 export const BRAND_NAME = 'Nexus';
 export const BRAND_LOGO_TEXT = 'N';
 

@@ -5,6 +5,7 @@ import pool from '../../../../lib/db';
 import { callGuildAction } from '../../../../lib/botApi';
 import { intlLocale } from '../../../../i18n';
 import { getCachedUserGuilds } from '../../../../lib/guildsCache';
+import { PREMIUM_STORE_URL } from '../../../../config';
 
 const { guildId } = Astro.params;
 const t = Astro.locals.t;
@@ -167,7 +168,21 @@ const i18n = {
             )}
           </div>
         </div>
-        <Badge variant={premiumActive ? 'success' : 'neutral'}>{premiumActive ? t('settings.active_badge') : t('settings.inactive_badge')}</Badge>
+        {premiumActive ? (
+          <Badge variant="success">{t('settings.active_badge')}</Badge>
+        ) : (
+          <a
+            href={PREMIUM_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold text-amber-900 dark:text-amber-100 bg-amber-200 dark:bg-amber-900/40 rounded-lg hover:bg-amber-300 dark:hover:bg-amber-900/60 transition-colors"
+          >
+            <span>{t('common.upgrade_premium')}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5 16L3 6l5.5 4L12 4l3.5 6L21 6l-2 10H5zm2.7-2h8.6l.9-4.4-2.5 1.8L12 7.6 9.3 11.4l-2.5-1.8L7.7 14z"/>
+            </svg>
+          </a>
+        )}
       </div>
     </section>
 

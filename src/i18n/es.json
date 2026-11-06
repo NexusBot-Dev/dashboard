@@ -356,7 +356,6 @@
   },
   "moderation": {
     "title": "Moderación",
-    "core_module_badge": "Módulo principal",
     "subtitle": "Kick, ban y timeout se ejecutan mediante comandos de barra. Aquí ves un resumen de los miembros baneados y en timeout actualmente.",
     "data_unavailable": "⚠️ El bot no está disponible en este momento — no se pudieron cargar los datos.",
     "list_unavailable": "No se pudo cargar esta lista — puede que al bot le falte un permiso.",
@@ -471,7 +470,6 @@
     "changes_count_singular": "{count} cambio",
     "changes_count_plural": "{count} cambios",
     "save_changes_btn": "Guardar cambios",
-    "core_module_tooltip": "Módulo principal — no se puede desactivar",
     "overview_link": "Resumen →",
     "settings_link": "Ajustes →",
     "desc_moderation": "Kick, ban, timeout — siempre activo",

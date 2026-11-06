@@ -356,7 +356,6 @@
   },
   "moderation": {
     "title": "Moderation",
-    "core_module_badge": "Kern-Modul",
     "subtitle": "Kick, Ban und Timeout laufen über Slash-Commands. Hier siehst du eine Übersicht der aktuell gebannten und im Timeout befindlichen Mitglieder.",
     "data_unavailable": "⚠️ Bot ist gerade nicht erreichbar — Daten konnten nicht geladen werden.",
     "list_unavailable": "Diese Liste konnte nicht geladen werden — fehlt dem Bot eventuell eine Berechtigung?",
@@ -471,7 +470,6 @@
     "changes_count_singular": "{count} Änderung",
     "changes_count_plural": "{count} Änderungen",
     "save_changes_btn": "Änderungen speichern",
-    "core_module_tooltip": "Kern-Modul — kann nicht deaktiviert werden",
     "overview_link": "Übersicht →",
     "settings_link": "Einstellungen →",
     "desc_moderation": "Kick, Ban, Timeout — immer aktiv",

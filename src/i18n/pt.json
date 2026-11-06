@@ -356,7 +356,6 @@
   },
   "moderation": {
     "title": "Moderação",
-    "core_module_badge": "Módulo principal",
     "subtitle": "Expulsar, banir e dar timeout funcionam por comandos de barra (slash). Aqui você vê uma visão geral dos membros atualmente banidos e em timeout.",
     "data_unavailable": "⚠️ O bot não está acessível no momento — não foi possível carregar os dados.",
     "list_unavailable": "Não foi possível carregar esta lista — talvez falte uma permissão ao bot.",
@@ -471,7 +470,6 @@
     "changes_count_singular": "{count} alteração",
     "changes_count_plural": "{count} alterações",
     "save_changes_btn": "Salvar alterações",
-    "core_module_tooltip": "Módulo principal — não pode ser desativado",
     "overview_link": "Visão geral →",
     "settings_link": "Configurações →",
     "desc_moderation": "Expulsar, banir, timeout — sempre ativo",

@@ -356,7 +356,6 @@
   },
   "moderation": {
     "title": "Moderation",
-    "core_module_badge": "Core module",
     "subtitle": "Kick, ban, and timeout run through slash commands. Here you see an overview of currently banned and timed-out members.",
     "data_unavailable": "⚠️ Bot is currently unreachable — data could not be loaded.",
     "list_unavailable": "This list could not be loaded — the bot may be missing a permission.",
@@ -471,7 +470,6 @@
     "changes_count_singular": "{count} change",
     "changes_count_plural": "{count} changes",
     "save_changes_btn": "Save changes",
-    "core_module_tooltip": "Core module — cannot be disabled",
     "overview_link": "Overview →",
     "settings_link": "Settings →",
     "desc_moderation": "Kick, ban, timeout — always active",

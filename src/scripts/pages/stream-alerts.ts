@@ -148,17 +148,19 @@ function setupSubscriptions(api: DashboardApi, config: StreamAlertsConfig) {
     }
 
     confirmBtn.disabled = true;
+    // Hinweis vom Bot (z. B. fehlende Rechte im Kanal) — gespeichert ist trotzdem
+    let warning: string | null | undefined;
     try {
       if (editingRow) {
-        await api.callModuleAction('stream_alerts', 'edit', {
+        ({ warning } = await api.callModuleAction<{ warning?: string | null }>('stream_alerts', 'edit', {
           monitored_channel_id: editingRow.dataset.subRow, channel_id: channelId, message: message || null,
-        });
+        }));
         editingRow.dataset.channelId = channelId;
         editingRow.dataset.message = message;
         editingRow.querySelector('[data-field="target"]')!.textContent = targetText(channelName, message);
       } else {
         const platform = platformSelect.value;
-        const result = await api.callModuleAction<{ monitored_channel_id: number; subscription_id?: number; streamer_name: string }>('stream_alerts', 'add', {
+        const result = await api.callModuleAction<{ monitored_channel_id: number; subscription_id?: number; streamer_name: string; warning?: string | null }>('stream_alerts', 'add', {
           platform, username: usernameInput.value.trim(), channel_id: channelId, message: message || null,
         });
 
@@ -175,8 +177,10 @@ function setupSubscriptions(api: DashboardApi, config: StreamAlertsConfig) {
         // Ältere Bot-Versionen liefern keine Abo-ID — dann ist der Kanal erst nach dem Neuladen verknüpfbar
         if (result.subscription_id) addLinkOption(String(result.subscription_id), platform, result.streamer_name);
         refreshSubscriptions(config);
+        warning = result.warning;
       }
       closeForm();
+      if (warning) alert(warning);
     } catch (err) {
       alert(errorMessage(err));
     } finally {

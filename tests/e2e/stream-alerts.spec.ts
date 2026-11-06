@@ -194,6 +194,33 @@ test.describe('Überwachte Kanäle', () => {
     await expect(subRow(page, 20)).not.toContainText('"');
   });
 
+  test('Hinweis vom Bot (z. B. fehlende Kanalrechte) wird angezeigt, gespeichert ist trotzdem', async ({ page }) => {
+    const warning = '⚠️ Achtung: In #news fehlen mir noch Rechte (Send Messages).';
+    await resetBot({
+      'stream_alerts/add': { data: { monitored_channel_id: 20, streamer_name: 'kickstar', platform: 'kick', warning } },
+      'stream_alerts/edit': { data: { monitored_channel_id: '11', warning } },
+    });
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await addKick(page);
+    await expect.poll(() => dialogs).toEqual([warning]);
+    await expect(subRow(page, 20)).toContainText('kickstar');
+
+    await subRow(page, 11).locator('[data-edit-sub]').click();
+    await fillSubForm(page, { channel: CHANNELS[1].id });
+    await page.locator('#confirm-sub-btn').click();
+    await expect.poll(() => dialogs).toEqual([warning, warning]);
+    await expect(subRow(page, 11)).toContainText(`→ #${CHANNELS[1].name}`);
+  });
+
+  test('ohne Hinweis kein Dialog', async ({ page }) => {
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await addKick(page);
+    await expect(subRow(page, 20)).toBeVisible();
+    expect(dialogs).toEqual([]);
+  });
+
   test('bearbeiten: Plattform und Name gesperrt, Payload, Zeile aktualisiert', async ({ page }) => {
     await page.goto(PAGE);
     await subRow(page, 11).locator('[data-edit-sub]').click();

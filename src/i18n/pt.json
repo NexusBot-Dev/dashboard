@@ -66,6 +66,7 @@
     "top_label": "Top {count}",
     "no_entries": "Nenhuma entrada ainda.",
     "alert_invalid_xp": "Informe valores válidos.",
+    "alert_invalid_voice_xp": "Informe números inteiros de 1 a {max} para o XP de voz.",
     "alert_min_gt_max": "O mínimo não pode ser maior que o máximo.",
     "alert_invalid_level": "Informe um nível válido.",
     "alert_no_role": "Selecione um cargo.",

@@ -66,6 +66,7 @@
     "top_label": "Top {count}",
     "no_entries": "No entries yet.",
     "alert_invalid_xp": "Please provide valid values.",
+    "alert_invalid_voice_xp": "Please enter whole numbers from 1 to {max} for voice XP.",
     "alert_min_gt_max": "Min cannot be greater than Max.",
     "alert_invalid_level": "Please provide a valid level.",
     "alert_no_role": "Please select a role.",

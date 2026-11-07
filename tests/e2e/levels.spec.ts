@@ -202,6 +202,13 @@ test.describe('Voice-XP', () => {
     await voiceMin(page).fill('0');
     await saveVoiceBtn(page).click();
     await expect.poll(() => dialogs.length).toBe(2);
+    expect(dialogs[1]).toBe(t('levels.alert_invalid_voice_xp', { max: 150 }));
+    // Höchstwert 150 pro Minute (Chat erlaubt 1000)
+    await voiceMin(page).fill('5');
+    await voiceMax(page).fill('151');
+    await saveVoiceBtn(page).click();
+    await expect.poll(() => dialogs.length).toBe(3);
+    expect(dialogs[2]).toBe(t('levels.alert_invalid_voice_xp', { max: 150 }));
     expect(await botCalls('leveling/set-voice-xp')).toHaveLength(0);
   });
 });

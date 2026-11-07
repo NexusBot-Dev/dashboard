@@ -66,6 +66,7 @@
     "top_label": "Top {count}",
     "no_entries": "Noch keine Einträge vorhanden.",
     "alert_invalid_xp": "Bitte gültige Werte angeben.",
+    "alert_invalid_voice_xp": "Bitte für Voice-XP ganze Zahlen von 1 bis {max} angeben.",
     "alert_min_gt_max": "Min darf nicht größer als Max sein.",
     "alert_invalid_level": "Bitte ein gültiges Level angeben.",
     "alert_no_role": "Bitte eine Rolle wählen.",

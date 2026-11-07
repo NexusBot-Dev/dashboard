@@ -24,6 +24,7 @@ interface LevelsConfig {
     levelBadgeTemplate: string;         // enthält "{level}"
     alertInvalidXp: string;
     alertMinGtMax: string;
+    alertInvalidVoiceXp: string;        // nennt den Höchstwert
     alertInvalidLevel: string;
     alertNoRole: string;
     confirmRemoveRoleTemplate: string;  // enthält "{level}"
@@ -91,8 +92,8 @@ function setupVoiceXp(api: DashboardApi, i18n: I18n) {
   saveBtn.addEventListener('click', async () => {
     const xpMin = Number(minInput.value);
     const xpMax = Number(maxInput.value);
-    if (!Number.isInteger(xpMin) || !Number.isInteger(xpMax)) { alert(i18n.alertInvalidXp); return; }
-    if (xpMin < 1 || xpMin > 1000 || xpMax < 1 || xpMax > 1000) { alert(i18n.alertInvalidXp); return; }
+    const limit = Number(maxInput.max);
+    if (![xpMin, xpMax].every((v) => Number.isInteger(v) && v >= 1 && v <= limit)) { alert(i18n.alertInvalidVoiceXp); return; }
     if (xpMin > xpMax) { alert(i18n.alertMinGtMax); return; }
 
     saveBtn.disabled = true;

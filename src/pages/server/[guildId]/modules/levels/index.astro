@@ -18,6 +18,8 @@ let leaderboard: { user_id: string; username: string; avatar_url: string | null;
 let xpMin = 5;
 let xpMax = 5;
 let cooldownSeconds = 60;
+// Höchstwert pro Minute — muss zu MAX_XP_PER_MINUTE im Bot (systems/voice_xp.py) passen
+const VOICE_XP_MAX = 150;
 let voiceXpEnabled = false;
 let voiceXpMin = 5;
 let voiceXpMax = 8;
@@ -87,6 +89,7 @@ const i18n = {
   levelBadgeTemplate: t('levels.level_badge'), // enthält "{level}"
   alertInvalidXp: t('levels.alert_invalid_xp'),
   alertMinGtMax: t('levels.alert_min_gt_max'),
+  alertInvalidVoiceXp: t('levels.alert_invalid_voice_xp', { max: VOICE_XP_MAX }),
   alertInvalidLevel: t('levels.alert_invalid_level'),
   alertNoRole: t('levels.alert_no_role'),
   confirmRemoveRoleTemplate: t('levels.confirm_remove_role'), // enthält "{level}"
@@ -153,11 +156,11 @@ const pageConfig = {
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div>
           <label for="voice-xp-min-input" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.voice_xp_min_label')}</label>
-          <input type="number" id="voice-xp-min-input" min="1" max="1000" value={voiceXpMin} data-initial={voiceXpMin} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50" />
+          <input type="number" id="voice-xp-min-input" min="1" max={VOICE_XP_MAX} value={voiceXpMin} data-initial={voiceXpMin} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50" />
         </div>
         <div>
           <label for="voice-xp-max-input" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('levels.voice_xp_max_label')}</label>
-          <input type="number" id="voice-xp-max-input" min="1" max="1000" value={voiceXpMax} data-initial={voiceXpMax} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50" />
+          <input type="number" id="voice-xp-max-input" min="1" max={VOICE_XP_MAX} value={voiceXpMax} data-initial={voiceXpMax} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50" />
         </div>
       </div>
       <button id="save-voice-xp-btn" type="button" disabled class="mt-4 px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">

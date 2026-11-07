@@ -2,6 +2,7 @@
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
+import { isSwitchOn, setSwitch } from '../switch';
 
 interface ExcludeTarget {
   id: string;
@@ -61,6 +62,45 @@ function setupXpSettings(api: DashboardApi, i18n: I18n) {
     saveBtn.textContent = i18n.saving;
     try {
       await api.callModuleAction('leveling', 'set-xp-settings', { xp_min: xpMin, xp_max: xpMax });
+      minInput.dataset.initial = minInput.value;
+      maxInput.dataset.initial = maxInput.value;
+    } catch (err) {
+      alert(errorMessage(err));
+    } finally {
+      saveBtn.textContent = i18n.save;
+      refresh();
+    }
+  });
+}
+
+function setupVoiceXp(api: DashboardApi, i18n: I18n) {
+  const toggle = byId<HTMLButtonElement>('voice-xp-toggle');
+  const minInput = byId<HTMLInputElement>('voice-xp-min-input');
+  const maxInput = byId<HTMLInputElement>('voice-xp-max-input');
+  const saveBtn = byId<HTMLButtonElement>('save-voice-xp-btn');
+  if (!toggle || !minInput || !maxInput || !saveBtn) return;
+
+  const isDirty = () => String(isSwitchOn(toggle)) !== toggle.dataset.initial
+    || minInput.value !== minInput.dataset.initial || maxInput.value !== maxInput.dataset.initial;
+  const refresh = () => { saveBtn.disabled = !isDirty(); };
+  toggle.addEventListener('click', () => { setSwitch(toggle, !isSwitchOn(toggle)); refresh(); });
+  minInput.addEventListener('input', refresh);
+  maxInput.addEventListener('input', refresh);
+  refresh();
+
+  saveBtn.addEventListener('click', async () => {
+    const xpMin = Number(minInput.value);
+    const xpMax = Number(maxInput.value);
+    if (!Number.isInteger(xpMin) || !Number.isInteger(xpMax)) { alert(i18n.alertInvalidXp); return; }
+    if (xpMin < 1 || xpMin > 1000 || xpMax < 1 || xpMax > 1000) { alert(i18n.alertInvalidXp); return; }
+    if (xpMin > xpMax) { alert(i18n.alertMinGtMax); return; }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = i18n.saving;
+    try {
+      const enabled = isSwitchOn(toggle);
+      await api.callModuleAction('leveling', 'set-voice-xp', { enabled, xp_min: xpMin, xp_max: xpMax });
+      toggle.dataset.initial = String(enabled);
       minInput.dataset.initial = minInput.value;
       maxInput.dataset.initial = maxInput.value;
     } catch (err) {
@@ -290,6 +330,7 @@ function setupLevelsPage() {
   const api = createDashboardApi(config.guildId, { ...config.i18n, unexpectedResponseTemplate: config.i18n.errorServerTemplate });
 
   setupXpSettings(api, config.i18n);
+  setupVoiceXp(api, config.i18n);
   setupLevelUpChannel(api, config.i18n);
   setupXpExclude(api, config);
   setupLevelRoles(api, config.i18n);

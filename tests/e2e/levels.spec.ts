@@ -157,6 +157,55 @@ test.describe('XP-Vergabe', () => {
   });
 });
 
+test.describe('Voice-XP', () => {
+  const toggle = (page: Page) => page.locator('#voice-xp-toggle');
+  const voiceMin = (page: Page) => page.locator('#voice-xp-min-input');
+  const voiceMax = (page: Page) => page.locator('#voice-xp-max-input');
+  const saveVoiceBtn = (page: Page) => page.locator('#save-voice-xp-btn');
+
+  test('standardmäßig aus; einschalten und Werte ändern sendet alles zusammen', async ({ page }) => {
+    await page.goto(PAGE);
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
+    await expect(voiceMin(page)).toHaveValue('5');
+    await expect(voiceMax(page)).toHaveValue('8');
+    await expect(saveVoiceBtn(page)).toBeDisabled();
+
+    await toggle(page).click();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(saveVoiceBtn(page)).toBeEnabled();
+    await voiceMax(page).fill('10');
+    await saveVoiceBtn(page).click();
+    expect(await waitForBotCall('leveling/set-voice-xp')).toEqual(expect.objectContaining({ enabled: true, xp_min: 5, xp_max: 10 }));
+    await expect(saveVoiceBtn(page)).toBeDisabled();
+
+    // Zurückschalten auf den gespeicherten Stand: nichts zu speichern
+    await toggle(page).click();
+    await expect(saveVoiceBtn(page)).toBeEnabled();
+    await toggle(page).click();
+    await expect(saveVoiceBtn(page)).toBeDisabled();
+  });
+
+  test('gespeicherter Stand wird angezeigt', async ({ page }) => {
+    await resetBot({ 'leveling/get-xp-settings': { data: { ...defaultBotData['leveling/get-xp-settings'], voice_xp_enabled: true, voice_xp_min: 2, voice_xp_max: 4 } } });
+    await page.goto(PAGE);
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(voiceMin(page)).toHaveValue('2');
+    await expect(voiceMax(page)).toHaveValue('4');
+  });
+
+  test('ungültige Werte: Meldung, nichts wird gesendet', async ({ page }) => {
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await voiceMin(page).fill('9');
+    await saveVoiceBtn(page).click();
+    await expect.poll(() => dialogs).toEqual([t('levels.alert_min_gt_max')]);
+    await voiceMin(page).fill('0');
+    await saveVoiceBtn(page).click();
+    await expect.poll(() => dialogs.length).toBe(2);
+    expect(await botCalls('leveling/set-voice-xp')).toHaveLength(0);
+  });
+});
+
 test.describe('Level-Up-Channel', () => {
   test('Channel setzen und wieder auf „Kein Channel“ zurück', async ({ page }) => {
     await page.goto(PAGE);

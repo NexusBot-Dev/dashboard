@@ -168,6 +168,7 @@ export const defaultBotData = {
   'leveling/get-xp-settings': {
     xp_min: 15, xp_max: 25, cooldown_seconds: 60, levelup_channel_id: null,
     currency_name: 'Coins', points_min: 1, points_max: 5, shop_enabled: false,
+    voice_xp_enabled: false, voice_xp_min: 5, voice_xp_max: 8,
   },
   'leveling/list-roles': {
     roles: [
@@ -193,6 +194,7 @@ export const defaultBotData = {
     limit: 25,
   },
   'leveling/set-xp-settings': (body) => ({ xp_min: body.xp_min, xp_max: body.xp_max }),
+  'leveling/set-voice-xp': (body) => ({ voice_xp_enabled: body.enabled, voice_xp_min: body.xp_min, voice_xp_max: body.xp_max }),
   'leveling/set-levelup-channel': (body) => ({ levelup_channel_id: body.channel_id ?? null }),
   'leveling/set-excluded': (body) => ({ excluded_ids: body.channel_ids }),
   'leveling/set-role': (body) => ({

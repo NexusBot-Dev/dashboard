@@ -191,6 +191,25 @@ for (const { area, module, channelField, placeholderValue } of AREAS) {
       await expect(ed.root).toContainText(t(`${key}.messages_count`, { count: 0, limit: 2 }));
       await expect(emptyHint).toBeVisible();
     });
+
+    test('Premium-Hinweis ohne Premium von Anfang an, mit Premium nicht', async ({ page }) => {
+      const key = area === 'welcome' ? 'welcome' : 'boost';
+      const empty = { messages: [], limit_free: 1, limit_premium: 5 };
+      await resetBot({ [`${module}/list`]: { data: empty } });
+      await openArea(page, area);
+      const hint = messageEditor(page, area).root.locator('[data-role="premium-hint"]');
+      await expect(hint).toBeVisible();   // schon bei 0 / 1, nicht erst am Limit
+      await expect(hint).toContainText(t(`${key}.premium_hint`, { max: 5 }));
+
+      await dbQuery('INSERT INTO premium (guild_id, expires_at, source) VALUES (?, NULL, ?)', [GUILD_ID, 'manual']);
+      try {
+        await page.reload();   // gleiche Adresse mit #-Anker: ohne Reload käme das neue Premium nicht an
+        await expect(messageEditor(page, area).root).toContainText(t(`${key}.messages_count`, { count: 0, limit: 5 }));
+        await expect(messageEditor(page, area).root.locator('[data-role="premium-hint"]')).toHaveCount(0);
+      } finally {
+        await dbQuery('DELETE FROM premium WHERE guild_id = ?', [GUILD_ID]);
+      }
+    });
   });
 
   test.describe(`${area}: Channel`, () => {

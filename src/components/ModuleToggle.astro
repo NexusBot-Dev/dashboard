@@ -1,5 +1,6 @@
 ---
 // Ein/Aus-Schalter eines Moduls auf seiner eigenen Seite (speichert sofort, src/scripts/module-toggle.ts).
+// Inhalt (Slot): die Beschreibung der Seite bzw. des Tabs — sie steht links, der Schalter rechts daneben.
 // Ist das Modul aus, bleibt die Seite bearbeitbar — ein Hinweis erklärt, dass die Einstellungen erst wirken,
 // wenn das Modul eingeschaltet ist.
 import Switch from './Switch.astro';
@@ -29,13 +30,17 @@ const config = {
 ---
 
 <div class="mb-6" data-module-toggle-root data-config={JSON.stringify(config)}>
-  <div class="flex items-center gap-3">
-    <Switch checked={enabled} disabled={disabled} data-module-switch={moduleKey} aria-label={t('modules.toggle_label', { module: name })} />
-    <span data-module-state class="text-sm font-medium text-slate-700 dark:text-slate-300">
-      {enabled ? config.i18n.stateOn : config.i18n.stateOff}
-    </span>
+  <!-- Beschreibung der Seite links, Schalter rechts in derselben Zeile -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6">
+    <div class="text-sm text-slate-500 dark:text-slate-400"><slot /></div>
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <span data-module-state class="text-sm font-medium text-slate-600 dark:text-slate-300">
+        {enabled ? config.i18n.stateOn : config.i18n.stateOff}
+      </span>
+      <Switch checked={enabled} disabled={disabled} data-module-switch={moduleKey} aria-label={t('modules.toggle_label', { module: name })} />
+    </div>
   </div>
-  <div data-module-off-note class:list={["mt-3 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3", enabled && "hidden"]}>
+  <div data-module-off-note class:list={["mt-4 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3", enabled && "hidden"]}>
     <div>
       <p class="text-sm font-semibold text-amber-700 dark:text-amber-400">{t('modules.off_title', { module: name })}</p>
       <p class="text-sm text-amber-700/90 dark:text-amber-400/90">{t('modules.off_desc')}</p>

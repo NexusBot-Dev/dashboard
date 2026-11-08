@@ -470,8 +470,8 @@
   },
   "modules": {
     "toggle_label": "{module} ein- oder ausschalten",
-    "state_on": "{module} ist aktiv",
-    "state_off": "{module} ist ausgeschaltet",
+    "state_on": "Aktiv",
+    "state_off": "Aus",
     "off_title": "{module} ist ausgeschaltet",
     "off_desc": "Du kannst alles einrichten – deine Einstellungen werden gespeichert, wirken aber erst, wenn du das Modul einschaltest.",
     "enable_now": "Jetzt einschalten"

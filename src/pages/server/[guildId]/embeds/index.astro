@@ -133,12 +133,12 @@ const i18n = {
     </div>
     <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
       <span id="embeds-count">{t('embeds.embeds_count', { count: embeds.length, limit })}</span>
-      {!premiumActive && (
-        <span id="embeds-premium-hint" class:list={['ml-1', embeds.length < limitFree && 'hidden']}>— <Badge variant="primary">Premium</Badge> {t('embeds.premium_hint', { max: limitPremium })}</span>
+      {!premiumActive && limitPremium > limitFree && (
+        <span id="embeds-premium-hint" class="ml-1">— <Badge variant="primary">Premium</Badge> {t('embeds.premium_hint', { max: limitPremium })}</span>
       )}
     </p>
 
-    <div id="embeds-list" class="space-y-3" data-config={JSON.stringify({ guildId, i18n, limit, limitFree, premiumActive })}>
+    <div id="embeds-list" class="space-y-3" data-config={JSON.stringify({ guildId, i18n, limit })}>
       {embeds.map((e) => {
         const channelName = channels.find((c) => c.id === e.channel_id)?.name;
         return (

@@ -147,9 +147,8 @@ const i18n = {
 
 <DashboardLayout title={t('tickets.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
   <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('tickets.title')}</h1>
-  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
-    {t('tickets.subtitle')}
-  </p>
+
+  <ModuleToggle guildId={guildId!} moduleKey="tickets" name={t('tickets.title')} enabled={moduleEnabled} disabled={!botOnline}>{t('tickets.subtitle')}</ModuleToggle>
 
   {!botOnline && (
     <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
@@ -157,7 +156,6 @@ const i18n = {
     </div>
   )}
 
-  <ModuleToggle guildId={guildId!} moduleKey="tickets" name={t('tickets.title')} enabled={moduleEnabled} disabled={!botOnline} />
 
   <div id="tickets-tabs" data-config={JSON.stringify({ guildId, i18n })}>
     <Tabs tabs={tabs} label={t('tickets.title')} />

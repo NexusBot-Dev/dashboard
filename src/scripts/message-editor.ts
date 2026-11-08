@@ -6,8 +6,6 @@ import type { DashboardApi } from './dashboard-api';
 interface EditorConfig {
   module: 'welcome' | 'boosts';
   limit: number;
-  limitFree: number;
-  premiumActive: boolean;
   previewVars: Record<string, string>;
   i18n: {
     countTemplate: string; // enthält "{count}" und "{limit}"
@@ -27,7 +25,7 @@ function setupEditor(root: HTMLElement, api: DashboardApi) {
   if (root.dataset.bound === 'true') return;
   root.dataset.bound = 'true';
 
-  const { module, limit, limitFree, premiumActive, previewVars, i18n } = JSON.parse(root.dataset.config ?? '{}') as EditorConfig;
+  const { module, limit, previewVars, i18n } = JSON.parse(root.dataset.config ?? '{}') as EditorConfig;
   const el = <T extends HTMLElement = HTMLElement>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!;
   const addBtn = el<HTMLButtonElement>('add');
   const list = el('list');
@@ -39,7 +37,6 @@ function setupEditor(root: HTMLElement, api: DashboardApi) {
   const cancelBtn = el<HTMLButtonElement>('cancel');
   const countEl = el('count');
   const emptyEl = el('empty');
-  const premiumHint = root.querySelector<HTMLElement>('[data-role="premium-hint"]'); // nur ohne Premium vorhanden
 
   const preview = (text: string) => renderPreview(text, previewVars);
   let editingId: string | null = null;
@@ -63,12 +60,11 @@ function setupEditor(root: HTMLElement, api: DashboardApi) {
     editingId = null;
   }
 
-  // Nach Hinzufügen/Löschen: Limit-Sperre, Zähler, Premium-Hinweis und Standard-Hinweis nachziehen
+  // Nach Hinzufügen/Löschen: Limit-Sperre, Zähler und Standard-Hinweis nachziehen
   function refreshState() {
     const count = list.querySelectorAll('[data-message-row]').length;
     addBtn.disabled = count >= limit;
     countEl.textContent = i18n.countTemplate.replace('{count}', String(count)).replace('{limit}', String(limit));
-    premiumHint?.classList.toggle('hidden', premiumActive || count < limitFree);
     emptyEl.classList.toggle('hidden', count > 0);
   }
 

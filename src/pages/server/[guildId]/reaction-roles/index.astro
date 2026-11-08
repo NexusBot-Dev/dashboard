@@ -82,11 +82,8 @@ const i18n = {
 <DashboardLayout title={t('reaction_roles.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
   <div id="reaction-roles-page" data-config={JSON.stringify({ guildId, i18n })}>
   <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('reaction_roles.title')}</h1>
-  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
-    {t('reaction_roles.subtitle')}
-  </p>
 
-  <ModuleToggle guildId={guildId!} moduleKey="reaction_roles" name={t('reaction_roles.title')} enabled={moduleEnabled} disabled={!botOnline} />
+  <ModuleToggle guildId={guildId!} moduleKey="reaction_roles" name={t('reaction_roles.title')} enabled={moduleEnabled} disabled={!botOnline}>{t('reaction_roles.subtitle')}</ModuleToggle>
 
   {!botOnline && (
     <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">

@@ -29,8 +29,6 @@ const textareaId = `${module}-message-textarea`;
 const config = {
   module,
   limit,
-  limitFree,
-  premiumActive,
   previewVars,
   i18n: {
     countTemplate: t(`${textKey}.messages_count`), // enthält "{count}" und "{limit}"
@@ -55,8 +53,8 @@ const config = {
   </div>
   <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
     <span data-role="count">{t(`${textKey}.messages_count`, { count: messages.length, limit })}</span>
-    {!premiumActive && (
-      <span data-role="premium-hint" class:list={['ml-1', messages.length < limitFree && 'hidden']}>— <Badge variant="primary">Premium</Badge> {t(`${textKey}.premium_hint`, { max: limitPremium })}</span>
+    {!premiumActive && limitPremium > limitFree && (
+      <span data-role="premium-hint" class="ml-1">— <Badge variant="primary">Premium</Badge> {t(`${textKey}.premium_hint`, { max: limitPremium })}</span>
     )}
   </p>
 

@@ -470,8 +470,8 @@
   },
   "modules": {
     "toggle_label": "Activar o desactivar {module}",
-    "state_on": "{module} está activo",
-    "state_off": "{module} está desactivado",
+    "state_on": "Activo",
+    "state_off": "Desactivado",
     "off_title": "{module} está desactivado",
     "off_desc": "Puedes configurarlo todo: tus ajustes se guardan, pero solo surten efecto cuando actives el módulo.",
     "enable_now": "Activar ahora"

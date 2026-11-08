@@ -8,8 +8,6 @@ import { setupMarkdownToolbars } from '../markdown-toolbar';
 interface EmbedsConfig {
   guildId: string;
   limit: number;
-  limitFree: number;
-  premiumActive: boolean;
   i18n: ApiMessages & {
     countTemplate: string; // enthält "{count}" und "{limit}"
     embedFormAddTitle: string;
@@ -31,7 +29,7 @@ const errorMessage = (err: unknown) => (err instanceof Error ? err.message : Str
 const field = (row: HTMLElement, name: string) => row.querySelector<HTMLElement>(`[data-field="${name}"]`)!;
 
 function setupEmbeds(list: HTMLElement, api: DashboardApi, config: EmbedsConfig) {
-  const { i18n, limit, limitFree, premiumActive } = config;
+  const { i18n, limit } = config;
   const addBtn = byId<HTMLButtonElement>('add-embed-btn')!;
   const form = byId('embed-form')!;
   const formTitle = byId('embed-form-title')!;
@@ -45,14 +43,12 @@ function setupEmbeds(list: HTMLElement, api: DashboardApi, config: EmbedsConfig)
   const rowTemplate = byId<HTMLTemplateElement>('embed-row-template')!;
   const countEl = byId('embeds-count')!;
   const emptyEl = byId('embeds-empty')!;
-  const premiumHint = byId('embeds-premium-hint'); // nur ohne Premium vorhanden
 
-  // Nach Erstellen/Löschen: Limit-Sperre, Zähler, Premium-Hinweis und Leer-Hinweis nachziehen
+  // Nach Erstellen/Löschen: Limit-Sperre, Zähler und Leer-Hinweis nachziehen
   function refreshState() {
     const count = list.querySelectorAll('[data-embed-row]').length;
     addBtn.disabled = count >= limit;
     countEl.textContent = i18n.countTemplate.replace('{count}', String(count)).replace('{limit}', String(limit));
-    premiumHint?.classList.toggle('hidden', premiumActive || count < limitFree);
     emptyEl.classList.toggle('hidden', count > 0);
   }
 

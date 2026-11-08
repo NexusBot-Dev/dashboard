@@ -470,8 +470,8 @@
   },
   "modules": {
     "toggle_label": "Turn {module} on or off",
-    "state_on": "{module} is active",
-    "state_off": "{module} is turned off",
+    "state_on": "Active",
+    "state_off": "Off",
     "off_title": "{module} is turned off",
     "off_desc": "You can set everything up – your settings are saved, but only take effect once you turn the module on.",
     "enable_now": "Turn on now"

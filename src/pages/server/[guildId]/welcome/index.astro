@@ -111,8 +111,7 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
 
     <!-- ═══ Welcome ═══ -->
     <div role="tabpanel" id="tab-panel-welcome" aria-labelledby="tab-welcome" data-tab-panel="welcome">
-      <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">{t('welcome.subtitle')}</p>
-      <ModuleToggle guildId={guildId!} moduleKey="welcome" name={t('welcome.title')} enabled={moduleStates?.welcome ?? false} disabled={!botOnline} />
+      <ModuleToggle guildId={guildId!} moduleKey="welcome" name={t('welcome.title')} enabled={moduleStates?.welcome ?? false} disabled={!botOnline}>{t('welcome.subtitle')}</ModuleToggle>
 
       <section class="rounded-xl glass-panel p-6 mb-6">
         <div class="flex flex-col sm:flex-row sm:items-end gap-3" data-channel-setting="welcome_channel_id">
@@ -178,8 +177,7 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
 
     <!-- ═══ Boosts ═══ -->
     <div role="tabpanel" id="tab-panel-boosts" aria-labelledby="tab-boosts" data-tab-panel="boosts" class="hidden">
-      <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">{t('boost.subtitle')}</p>
-      <ModuleToggle guildId={guildId!} moduleKey="boosts" name={t('boost.title')} enabled={moduleStates?.boosts ?? false} disabled={!botOnline} />
+      <ModuleToggle guildId={guildId!} moduleKey="boosts" name={t('boost.title')} enabled={moduleStates?.boosts ?? false} disabled={!botOnline}>{t('boost.subtitle')}</ModuleToggle>
 
       <section class="rounded-xl glass-panel p-6 mb-6">
         <div class="flex items-center justify-between">

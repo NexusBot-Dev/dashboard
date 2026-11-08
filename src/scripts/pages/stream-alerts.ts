@@ -2,6 +2,7 @@
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
+import { PLATFORM_META, channelLabel, subscriptionLabel } from '../../lib/streamPlatforms';
 
 interface StreamAlertsConfig {
   guildId: string;
@@ -17,6 +18,7 @@ interface StreamAlertsConfig {
     alertBothChannels: string;
     alertDifferentChannels: string;
     confirmRemoveLink: string;
+    channelDeleted: string;
   };
 }
 
@@ -75,19 +77,56 @@ function refreshSubscriptions(config: StreamAlertsConfig) {
   byId('no-subs-msg')?.classList.toggle('hidden', total > 0);
 }
 
+/** Gruppe der Plattform in einer Verknüpfungs-Auswahl — fehlt sie, wird sie in Plattform-Reihenfolge angelegt */
+function linkGroup(select: HTMLSelectElement, platform: string): HTMLOptGroupElement {
+  const existing = select.querySelector<HTMLOptGroupElement>(`optgroup[data-platform="${platform}"]`);
+  if (existing) return existing;
+  const group = document.createElement('optgroup');
+  group.label = PLATFORM_META[platform]?.label ?? platform;
+  group.dataset.platform = platform;
+  const order = Object.keys(PLATFORM_META);
+  const next = Array.from(select.querySelectorAll<HTMLOptGroupElement>('optgroup'))
+    .find((g) => order.indexOf(g.dataset.platform!) > order.indexOf(platform));
+  select.insertBefore(group, next ?? null);
+  return group;
+}
+
 /** Auswahllisten für Verknüpfungen: Kanal hinzufügen bzw. entfernen */
-function addLinkOption(subscriptionId: string, platform: string, name: string) {
+function addLinkOption(subscriptionId: string, platform: string, name: string, channel: string) {
   ['link-sub-a', 'link-sub-b'].forEach((id) => {
-    const option = new Option(name, subscriptionId);
+    const select = byId<HTMLSelectElement>(id);
+    if (!select) return;
+    const option = new Option(subscriptionLabel(name, platform, channel), subscriptionId);
     option.dataset.platform = platform;
-    byId<HTMLSelectElement>(id)?.appendChild(option);
+    option.dataset.name = name;
+    option.dataset.channel = channel;
+    linkGroup(select, platform).appendChild(option);
+  });
+}
+
+/** Ziel-Channel eines Kanals geändert: Auswahllisten und bestehende Verknüpfungen zeigen den neuen */
+function updateLinkTarget(subscriptionId: string, channel: string) {
+  document.querySelectorAll<HTMLOptionElement>(`#link-sub-a option[value="${subscriptionId}"], #link-sub-b option[value="${subscriptionId}"]`)
+    .forEach((option) => {
+      option.dataset.channel = channel;
+      option.textContent = subscriptionLabel(option.dataset.name!, option.dataset.platform!, channel);
+    });
+  document.querySelectorAll<HTMLElement>('[data-link-row]').forEach((row) => {
+    row.dataset.subscriptionIds?.split(',').forEach((id, i) => {
+      if (id !== subscriptionId) return;
+      row.querySelector(`[data-side="${i === 0 ? 'a' : 'b'}"] [data-field="target"]`)!.textContent = `→ ${channel}`;
+    });
   });
 }
 
 /** Kanal entfernt: raus aus den Auswahllisten, seine Verknüpfungen verschwinden (der Bot listet sie nicht mehr) */
 function forgetSubscription(subscriptionId: string) {
   document.querySelectorAll(`#link-sub-a option[value="${subscriptionId}"], #link-sub-b option[value="${subscriptionId}"]`)
-    .forEach((option) => option.remove());
+    .forEach((option) => {
+      const group = option.parentElement;
+      option.remove();
+      if (group instanceof HTMLOptGroupElement && group.children.length === 0) group.remove();   // keine leere Überschrift
+    });
   document.querySelectorAll<HTMLElement>('[data-link-row]').forEach((row) => {
     if (row.dataset.subscriptionIds?.split(',').includes(subscriptionId)) row.remove();
   });
@@ -158,6 +197,7 @@ function setupSubscriptions(api: DashboardApi, config: StreamAlertsConfig) {
         editingRow.dataset.channelId = channelId;
         editingRow.dataset.message = message;
         editingRow.querySelector('[data-field="target"]')!.textContent = targetText(channelName, message);
+        if (editingRow.dataset.subscriptionId) updateLinkTarget(editingRow.dataset.subscriptionId, channelLabel(channelName, i18n.channelDeleted));
       } else {
         const platform = platformSelect.value;
         const result = await api.callModuleAction<{ monitored_channel_id: number; subscription_id?: number; streamer_name: string; warning?: string | null }>('stream_alerts', 'add', {
@@ -175,7 +215,9 @@ function setupSubscriptions(api: DashboardApi, config: StreamAlertsConfig) {
         list.querySelector(`[data-platform-group="${platform}"]`)!.appendChild(row);
         list.querySelector<HTMLElement>(`[data-platform-section="${platform}"]`)!.style.display = '';
         // Ältere Bot-Versionen liefern keine Abo-ID — dann ist der Kanal erst nach dem Neuladen verknüpfbar
-        if (result.subscription_id) addLinkOption(String(result.subscription_id), platform, result.streamer_name);
+        if (result.subscription_id) {
+          addLinkOption(String(result.subscription_id), platform, result.streamer_name, channelLabel(channelName, i18n.channelDeleted));
+        }
         refreshSubscriptions(config);
         warning = result.warning;
       }
@@ -229,10 +271,14 @@ function setupLinks(api: DashboardApi, i18n: I18n) {
 
   function fillSide(row: HTMLElement, side: 'a' | 'b', option: HTMLOptionElement) {
     const el = row.querySelector(`[data-side="${side}"]`)!;
+    // Nur hidden oder inline-flex — beide zugleich gesetzt, gewinnt inline-flex und alle Icons wären sichtbar
     el.querySelectorAll<HTMLElement>('[data-platform-icon]').forEach((icon) => {
-      icon.classList.toggle('hidden', icon.dataset.platformIcon !== option.dataset.platform);
+      const match = icon.dataset.platformIcon === option.dataset.platform;
+      icon.classList.toggle('hidden', !match);
+      icon.classList.toggle('inline-flex', match);
     });
-    el.querySelector('[data-field="name"]')!.textContent = option.textContent;
+    el.querySelector('[data-field="name"]')!.textContent = option.dataset.name ?? '';
+    el.querySelector('[data-field="target"]')!.textContent = option.dataset.channel ? `→ ${option.dataset.channel}` : '';
   }
 
   confirmLinkBtn.addEventListener('click', async () => {

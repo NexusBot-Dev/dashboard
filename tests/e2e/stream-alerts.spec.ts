@@ -106,6 +106,7 @@ test.describe('Übersicht', () => {
     await expect(subRow(page, 11)).toContainText(`Star ${XSS}`);
     await expect(subRow(page, 11)).toContainText(`Nachricht ${XSS}`);
     await expect(linkRow(page, 7)).toContainText(`Link ${XSS}`);
+    await expect(page.locator('#link-sub-a option[value="101"]')).toHaveText(`Star ${XSS} (Twitch) → #${CHANNELS[0].name}`);
     await expectNoXss(page);
   });
 
@@ -319,6 +320,66 @@ test.describe('Verknüpfungen', () => {
     await expect(page.getByText(t('stream_alerts.no_links'))).toBeHidden();
   });
 
+  test('Auswahl und Verknüpfungen zeigen Plattform und Ziel-Channel', async ({ page }) => {
+    await page.goto(PAGE);
+    await expect(page.locator('#link-sub-a option')).toHaveText([
+      `TwitchStar (Twitch) → #${CHANNELS[0].name}`,
+      `TubeStar (YouTube) → ${t('stream_alerts.channel_deleted')}`,
+    ]);
+    await expect(linkRow(page, 7).locator('[data-side="a"] [data-field="target"]')).toHaveText(`→ #${CHANNELS[0].name}`);
+    await expect(linkRow(page, 7).locator('[data-side="b"] [data-field="target"]')).toHaveText(`→ ${t('stream_alerts.channel_deleted')}`);
+    // Je Seite genau ein Icon: das der Plattform
+    await expect(linkRow(page, 7).locator('[data-side="a"] [data-platform-icon]:visible')).toHaveCount(1);
+    await expect(linkRow(page, 7).locator('[data-side="a"] [data-platform-icon="twitch"]')).toBeVisible();
+    await expect(linkRow(page, 7).locator('[data-side="b"] [data-platform-icon]:visible')).toHaveCount(1);
+    await expect(linkRow(page, 7).locator('[data-side="b"] [data-platform-icon="youtube"]')).toBeVisible();
+  });
+
+  test('gleichnamige Kanäle sind unterscheidbar — in der Auswahl und in der neuen Verknüpfung', async ({ page }) => {
+    await resetBot({
+      ...withSubs({
+        twitch: [{ ...TWITCH, streamer_name: 'Gronkh' }],
+        youtube: [{ ...YOUTUBE, streamer_name: 'Gronkh', channel_name: CHANNELS[1].name }],
+        kick: [{ ...TWITCH, monitored_channel_id: 13, subscription_id: 103, streamer_name: 'Gronkh', channel_id: CHANNELS[1].id, channel_name: CHANNELS[1].name }],
+      }),
+      'stream_alerts/list-links': { data: { links: [] } },
+    });
+    await page.goto(PAGE);
+    await expect(page.locator('#link-sub-b option')).toHaveText([
+      `Gronkh (Twitch) → #${CHANNELS[0].name}`,
+      `Gronkh (YouTube) → #${CHANNELS[1].name}`,
+      `Gronkh (Kick) → #${CHANNELS[1].name}`,
+    ]);
+    // Nach Plattform gruppiert
+    for (const [platform, label] of [['twitch', 'Twitch'], ['youtube', 'YouTube'], ['kick', 'Kick']]) {
+      await expect(page.locator(`#link-sub-b optgroup[data-platform="${platform}"]`)).toHaveAttribute('label', label);
+      await expect(page.locator(`#link-sub-b optgroup[data-platform="${platform}"] option`)).toHaveCount(1);
+    }
+
+    await page.locator('#add-link-btn').click();
+    await page.locator('#link-sub-a').selectOption('102');
+    await page.locator('#link-sub-b').selectOption('103');
+    await page.locator('#confirm-link-btn').click();
+    const row = linkRow(page, 8);
+    await expect(row.locator('[data-side="a"] [data-field="name"]')).toHaveText('Gronkh');
+    await expect(row.locator('[data-side="a"] [data-platform-icon="youtube"]')).toBeVisible();
+    await expect(row.locator('[data-side="b"] [data-platform-icon="kick"]')).toBeVisible();
+    await expect(row.locator('[data-platform-icon]:visible')).toHaveCount(2);   // je Seite nur das passende
+    await expect(row.locator('[data-side="b"] [data-field="target"]')).toHaveText(`→ #${CHANNELS[1].name}`);
+  });
+
+  test('Ziel-Channel geändert: Auswahl und Verknüpfung zeigen den neuen', async ({ page }) => {
+    await page.goto(PAGE);
+    await subRow(page, 11).locator('[data-edit-sub]').click();
+    await fillSubForm(page, { channel: CHANNELS[1].id });
+    await page.locator('#confirm-sub-btn').click();
+    await expect(subForm(page)).toBeHidden();
+    await expect(page.locator('#link-sub-a option[value="101"]')).toHaveText(`TwitchStar (Twitch) → #${CHANNELS[1].name}`);
+    await expect(page.locator('#link-sub-b option[value="101"]')).toHaveText(`TwitchStar (Twitch) → #${CHANNELS[1].name}`);
+    await expect(linkRow(page, 7).locator('[data-side="a"] [data-field="target"]')).toHaveText(`→ #${CHANNELS[1].name}`);
+    await expect(linkRow(page, 7).locator('[data-side="b"] [data-field="target"]')).toHaveText(`→ ${t('stream_alerts.channel_deleted')}`);
+  });
+
   test('trennen: Rückfrage, Payload, Zeile verschwindet', async ({ page }) => {
     const dialogs = collectDialogs(page);
     await page.goto(PAGE);
@@ -386,6 +447,8 @@ test.describe('Anzeige nach Änderungen', () => {
     await expect(linkRow(page, 7)).toHaveCount(0, { timeout: 2000 });
     await expect(page.locator('#link-sub-a option[value="102"]')).toHaveCount(0);
     await expect(page.locator('#link-sub-b option[value="102"]')).toHaveCount(0);
+    await expect(page.locator('#link-sub-a optgroup[data-platform="youtube"]')).toHaveCount(0);   // keine leere Überschrift
+    await expect(page.locator('#link-sub-a optgroup[data-platform="twitch"]')).toHaveCount(1);
     await expect(page.getByText(t('stream_alerts.no_links'))).toBeVisible();
   });
 
@@ -393,8 +456,27 @@ test.describe('Anzeige nach Änderungen', () => {
     await resetBot({ 'stream_alerts/add': { data: { monitored_channel_id: 20, subscription_id: 120, streamer_name: 'kickstar', platform: 'kick' } } });
     await page.goto(PAGE);
     await addKick(page);
-    await expect(page.locator('#link-sub-a option[value="120"]')).toHaveText('kickstar', { timeout: 2000 });
-    await expect(page.locator('#link-sub-b option[value="120"]')).toHaveText('kickstar');
+    const label = `kickstar (Kick) → #${CHANNELS[1].name}`;
+    await expect(page.locator('#link-sub-a option[value="120"]')).toHaveText(label, { timeout: 2000 });
+    await expect(page.locator('#link-sub-b option[value="120"]')).toHaveText(label);
+    // Neue Gruppe "Kick" — in Plattform-Reihenfolge hinter Twitch und YouTube
+    expect(await page.locator('#link-sub-a optgroup').evaluateAll((groups) => groups.map((g) => (g as HTMLOptGroupElement).label)))
+      .toEqual(['Twitch', 'YouTube', 'Kick']);
+    await expect(page.locator('#link-sub-a optgroup[data-platform="kick"] option[value="120"]')).toHaveCount(1);
+  });
+
+  test('neue Plattform-Gruppe landet an ihrem Platz in der Reihenfolge', async ({ page }) => {
+    await resetBot({
+      ...withSubs({ twitch: [TWITCH], kick: [{ ...TWITCH, monitored_channel_id: 13, subscription_id: 103, streamer_name: 'KickStar' }] }),
+      'stream_alerts/add': { data: { monitored_channel_id: 20, subscription_id: 120, streamer_name: 'tuber', platform: 'youtube' } },
+    });
+    await page.goto(PAGE);
+    await addSubBtn(page).click();
+    await fillSubForm(page, { platform: 'youtube', username: 'tuber', channel: CHANNELS[1].id });
+    await page.locator('#confirm-sub-btn').click();
+    await expect(page.locator('#link-sub-b optgroup[data-platform="youtube"] option[value="120"]')).toHaveCount(1);
+    expect(await page.locator('#link-sub-b optgroup').evaluateAll((groups) => groups.map((g) => (g as HTMLOptGroupElement).label)))
+      .toEqual(['Twitch', 'YouTube', 'Kick']);
   });
 
   test('letzte Verknüpfung getrennt: der Hinweis „keine Verknüpfungen“ erscheint', async ({ page }) => {

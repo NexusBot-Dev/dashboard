@@ -1,4 +1,4 @@
-// Browser-Logik der Stream-Alerts (/server/<id>/modules/stream-alerts/).
+// Browser-Logik der Stream-Alerts (/server/<id>/stream-alerts/).
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';

@@ -1,10 +1,13 @@
 ---
-import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
-import Badge from '../../../../../components/Badge.astro';
-import { callGuildAction } from '../../../../../lib/botApi';
-import { renderDiscordMarkdown } from '../../../../../lib/discordMarkdown';
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import ModuleToggle from '../../../../components/ModuleToggle.astro';
+import { getModuleStates } from '../../../../lib/modules';
+import Badge from '../../../../components/Badge.astro';
+import { callGuildAction } from '../../../../lib/botApi';
+import { renderDiscordMarkdown } from '../../../../lib/discordMarkdown';
 
 const { guildId } = Astro.params;
+const moduleEnabled = (await getModuleStates(guildId!).catch(() => null))?.reaction_roles ?? false;
 const t = Astro.locals.t;
 
 let guildName = `Server ${guildId}`;
@@ -82,6 +85,8 @@ const i18n = {
   <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
     {t('reaction_roles.subtitle')}
   </p>
+
+  <ModuleToggle guildId={guildId!} moduleKey="reaction_roles" name={t('reaction_roles.title')} enabled={moduleEnabled} disabled={!botOnline} />
 
   {!botOnline && (
     <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
@@ -293,5 +298,5 @@ const i18n = {
 </DashboardLayout>
 
 <script>
-  import '../../../../../scripts/pages/reaction-roles';
+  import '../../../../scripts/pages/reaction-roles';
 </script>

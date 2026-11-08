@@ -1,16 +1,19 @@
 ---
 // Welcome & Boosts — eine Seite mit Tabs (Welcome · Goodbye · Boosts).
 // Im Bot bleiben es getrennte Module (welcome, boosts) mit eigenen Schaltern in der Modul-Übersicht.
-import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
-import Badge from '../../../../../components/Badge.astro';
-import Tabs from '../../../../../components/Tabs.astro';
-import MessageListEditor from '../../../../../components/MessageListEditor.astro';
-import pool from '../../../../../lib/db';
-import { callGuildAction } from '../../../../../lib/botApi';
-import { renderPreview } from '../../../../../lib/discordMarkdown';
-import { intlLocale } from '../../../../../i18n';
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import ModuleToggle from '../../../../components/ModuleToggle.astro';
+import { getModuleStates } from '../../../../lib/modules';
+import Badge from '../../../../components/Badge.astro';
+import Tabs from '../../../../components/Tabs.astro';
+import MessageListEditor from '../../../../components/MessageListEditor.astro';
+import pool from '../../../../lib/db';
+import { callGuildAction } from '../../../../lib/botApi';
+import { renderPreview } from '../../../../lib/discordMarkdown';
+import { intlLocale } from '../../../../i18n';
 
 const { guildId } = Astro.params;
+const moduleStates = await getModuleStates(guildId!).catch(() => null);
 const t = Astro.locals.t;
 const lang = Astro.locals.lang;
 
@@ -109,6 +112,7 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
     <!-- ═══ Welcome ═══ -->
     <div role="tabpanel" id="tab-panel-welcome" aria-labelledby="tab-welcome" data-tab-panel="welcome">
       <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">{t('welcome.subtitle')}</p>
+      <ModuleToggle guildId={guildId!} moduleKey="welcome" name={t('welcome.title')} enabled={moduleStates?.welcome ?? false} disabled={!botOnline} />
 
       <section class="rounded-xl glass-panel p-6 mb-6">
         <div class="flex flex-col sm:flex-row sm:items-end gap-3" data-channel-setting="welcome_channel_id">
@@ -175,6 +179,7 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
     <!-- ═══ Boosts ═══ -->
     <div role="tabpanel" id="tab-panel-boosts" aria-labelledby="tab-boosts" data-tab-panel="boosts" class="hidden">
       <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">{t('boost.subtitle')}</p>
+      <ModuleToggle guildId={guildId!} moduleKey="boosts" name={t('boost.title')} enabled={moduleStates?.boosts ?? false} disabled={!botOnline} />
 
       <section class="rounded-xl glass-panel p-6 mb-6">
         <div class="flex items-center justify-between">
@@ -220,5 +225,5 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
 </DashboardLayout>
 
 <script>
-  import '../../../../../scripts/pages/welcome';
+  import '../../../../scripts/pages/welcome';
 </script>

@@ -1,12 +1,15 @@
 ---
-import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
-import PlatformIcon from '../../../../../components/icons/PlatformIcon.astro';
-import SubRow, { type Subscription } from '../../../../../components/stream-alerts/SubRow.astro';
-import LinkRow from '../../../../../components/stream-alerts/LinkRow.astro';
-import { callGuildAction } from '../../../../../lib/botApi';
-import { PLATFORM_META } from '../../../../../lib/streamPlatforms';
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import ModuleToggle from '../../../../components/ModuleToggle.astro';
+import { getModuleStates } from '../../../../lib/modules';
+import PlatformIcon from '../../../../components/icons/PlatformIcon.astro';
+import SubRow, { type Subscription } from '../../../../components/stream-alerts/SubRow.astro';
+import LinkRow from '../../../../components/stream-alerts/LinkRow.astro';
+import { callGuildAction } from '../../../../lib/botApi';
+import { PLATFORM_META } from '../../../../lib/streamPlatforms';
 
 const { guildId } = Astro.params;
+const moduleEnabled = (await getModuleStates(guildId!).catch(() => null))?.stream_alerts ?? false;
 const t = Astro.locals.t;
 
 let guildName = `Server ${guildId}`;
@@ -98,6 +101,8 @@ const pageConfig = {
   <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
     {t('stream_alerts.subtitle')}
   </p>
+
+  <ModuleToggle guildId={guildId!} moduleKey="stream_alerts" name={t('stream_alerts.title')} enabled={moduleEnabled} disabled={!botOnline} />
 
   {!botOnline && (
     <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
@@ -261,5 +266,5 @@ const pageConfig = {
 </DashboardLayout>
 
 <script>
-  import '../../../../../scripts/pages/stream-alerts';
+  import '../../../../scripts/pages/stream-alerts';
 </script>

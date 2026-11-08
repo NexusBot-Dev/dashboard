@@ -22,8 +22,8 @@ function extractGuildId(pathname: string): string | null {
 
 function extractModuleKey(pathname: string): string | null {
   const match =
-    pathname.match(/^\/server\/\d+\/modules\/([a-z0-9-]+)\//) ||     // Seiten unter /modules/<key>/
-    pathname.match(/^\/server\/\d+\/([a-z0-9-]+)\//) ||               // Top-Level-Seiten, z. B. /giveaways/
+    pathname.match(/^\/server\/\d+\/modules\/([a-z0-9-]+)\//) ||     // alte Adressen /modules/<key>/ (leiten weiter)
+    pathname.match(/^\/server\/\d+\/([a-z0-9-]+)\//) ||               // Modul- und andere Seiten, z. B. /levels/
     pathname.match(/^\/api\/server\/\d+\/module\/([a-z0-9_-]+)\//);   // Modul-API
   return match ? match[1].replace(/_/g, '-') : null;
 }

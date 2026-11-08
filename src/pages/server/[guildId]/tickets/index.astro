@@ -1,5 +1,7 @@
 ---
 import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import ModuleToggle from '../../../../components/ModuleToggle.astro';
+import { parseModules } from '../../../../lib/modules';
 import Badge from '../../../../components/Badge.astro';
 import Tabs from '../../../../components/Tabs.astro';
 import pool from '../../../../lib/db';
@@ -51,7 +53,7 @@ try {
 } catch {
   moduleStates = {};
 }
-const moduleEnabled = moduleStates.tickets ?? false;
+const moduleEnabled = parseModules(moduleStates).tickets;
 const logChannelId: string | null = guildRow.ticket_log_channel_id ? String(guildRow.ticket_log_channel_id) : null;
 
 const botOnline = botData !== null;
@@ -155,15 +157,7 @@ const i18n = {
     </div>
   )}
 
-  {!moduleEnabled && (
-    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-      <div>
-        <p class="text-sm font-semibold text-amber-700 dark:text-amber-400">{t('tickets.module_disabled_title')}</p>
-        <p class="text-sm text-amber-700/90 dark:text-amber-400/90">{t('tickets.module_disabled_desc')}</p>
-      </div>
-      <a href={`/server/${guildId}/modules/`} class="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline flex-shrink-0">{t('tickets.module_disabled_link')}</a>
-    </div>
-  )}
+  <ModuleToggle guildId={guildId!} moduleKey="tickets" name={t('tickets.title')} enabled={moduleEnabled} disabled={!botOnline} />
 
   <div id="tickets-tabs" data-config={JSON.stringify({ guildId, i18n })}>
     <Tabs tabs={tabs} label={t('tickets.title')} />

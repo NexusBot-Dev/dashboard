@@ -8,7 +8,7 @@ import { GUILD_ID } from './env.mjs';
 
 export type MessageArea = 'welcome' | 'boosts';
 
-const PAGE = 'modules/welcome/';
+const PAGE = 'welcome/';
 const TAB_LABELS = { welcome: 'welcome.title', goodbye: 'welcome.goodbye_title', boosts: 'boost.title' } as const;
 
 /** URL des Bereichs (relativ zum Server) — der Tab steckt im #hash */

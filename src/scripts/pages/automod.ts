@@ -1,4 +1,4 @@
-// Browser-Logik der AutoMod-Seite (/server/<id>/modules/automod/).
+// Browser-Logik der AutoMod-Seite (/server/<id>/automod/).
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';

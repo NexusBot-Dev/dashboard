@@ -1,4 +1,4 @@
-// Browser-Logik des Levelsystems (/server/<id>/modules/levels/).
+// Browser-Logik des Levelsystems (/server/<id>/levels/).
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';

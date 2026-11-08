@@ -6,7 +6,7 @@ import { GUILD_ID } from './support/env.mjs';
 // Wie bei den Tickets: nur sichtbare Oberfläche und die Aufrufe beim Bot prüfen,
 // damit die Tests den Umbau des Seiten-Skripts unverändert überstehen.
 
-const PAGE = guildPath('modules/reaction-roles/');
+const PAGE = guildPath('reaction-roles/');
 const MSG_REACTION = '700000000000000001';
 const MSG_DROPDOWN = '700000000000000002';
 const XSS = '<img src=x onerror="window.__xss=1">';
@@ -399,19 +399,18 @@ test.describe('Zuordnungen', () => {
 });
 
 test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
-  // Die Modul-Unterpunkte stehen nur in der Sidebar, solange man im Modul-Bereich ist
   const sidebarLink = (page: Page, sub: string) => page.locator(`aside a[href="/server/${GUILD_ID}/${sub}"]`).first();
 
   async function navigateToReactionRoles(page: Page) {
     await page.evaluate(() => ((window as any).__noReload = true));
-    await sidebarLink(page, 'modules/reaction-roles/').click();
-    await expect(page).toHaveURL(new RegExp(`/modules/reaction-roles/$`));
+    await sidebarLink(page, 'reaction-roles/').click();
+    await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/reaction-roles/$`));
     await expect(page.locator('#messages-list')).toBeVisible();
     expect(await page.evaluate(() => (window as any).__noReload)).toBe(true);
   }
 
   test('über die Sidebar geöffnet funktionieren Formulare und Vorschau', async ({ page }) => {
-    await page.goto(guildPath('modules/'));
+    await page.goto(guildPath('settings/'));
     await navigateToReactionRoles(page);
 
     await page.locator('#new-message-btn').click();
@@ -426,11 +425,11 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
 
   test('mehrfach hin und zurück: jede Aktion wird genau einmal gesendet', async ({ page }) => {
     collectDialogs(page);
-    await page.goto(guildPath('modules/'));
+    await page.goto(guildPath('settings/'));
     for (let i = 0; i < 3; i++) {
       await navigateToReactionRoles(page);
-      await sidebarLink(page, 'modules/').click();
-      await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/modules/$`));
+      await sidebarLink(page, 'settings/').click();
+      await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/settings/$`));
     }
     await navigateToReactionRoles(page);
 

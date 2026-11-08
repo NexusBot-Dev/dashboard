@@ -5,8 +5,8 @@ import { GUILD_ID } from './support/env.mjs';
 
 // AutoMod: Regeln an/aus, Keyword-Liste, Anti-Nuke-Shield und Honeypot-Channel.
 
-const PAGE = guildPath('modules/automod/');
-const HONEYPOT_PAGE = guildPath('modules/automod/#honeypot');
+const PAGE = guildPath('automod/');
+const HONEYPOT_PAGE = guildPath('automod/#honeypot');
 const XSS = '<img src=x onerror="window.__xss=1">';
 const status = defaultBotData['automod/status'];
 const withStatus = (values: Record<string, unknown>) => ({ 'automod/status': { data: { ...status, ...values } } });
@@ -473,16 +473,15 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
 
   test('mehrfach hin und zurück: Umschalten wird genau einmal gesendet', async ({ page }) => {
     collectDialogs(page);
-    // Start in der Modul-Übersicht: nur dort ist das Untermenü mit dem Automod-Link aufgeklappt
-    await page.goto(guildPath('modules/'));
+    await page.goto(guildPath('settings/'));
     for (let i = 0; i < 3; i++) {
       await page.evaluate(() => ((window as any).__noReload = true));
-      await sidebarLink(page, 'modules/automod/').click();
+      await sidebarLink(page, 'automod/').click();
       await expect(ruleSwitch(page, 'spam')).toBeVisible();
-      await sidebarLink(page, 'modules/').click();
-      await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/modules/$`));
+      await sidebarLink(page, 'settings/').click();
+      await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/settings/$`));
     }
-    await sidebarLink(page, 'modules/automod/').click();
+    await sidebarLink(page, 'automod/').click();
     await expect(ruleSwitch(page, 'spam')).toBeVisible();
     expect(await page.evaluate(() => (window as any).__noReload)).toBe(true);
 

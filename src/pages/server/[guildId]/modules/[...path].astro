@@ -1,0 +1,16 @@
+---
+// Modulseiten lagen früher unter /modules/<name>/ und liegen jetzt direkt unter /server/<id>/<name>/.
+// Diese Route bleibt nur, damit alte Links und Lesezeichen weiter funktionieren.
+const { guildId, path } = Astro.params;
+const name = (path ?? '').split('/')[0];
+const TARGETS: Record<string, string> = {
+  levels: 'levels/',
+  welcome: 'welcome/',
+  boosts: 'welcome/#boosts',   // Boosts ist ein Tab von Welcome & Boosts
+  'reaction-roles': 'reaction-roles/',
+  automod: 'automod/',
+  'stream-alerts': 'stream-alerts/',
+  tickets: 'tickets/',
+};
+return Astro.redirect(`/server/${guildId}/${TARGETS[name] ?? ''}`, 301);
+---

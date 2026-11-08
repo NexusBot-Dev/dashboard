@@ -154,9 +154,6 @@
     "tab_panel": "Panel",
     "tab_categories": "Categorías",
     "tab_settings": "Ajustes",
-    "module_disabled_title": "El sistema de tickets está desactivado",
-    "module_disabled_desc": "Ahora mismo no se pueden crear tickets nuevos en este servidor. Activa el módulo en la vista general de módulos.",
-    "module_disabled_link": "Ir a los módulos →",
     "panel_status_title": "Panel actual",
     "panel_status_none": "Aún no se ha publicado ningún panel.",
     "panel_status_missing": "El panel publicado se eliminó. El título y la descripción están guardados — puedes publicarlo de nuevo.",
@@ -272,7 +269,6 @@
   },
   "nav": {
     "overview": "Resumen",
-    "modules": "Módulos",
     "open_navigation": "Abrir navegación",
     "module_moderation": "Moderación",
     "module_welcome": "Bienvenida y Boosts",
@@ -473,21 +469,12 @@
     "unexpected_response": "Respuesta inesperada (estado {status})"
   },
   "modules": {
-    "subtitle": "Activa o desactiva módulos y abre sus ajustes.",
-    "changes_count_singular": "{count} cambio",
-    "changes_count_plural": "{count} cambios",
-    "save_changes_btn": "Guardar cambios",
-    "overview_link": "Resumen →",
-    "settings_link": "Ajustes →",
-    "desc_moderation": "Kick, ban, timeout — siempre activo",
-    "desc_levels": "XP y roles al subir de nivel",
-    "desc_welcome": "Bienvenida y despedida de miembros",
-    "desc_reaction_roles": "Asignación de roles mediante reacciones",
-    "desc_boosts": "Anuncios de boosts del servidor",
-    "desc_embeds": "Mensajes embed personalizados",
-    "desc_automod": "Automod, anti-nuke, honeypot",
-    "desc_stream_alerts": "Notificaciones de Twitch/YouTube/Kick",
-    "desc_tickets": "Sistema de tickets de soporte"
+    "toggle_label": "Activar o desactivar {module}",
+    "state_on": "{module} está activo",
+    "state_off": "{module} está desactivado",
+    "off_title": "{module} está desactivado",
+    "off_desc": "Puedes configurarlo todo: tus ajustes se guardan, pero solo surten efecto cuando actives el módulo.",
+    "enable_now": "Activar ahora"
   },
   "overview": {
     "hierarchy_warning_title": "Nexus no está lo bastante arriba en el orden de roles",
@@ -506,7 +493,6 @@
     "stats_timeouts": "Timeouts activos",
     "nobody_live": "Nadie en vivo",
     "live_more": "+{count} más",
-    "manage_modules": "Administrar →",
     "modules_active": "Módulos activos",
     "view_all": "Ver todo →",
     "top_levels_title": "Mejores niveles",

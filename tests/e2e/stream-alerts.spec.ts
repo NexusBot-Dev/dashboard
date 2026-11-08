@@ -5,7 +5,7 @@ import { GUILD_ID } from './support/env.mjs';
 
 // Stream-Alerts: Ping-Rollen, überwachte Kanäle (Twitch/YouTube/Kick) und Verknüpfungen zwischen Kanälen.
 
-const PAGE = guildPath('modules/stream-alerts/');
+const PAGE = guildPath('stream-alerts/');
 const XSS = '<img src=x onerror="window.__xss=1">';
 const list = defaultBotData['stream_alerts/list'];
 const links = defaultBotData['stream_alerts/list-links'];
@@ -412,15 +412,15 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
   test('mehrfach hin und zurück: Aktionen werden genau einmal gesendet', async ({ page }) => {
     collectDialogs(page);
     // Start in der Modul-Übersicht: nur dort ist das Untermenü mit dem Stream-Alerts-Link aufgeklappt
-    await page.goto(guildPath('modules/'));
+    await page.goto(guildPath('settings/'));
     for (let i = 0; i < 3; i++) {
       await page.evaluate(() => ((window as any).__noReload = true));
-      await sidebarLink(page, 'modules/stream-alerts/').click();
+      await sidebarLink(page, 'stream-alerts/').click();
       await expect(addSubBtn(page)).toBeVisible();
-      await sidebarLink(page, 'modules/').click();
-      await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/modules/$`));
+      await sidebarLink(page, 'settings/').click();
+      await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/settings/$`));
     }
-    await sidebarLink(page, 'modules/stream-alerts/').click();
+    await sidebarLink(page, 'stream-alerts/').click();
     await expect(addSubBtn(page)).toBeVisible();
     expect(await page.evaluate(() => (window as any).__noReload)).toBe(true);
 

@@ -1,4 +1,4 @@
-// Browser-Logik der Reaction-Roles-Seite (/server/<id>/modules/reaction-roles/).
+// Browser-Logik der Reaction-Roles-Seite (/server/<id>/reaction-roles/).
 // Gebündeltes Modul: läuft einmal pro Seitenladen; bei Navigation über den ClientRouter
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { renderDiscordMarkdown } from '../../lib/discordMarkdown';

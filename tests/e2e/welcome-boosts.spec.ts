@@ -290,7 +290,7 @@ test.describe('boosts: Status', () => {
 
 test.describe('Seite & Tabs', () => {
   test('drei Tabs, per #hash direkt ansteuerbar', async ({ page }) => {
-    await page.goto(guildPath('modules/welcome/'));
+    await page.goto(guildPath('welcome/'));
     await expect(page.locator('#tab-panel-welcome')).toBeVisible();
     await expect(page.locator('#tab-panel-boosts')).toBeHidden();
 
@@ -300,29 +300,29 @@ test.describe('Seite & Tabs', () => {
     await expect(page.locator('#tab-panel-welcome')).toBeHidden();
 
     await page.goto(guildPath(''));
-    await page.goto(guildPath('modules/welcome/#boosts'));
+    await page.goto(guildPath('welcome/#boosts'));
     await expect(page.locator('#tab-panel-boosts')).toBeVisible();
   });
 
   test('alte Boosts-URL leitet auf den Boosts-Tab um', async ({ page }) => {
     await page.goto(guildPath('modules/boosts/'));
-    await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/modules/welcome/#boosts$`));
+    await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/welcome/#boosts$`));
     await expect(page.locator('#tab-panel-boosts')).toBeVisible();
   });
 
   test('Sidebar hat einen Eintrag „Welcome & Boosts“ und keinen eigenen für Boosts', async ({ page }) => {
-    await page.goto(guildPath('modules/'));
+    await page.goto(guildPath('settings/'));
     const sidebar = page.locator('aside');
-    await expect(sidebar.locator(`a[href="/server/${GUILD_ID}/modules/welcome/"]`)).toHaveText(t('nav.module_welcome'));
-    await expect(sidebar.locator(`a[href="/server/${GUILD_ID}/modules/boosts/"]`)).toHaveCount(0);
+    await expect(sidebar.locator(`a[href="/server/${GUILD_ID}/welcome/"]`)).toHaveText(t('nav.module_welcome'));
+    await expect(sidebar.locator(`a[href*="boosts"]`)).toHaveCount(0);
   });
 
-  test('Modul-Übersicht: zwei Schalter, die Boosts-Karte führt auf den Boosts-Tab', async ({ page }) => {
-    await page.goto(guildPath('modules/'));
-    await expect(page.locator('[data-module-card="welcome"] [data-module-toggle]')).toHaveCount(1);
-    await expect(page.locator('[data-module-card="boosts"] [data-module-toggle]')).toHaveCount(1);
-    await expect(page.locator('[data-module-card="boosts"] a').first())
-      .toHaveAttribute('href', `/server/${GUILD_ID}/modules/welcome/#boosts`);
+  test('Welcome und Boosts haben je einen eigenen Modul-Schalter in ihrem Tab', async ({ page }) => {
+    await page.goto(guildPath('welcome/'));
+    await expect(page.locator('#tab-panel-welcome [data-module-switch="welcome"]')).toBeVisible();
+    await page.getByRole('tab', { name: t('boost.title') }).click();
+    await expect(page.locator('#tab-panel-boosts [data-module-switch="boosts"]')).toBeVisible();
+    await expect(page.locator('#tab-panel-goodbye [data-module-switch]')).toHaveCount(0);   // Goodbye hat seinen eigenen Schalter
   });
 
   test('beide Nachrichtenlisten arbeiten unabhängig voneinander', async ({ page }) => {
@@ -349,13 +349,13 @@ test.describe('Seite & Tabs', () => {
 test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
   for (const { area, module } of AREAS) {
     test(`${area}: mehrfach hin und zurück, Hinzufügen wird genau einmal gesendet`, async ({ page }) => {
-      await page.goto(guildPath('modules/'));
+      await page.goto(guildPath('settings/'));
       for (let i = 0; i < 3; i++) {
         await page.evaluate(() => ((window as any).__noReload = true));
         await navigateToArea(page, area);
         await expect(messageEditor(page, area).addBtn).toBeVisible();
-        await page.locator(`aside a[href="/server/${GUILD_ID}/modules/"]`).first().click();
-        await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/modules/$`));
+        await page.locator(`aside a[href="/server/${GUILD_ID}/settings/"]`).first().click();
+        await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/settings/$`));
       }
       await navigateToArea(page, area);
       expect(await page.evaluate(() => (window as any).__noReload)).toBe(true);

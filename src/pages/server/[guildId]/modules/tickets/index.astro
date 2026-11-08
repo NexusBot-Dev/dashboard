@@ -1,6 +1,0 @@
----
-// Tickets ist jetzt ein eigener Top-Level-Punkt (/server/<id>/tickets/).
-// Diese Route bleibt nur, damit alte Links und Lesezeichen weiter funktionieren.
-const { guildId } = Astro.params;
-return Astro.redirect(`/server/${guildId}/tickets/`, 301);
----

@@ -5,7 +5,7 @@ import { GUILD_ID } from './support/env.mjs';
 
 // Levelsystem: XP-Vergabe, Level-Up-Channel, Channels ohne XP, Level-Rollen und Leaderboard.
 
-const PAGE = guildPath('modules/levels/');
+const PAGE = guildPath('levels/');
 const XSS = '<img src=x onerror="window.__xss=1">';
 const excluded = defaultBotData['leveling/get-excluded'];
 const CATEGORY_ID = excluded.targets[0].id;
@@ -419,15 +419,15 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
   test('mehrfach hin und zurück: Aktionen werden genau einmal gesendet', async ({ page }) => {
     collectDialogs(page);
     // Start in der Modul-Übersicht: nur dort ist das Untermenü mit dem Levels-Link aufgeklappt
-    await page.goto(guildPath('modules/'));
+    await page.goto(guildPath('settings/'));
     for (let i = 0; i < 3; i++) {
       await page.evaluate(() => ((window as any).__noReload = true));
-      await sidebarLink(page, 'modules/levels/').click();
+      await sidebarLink(page, 'levels/').click();
       await expect(minInput(page)).toBeVisible();
-      await sidebarLink(page, 'modules/').click();
-      await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/modules/$`));
+      await sidebarLink(page, 'settings/').click();
+      await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/settings/$`));
     }
-    await sidebarLink(page, 'modules/levels/').click();
+    await sidebarLink(page, 'levels/').click();
     await expect(minInput(page)).toBeVisible();
     expect(await page.evaluate(() => (window as any).__noReload)).toBe(true);
 

@@ -1,5 +1,6 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { parseModules } from '../../../lib/modules';
 import Badge from '../../../components/Badge.astro';
 import pool from '../../../lib/db';
 import { callGuildAction } from '../../../lib/botApi';
@@ -49,7 +50,8 @@ if (!settings) {
   return Astro.redirect('/server');
 }
 
-const isEnabled = (key: string) => Boolean(moduleStates[key]);
+const effectiveModules = parseModules(moduleStates);   // fehlende Module mit den Standardwerten des Bots
+const isEnabled = (key: string) => Boolean(effectiveModules[key]);
 const activeModules = MODULE_KEYS.filter(isEnabled).length;
 
 const guildName: string = overview?.name ?? `Server ${guildId}`;
@@ -85,11 +87,14 @@ function avatarFallback(userId: string) {
 }
 
 const fmt = (n: number | null | undefined) => (typeof n === 'number' ? n.toLocaleString(numberLocale) : '–');
-// Tickets ist ein eigener Top-Level-Punkt (nicht mehr unter /modules/)
+// Jede Modulseite liegt direkt unter /server/<id>/<name>/ — dort wird das Modul auch ein- und ausgeschaltet
 const moduleHref = (key: string) => {
-  if (key === 'tickets') return `/server/${guildId}/tickets/`;
-  if (key === 'boosts') return `/server/${guildId}/modules/welcome/#boosts`; // Tab von Welcome & Boosts
-  return `/server/${guildId}/modules/${key.replace('_', '-')}/`;
+  if (key === 'boosts') return `/server/${guildId}/welcome/#boosts`; // Tab von Welcome & Boosts
+  return `/server/${guildId}/${key.replace('_', '-')}/`;
+};
+const MODULE_LABELS: Record<string, string> = {
+  tickets: t('tickets.title'), levels: t('levels.title'), welcome: t('welcome.title'), boosts: t('boost.title'),
+  reaction_roles: t('reaction_roles.title'), automod: t('automod.title'), stream_alerts: t('stream_alerts.title'),
 };
 
 // Live-Streamer: bis zu 2 Namen anzeigen, Rest als "+N"
@@ -166,9 +171,17 @@ const statusVariant: Record<string, 'success' | 'warning'> = { open: 'success', 
           {activeModules} <span class="text-base font-medium text-slate-400">/ {MODULE_KEYS.length}</span>
         </p>
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('overview.modules_active')}</p>
-        <a href={`/server/${guildId}/modules/`} class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">
-          {t('overview.manage_modules')}
-        </a>
+        <ul class="mt-2 flex flex-wrap md:justify-end gap-1.5 max-w-sm" aria-label={t('overview.modules_active')}>
+          {MODULE_KEYS.map((key) => (
+            <li>
+              <a href={moduleHref(key)} data-module-status={key} data-enabled={String(isEnabled(key))}
+                 class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                <span class:list={["h-1.5 w-1.5 rounded-full", isEnabled(key) ? "bg-primary-500" : "bg-slate-300 dark:bg-slate-600"]}></span>
+                {MODULE_LABELS[key]}
+              </a>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   </div>

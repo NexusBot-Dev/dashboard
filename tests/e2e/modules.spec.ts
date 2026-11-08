@@ -2,9 +2,8 @@ import { test, expect, type Page } from '@playwright/test';
 import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, dbQuery } from './support/helpers';
 import { FOREIGN_GUILD_ID, GUILD_ID } from './support/env.mjs';
 
-// Die Modul-Übersicht liest den Schalter-Stand direkt aus guild_settings.modules; gespeichert wird über den Bot.
-
-const PAGE = guildPath('modules/');
+// Module werden auf ihrer eigenen Seite ein- und ausgeschaltet (src/components/ModuleToggle.astro).
+// Der Stand kommt direkt aus guild_settings.modules; gespeichert wird sofort über den Bot (modules/toggle).
 
 // Entspricht dem DB-Standardwert der Spalte modules
 const DEFAULT_MODULES = {
@@ -18,14 +17,19 @@ async function setModules(values: Partial<typeof DEFAULT_MODULES> = {}) {
   ]);
 }
 
-const card = (page: Page, key: string) => page.locator(`[data-module-card="${key}"]`);
-const toggle = (page: Page, key: string) => card(page, key).locator('[data-module-toggle]');
-// Sichtbarer Badge-Text (innerText, CSS schreibt ihn in Großbuchstaben)
-const expectBadge = (page: Page, key: string, enabled: boolean) =>
-  expect(card(page, key).locator('[data-module-badge]')).toHaveText(
-    new RegExp(`^${t(enabled ? 'settings.active_badge' : 'settings.inactive_badge')}$`, 'i'), { useInnerText: true },
-  );
-const saveBar = (page: Page) => page.locator('#save-bar');
+// Seite, Modul-Schlüssel und Anzeigename je Modul mit eigener Seite
+const PAGES = [
+  { path: 'levels/', key: 'levels', name: () => t('levels.title') },
+  { path: 'reaction-roles/', key: 'reaction_roles', name: () => t('reaction_roles.title') },
+  { path: 'automod/', key: 'automod', name: () => t('automod.title') },
+  { path: 'stream-alerts/', key: 'stream_alerts', name: () => t('stream_alerts.title') },
+  { path: 'tickets/', key: 'tickets', name: () => t('tickets.title') },
+  { path: 'welcome/', key: 'welcome', name: () => t('welcome.title') },
+];
+
+const moduleSwitch = (page: Page, key: string) => page.locator(`[data-module-switch="${key}"]`);
+const root = (page: Page, key: string) => page.locator('[data-module-toggle-root]').filter({ has: moduleSwitch(page, key) });
+const offNote = (page: Page, key: string) => root(page, key).locator('[data-module-off-note]');
 
 test.beforeEach(async ({ context }) => {
   await resetBot();
@@ -37,102 +41,120 @@ test.afterAll(async () => {
   await setModules();
 });
 
-test.describe('Anzeige', () => {
-  test('zeigt jedes Modul mit Stand aus der DB', async ({ page }) => {
-    await setModules({ levels: true, tickets: false });
-    await page.goto(PAGE);
+test.describe('Schalter auf der Modulseite', () => {
+  for (const { path, key, name } of PAGES) {
+    test(`${key}: Stand aus der DB, Ein- und Ausschalten speichert sofort`, async ({ page }) => {
+      await setModules({ [key]: false });
+      await page.goto(guildPath(path));
+      await expect(moduleSwitch(page, key)).toHaveAttribute('aria-checked', 'false');
+      await expect(root(page, key).locator('[data-module-state]')).toHaveText(t('modules.state_off', { module: name() }));
+      await expect(offNote(page, key)).toBeVisible();
+      await expect(offNote(page, key)).toContainText(t('modules.off_title', { module: name() }));
 
-    await expect(toggle(page, 'levels')).toHaveAttribute('aria-checked', 'true');
-    await expectBadge(page, 'levels', true);
-    await expect(toggle(page, 'tickets')).toHaveAttribute('aria-checked', 'false');
-    await expectBadge(page, 'tickets', false);
-    await expect(toggle(page, 'stream_alerts')).toHaveAttribute('aria-checked', 'true');
-    await expect(saveBar(page)).toBeHidden();
+      await moduleSwitch(page, key).click();
+      expect((await waitForBotCall('modules/toggle')).changes).toEqual({ [key]: true });
+      await expect(moduleSwitch(page, key)).toHaveAttribute('aria-checked', 'true');
+      await expect(root(page, key).locator('[data-module-state]')).toHaveText(t('modules.state_on', { module: name() }));
+      await expect(offNote(page, key)).toBeHidden();
+
+      await moduleSwitch(page, key).click();
+      expect((await waitForBotCall('modules/toggle', 1)).changes).toEqual({ [key]: false });
+      await expect(offNote(page, key)).toBeVisible();
+    });
+  }
+
+  test('eingeschaltetes Modul: kein Hinweis', async ({ page }) => {
+    await setModules({ levels: true });
+    await page.goto(guildPath('levels/'));
+    await expect(moduleSwitch(page, 'levels')).toHaveAttribute('aria-checked', 'true');
+    await expect(offNote(page, 'levels')).toBeHidden();
   });
 
-  test('Links führen zur jeweiligen Seite, Tickets auf die eigene Top-Level-Seite', async ({ page }) => {
-    await page.goto(PAGE);
-    await expect(card(page, 'reaction_roles').locator('a').first())
-      .toHaveAttribute('href', `/server/${GUILD_ID}/modules/reaction-roles/`);
-    await expect(card(page, 'stream_alerts').locator('a').first())
-      .toHaveAttribute('href', `/server/${GUILD_ID}/modules/stream-alerts/`);
-    await expect(card(page, 'tickets').locator('a').first()).toHaveAttribute('href', `/server/${GUILD_ID}/tickets/`);
+  test('„Jetzt einschalten“ im Hinweis schaltet das Modul ein', async ({ page }) => {
+    await page.goto(guildPath('levels/'));
+    await root(page, 'levels').locator('[data-module-enable]').click();
+    expect((await waitForBotCall('modules/toggle')).changes).toEqual({ levels: true });
+    await expect(moduleSwitch(page, 'levels')).toHaveAttribute('aria-checked', 'true');
+    await expect(offNote(page, 'levels')).toBeHidden();
+  });
+
+  test('ausgeschaltet bleibt die Seite bearbeitbar', async ({ page }) => {
+    await page.goto(guildPath('levels/'));
+    await expect(offNote(page, 'levels')).toBeVisible();
+    await expect(page.locator('#xp-min-input')).toBeEnabled();
+    await page.locator('#xp-min-input').fill('10');
+    await expect(page.locator('#save-xp-btn')).toBeEnabled();
+  });
+
+  test('Fehler des Bots: Meldung, Schalter springt zurück', async ({ page }) => {
+    await resetBot({ 'modules/toggle': { status: 400, error: 'Unbekanntes Modul: levels' } });
+    const dialogs = collectDialogs(page);
+    await page.goto(guildPath('levels/'));
+    await moduleSwitch(page, 'levels').click();
+    await expect.poll(() => dialogs).toEqual([`${t('common.error_generic')}: Unbekanntes Modul: levels`]);
+    await expect(moduleSwitch(page, 'levels')).toHaveAttribute('aria-checked', 'false');
+    await expect(offNote(page, 'levels')).toBeVisible();
+  });
+
+  test('immer aktive Bereiche haben keinen Schalter', async ({ page }) => {
+    for (const path of ['moderation/', 'embeds/', 'giveaways/']) {
+      await page.goto(guildPath(path));
+      await expect(page.locator('[data-module-switch]')).toHaveCount(0);
+    }
   });
 });
 
-test.describe('Schalten', () => {
-  test('Speicherleiste zählt die Änderungen, Zurückschalten nimmt sie wieder raus', async ({ page }) => {
-    await page.goto(PAGE);
-    await toggle(page, 'levels').click();
-    await expect(saveBar(page)).toBeVisible();
-    await expect(page.locator('#save-status')).toHaveText(t('modules.changes_count_singular', { count: 1 }));
-
-    await toggle(page, 'tickets').click();
-    await expect(page.locator('#save-status')).toHaveText(t('modules.changes_count_plural', { count: 2 }));
-
-    await toggle(page, 'levels').click();
-    await toggle(page, 'tickets').click();
-    await expect(saveBar(page)).toBeHidden();
+test.describe('Übersicht', () => {
+  test('zeigt jedes Modul mit Stand und Link auf seine Seite', async ({ page }) => {
+    await setModules({ levels: true, tickets: false });
+    await page.goto(guildPath(''));
+    const status = (key: string) => page.locator(`[data-module-status="${key}"]`);
+    await expect(status('levels')).toHaveAttribute('data-enabled', 'true');
+    await expect(status('tickets')).toHaveAttribute('data-enabled', 'false');
+    await expect(status('stream_alerts')).toHaveAttribute('data-enabled', 'true');
+    await expect(status('levels')).toHaveAttribute('href', `/server/${GUILD_ID}/levels/`);
+    await expect(status('boosts')).toHaveAttribute('href', `/server/${GUILD_ID}/welcome/#boosts`);
+    await expect(status('reaction_roles')).toHaveAttribute('href', `/server/${GUILD_ID}/reaction-roles/`);
   });
+});
 
-  test('Verwerfen stellt alle Schalter zurück, ohne etwas zu senden', async ({ page }) => {
-    await page.goto(PAGE);
-    await toggle(page, 'levels').click();
-    await toggle(page, 'tickets').click();
-    await page.locator('#discard-btn').click();
-
-    await expect(toggle(page, 'levels')).toHaveAttribute('aria-checked', 'false');
-    await expect(toggle(page, 'tickets')).toHaveAttribute('aria-checked', 'true');
-    await expect(saveBar(page)).toBeHidden();
-    expect(await botCalls('modules/toggle')).toHaveLength(0);
+test.describe('Sidebar', () => {
+  test('alle Seiten auf einer Ebene, ohne Überschriften', async ({ page }) => {
+    await page.goto(guildPath('levels/'));
+    const hrefs = await page.locator('aside nav a').evaluateAll((links) => links.map((a) => a.getAttribute('href')));
+    const base = `/server/${GUILD_ID}/`;
+    expect(hrefs).toEqual([
+      base, `${base}moderation/`, `${base}embeds/`, `${base}giveaways/`,
+      `${base}tickets/`, `${base}levels/`, `${base}welcome/`, `${base}reaction-roles/`, `${base}automod/`, `${base}stream-alerts/`,
+      `${base}settings/`,
+    ]);
+    await expect(page.locator('aside nav p')).toHaveCount(0);
+    await expect(page.locator(`aside a[href="${base}levels/"]`)).toHaveClass(/font-semibold/);   // aktive Seite
   });
+});
 
-  test('Speichern schickt nur die geänderten Module als Boolean', async ({ page }) => {
-    await page.goto(PAGE);
-    await toggle(page, 'levels').click();
-    await toggle(page, 'tickets').click();
-    await page.locator('#save-btn').click();
-
-    expect((await waitForBotCall('modules/toggle')).changes).toEqual({ levels: true, tickets: false });
-    await expect(page.locator('#save-status')).toHaveText(t('settings.saved'));
-    await expect(saveBar(page)).toBeHidden();
-
-    // Gespeicherter Stand ist der neue Ausgangswert
-    await toggle(page, 'welcome').click();
-    await page.locator('#save-btn').click();
-    expect((await waitForBotCall('modules/toggle', 1)).changes).toEqual({ welcome: true });
-  });
-
-  test('nach dem Speichern zeigt das Badge den neuen Stand', async ({ page }) => {
-    await page.goto(PAGE);
-    await toggle(page, 'levels').click();
-    await toggle(page, 'tickets').click();
-    await expectBadge(page, 'levels', false); // erst nach dem Speichern
-    await page.locator('#save-btn').click();
-    await waitForBotCall('modules/toggle');
-    await expect(saveBar(page)).toBeHidden();
-    await expectBadge(page, 'levels', true);
-    await expectBadge(page, 'tickets', false);
-  });
-
-  test('Fehler des Bots wird angezeigt, Änderungen bleiben offen', async ({ page }) => {
-    await resetBot({ 'modules/toggle': { status: 400, error: 'Unbekanntes Modul: levels' } });
-    const dialogs = collectDialogs(page);
-    await page.goto(PAGE);
-    await toggle(page, 'levels').click();
-    await page.locator('#save-btn').click();
-
-    await expect.poll(() => dialogs).toContain(t('welcome.server_error_prefix') + 'Unbekanntes Modul: levels');
-    await expect(saveBar(page)).toBeVisible();
-    await expect(toggle(page, 'levels')).toHaveAttribute('aria-checked', 'true');
-    await expect(page.locator('#save-btn')).toBeEnabled();
-    await expect(page.locator('#save-btn')).toHaveText(t('modules.save_changes_btn'));
-  });
+test.describe('Alte Adressen', () => {
+  const REDIRECTS: [string, string][] = [
+    ['modules/', ''],
+    ['modules/levels/', 'levels/'],
+    ['modules/welcome/', 'welcome/'],
+    ['modules/reaction-roles/', 'reaction-roles/'],
+    ['modules/automod/', 'automod/'],
+    ['modules/stream-alerts/', 'stream-alerts/'],
+    ['modules/tickets/', 'tickets/'],
+    ['modules/boosts/', 'welcome/#boosts'],
+  ];
+  for (const [from, to] of REDIRECTS) {
+    test(`/${from} leitet auf /${to} weiter`, async ({ page }) => {
+      await page.goto(guildPath(from));
+      await expect(page).toHaveURL(`${page.url().split('/server/')[0]}/server/${GUILD_ID}/${to}`);
+    });
+  }
 });
 
 test.describe('API-Proxy', () => {
   test('fremder Server: Schalten wird abgewiesen und erreicht den Bot nicht', async ({ page }) => {
-    await page.goto(PAGE);
+    await page.goto(guildPath('levels/'));
     const res = await page.request.post(`/api/server/${FOREIGN_GUILD_ID}/module/modules/toggle/`, {
       data: { changes: { levels: true } },
     });
@@ -144,26 +166,20 @@ test.describe('API-Proxy', () => {
 test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
   const sidebarLink = (page: Page, sub: string) => page.locator(`aside a[href="/server/${GUILD_ID}/${sub}"]`).first();
 
-  async function navigateToModules(page: Page) {
-    await page.evaluate(() => ((window as any).__noReload = true));
-    await sidebarLink(page, 'modules/').click();
-    await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/modules/$`));
-    await expect(page.locator('#modules-grid')).toBeVisible();
-    expect(await page.evaluate(() => (window as any).__noReload)).toBe(true);
-  }
-
-  test('mehrfach hin und zurück: Speichern wird genau einmal gesendet', async ({ page }) => {
+  test('mehrfach hin und zurück: Umschalten wird genau einmal gesendet', async ({ page }) => {
     await page.goto(guildPath(''));
     for (let i = 0; i < 3; i++) {
-      await navigateToModules(page);
+      await page.evaluate(() => ((window as any).__noReload = true));
+      await sidebarLink(page, 'levels/').click();
+      await expect(moduleSwitch(page, 'levels')).toBeVisible();
       await sidebarLink(page, '').click();
       await expect(page).toHaveURL(new RegExp(`/server/${GUILD_ID}/$`));
     }
-    await navigateToModules(page);
+    await sidebarLink(page, 'levels/').click();
+    await expect(moduleSwitch(page, 'levels')).toBeVisible();
+    expect(await page.evaluate(() => (window as any).__noReload)).toBe(true);
 
-    await toggle(page, 'levels').click();
-    await expect(page.locator('#save-status')).toHaveText(t('modules.changes_count_singular', { count: 1 }));
-    await page.locator('#save-btn').click();
+    await moduleSwitch(page, 'levels').click();
     expect((await waitForBotCall('modules/toggle')).changes).toEqual({ levels: true });
     await page.waitForTimeout(500); // etwaige doppelte Aufrufe abwarten
     expect(await botCalls('modules/toggle')).toHaveLength(1);

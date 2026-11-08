@@ -1,14 +1,17 @@
 ---
-import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
-import Switch from '../../../../../components/Switch.astro';
-import Tabs from '../../../../../components/Tabs.astro';
-import MarkdownToolbar from '../../../../../components/MarkdownToolbar.astro';
-import pool from '../../../../../lib/db';
-import { callGuildAction } from '../../../../../lib/botApi';
-import { intlLocale } from '../../../../../i18n';
-import { renderPreview } from '../../../../../lib/discordMarkdown';
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import ModuleToggle from '../../../../components/ModuleToggle.astro';
+import { getModuleStates } from '../../../../lib/modules';
+import Switch from '../../../../components/Switch.astro';
+import Tabs from '../../../../components/Tabs.astro';
+import MarkdownToolbar from '../../../../components/MarkdownToolbar.astro';
+import pool from '../../../../lib/db';
+import { callGuildAction } from '../../../../lib/botApi';
+import { intlLocale } from '../../../../i18n';
+import { renderPreview } from '../../../../lib/discordMarkdown';
 
 const { guildId } = Astro.params;
+const moduleEnabled = (await getModuleStates(guildId!).catch(() => null))?.automod ?? false;
 const t = Astro.locals.t;
 const lang = Astro.locals.lang;
 
@@ -101,6 +104,8 @@ const pageConfig = { guildId, i18n };
   <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
     {t('automod.subtitle')}
   </p>
+
+  <ModuleToggle guildId={guildId!} moduleKey="automod" name={t('automod.title')} enabled={moduleEnabled} disabled={!botOnline} />
 
   {!botOnline && (
     <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
@@ -282,5 +287,5 @@ const pageConfig = { guildId, i18n };
 </DashboardLayout>
 
 <script>
-  import '../../../../../scripts/pages/automod';
+  import '../../../../scripts/pages/automod';
 </script>

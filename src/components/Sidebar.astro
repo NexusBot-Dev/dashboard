@@ -14,34 +14,26 @@ const t = Astro.locals.t;
 
 const NAV_LABELS: Record<string, string> = {
   overview: t('nav.overview'),
-  modules: t('nav.modules'),
   moderation: t('moderation.title'),
   tickets: t('tickets.title'),
   embeds: t('embeds.title'),
+  giveaways: t('giveaways.title'),
+  levels: t('levels.title'),
+  welcome: t('nav.module_welcome'),
+  'reaction-roles': t('nav.module_reaction_roles'),
+  automod: t('nav.module_automod'),
+  'stream-alerts': t('stream_alerts.title'),
   settings: t('settings.title'),
 };
 
 const navLinks = DASHBOARD_NAV_LINKS
   .filter(link => !OWNER_ONLY_MODULE_KEYS.includes(link.key) || isOwner)
-  .map(link => ({
-    ...link,
-    label: NAV_LABELS[link.key] ?? link.label,
-    resolvedHref: guildId ? link.href.replace(':guildId', guildId) : link.href,
-  }));
-
-const MODULES = [
-  { key: 'levels', label: t('levels.title') },
-  { key: 'welcome', label: t('nav.module_welcome') },
-  { key: 'reaction-roles', label: t('nav.module_reaction_roles') },
-  { key: 'automod', label: t('nav.module_automod') },
-  { key: 'stream-alerts', label: t('stream_alerts.title') },
-];
-
-const visibleModules = MODULES.filter(mod => !OWNER_ONLY_MODULE_KEYS.includes(mod.key) || isOwner);
-
-const moduleHref = (key: string) => (guildId ? `/server/${guildId}/modules/${key}/` : '#');
-const modulesRootHref = guildId ? `/server/${guildId}/modules/` : '/';
-const isOnModulesSection = currentPath.includes('/modules/') && !currentPath.includes('/modules/moderation/') && !currentPath.includes('/modules/embeds/');
+  .map(link => {
+    const resolvedHref = guildId ? link.href.replace(':guildId', guildId) : link.href;
+    // Übersicht nur exakt, alle anderen auch für Unterseiten aktiv
+    const isActive = link.key === 'overview' ? currentPath === resolvedHref : currentPath.startsWith(resolvedHref);
+    return { ...link, label: NAV_LABELS[link.key] ?? link.label, resolvedHref, isActive };
+  });
 ---
 
 <aside class="hidden md:flex fixed top-0 left-0 h-screen w-64 flex-col glass-panel border-y-0 border-l-0 z-[90]">
@@ -64,56 +56,18 @@ const isOnModulesSection = currentPath.includes('/modules/') && !currentPath.inc
   <!-- Navigation -->
   <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
     {navLinks.map(link => (
-      link.key === 'modules' ? (
-        <div>
-          <a
-            href={modulesRootHref}
-            class:list={[
-              "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-              isOnModulesSection
-                ? "bg-primary-500/10 text-primary-600 dark:text-primary-400 font-semibold"
-                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-            ]}
-          >
-            <Fragment set:html={link.icon} />
-            <span>{link.label}</span>
-          </a>
-
-          {isOnModulesSection && (
-            <div class="mt-1 ml-4 pl-4 border-l border-slate-200 dark:border-slate-800 space-y-0.5">
-              {visibleModules.map(mod => {
-                const isActive = currentPath === moduleHref(mod.key);
-                return (
-                  <a
-                    href={moduleHref(mod.key)}
-                    class:list={[
-                      "block px-3 py-1.5 rounded-lg text-sm transition-colors",
-                      isActive
-                        ? "bg-primary-500/15 text-primary-600 dark:text-primary-300 font-semibold"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
-                    ]}
-                  >
-                    {mod.label}
-                  </a>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      ) : (
-        <a
-          href={link.resolvedHref}
-          class:list={[
-            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-            currentPath === link.resolvedHref
-              ? "bg-primary-500/15 text-primary-600 dark:text-primary-400 font-semibold"
-              : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-          ]}
-        >
-          <Fragment set:html={link.icon} />
-          <span>{link.label}</span>
-        </a>
-      )
+      <a
+        href={link.resolvedHref}
+        class:list={[
+          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+          link.isActive
+            ? "bg-primary-500/15 text-primary-600 dark:text-primary-400 font-semibold"
+            : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+        ]}
+      >
+        <Fragment set:html={link.icon} />
+        <span>{link.label}</span>
+      </a>
     ))}
   </nav>
 </aside>

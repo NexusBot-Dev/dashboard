@@ -154,9 +154,6 @@
     "tab_panel": "Panel",
     "tab_categories": "Categories",
     "tab_settings": "Settings",
-    "module_disabled_title": "Ticket system is disabled",
-    "module_disabled_desc": "New tickets can't be created on this server right now. Enable the module in the modules overview.",
-    "module_disabled_link": "Go to modules →",
     "panel_status_title": "Current panel",
     "panel_status_none": "No panel has been posted yet.",
     "panel_status_missing": "The posted panel was deleted. Title and description are saved — you can post it again.",
@@ -272,7 +269,6 @@
   },
   "nav": {
     "overview": "Overview",
-    "modules": "Modules",
     "open_navigation": "Open navigation",
     "module_moderation": "Moderation",
     "module_welcome": "Welcome & Boosts",
@@ -473,21 +469,12 @@
     "unexpected_response": "Unexpected response (status {status})"
   },
   "modules": {
-    "subtitle": "Enable or disable modules and open their respective settings.",
-    "changes_count_singular": "{count} change",
-    "changes_count_plural": "{count} changes",
-    "save_changes_btn": "Save changes",
-    "overview_link": "Overview →",
-    "settings_link": "Settings →",
-    "desc_moderation": "Kick, ban, timeout — always active",
-    "desc_levels": "XP & roles on level up",
-    "desc_welcome": "Greeting & farewell for members",
-    "desc_reaction_roles": "Role assignment via reactions",
-    "desc_boosts": "Announcements for server boosts",
-    "desc_embeds": "Custom embed messages",
-    "desc_automod": "Auto-mod, anti-nuke, honeypot",
-    "desc_stream_alerts": "Twitch/YouTube/Kick notifications",
-    "desc_tickets": "Support ticket system"
+    "toggle_label": "Turn {module} on or off",
+    "state_on": "{module} is active",
+    "state_off": "{module} is turned off",
+    "off_title": "{module} is turned off",
+    "off_desc": "You can set everything up – your settings are saved, but only take effect once you turn the module on.",
+    "enable_now": "Turn on now"
   },
   "overview": {
     "hierarchy_warning_title": "Nexus isn't high enough in the role order",
@@ -506,7 +493,6 @@
     "stats_timeouts": "Active timeouts",
     "nobody_live": "Nobody live",
     "live_more": "+{count} more",
-    "manage_modules": "Manage →",
     "modules_active": "Modules active",
     "view_all": "View all →",
     "top_levels_title": "Top levels",

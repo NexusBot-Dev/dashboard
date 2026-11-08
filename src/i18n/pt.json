@@ -154,9 +154,6 @@
     "tab_panel": "Painel",
     "tab_categories": "Categorias",
     "tab_settings": "Configurações",
-    "module_disabled_title": "O sistema de tickets está desativado",
-    "module_disabled_desc": "No momento não é possível criar novos tickets neste servidor. Ative o módulo na visão geral de módulos.",
-    "module_disabled_link": "Ir para os módulos →",
     "panel_status_title": "Painel atual",
     "panel_status_none": "Nenhum painel foi publicado ainda.",
     "panel_status_missing": "O painel publicado foi excluído. Título e descrição estão salvos — você pode publicá-lo novamente.",
@@ -272,7 +269,6 @@
   },
   "nav": {
     "overview": "Visão geral",
-    "modules": "Módulos",
     "open_navigation": "Abrir navegação",
     "module_moderation": "Moderação",
     "module_welcome": "Boas-vindas e Boosts",
@@ -473,21 +469,12 @@
     "unexpected_response": "Resposta inesperada (status {status})"
   },
   "modules": {
-    "subtitle": "Ative ou desative módulos e abra as respectivas configurações.",
-    "changes_count_singular": "{count} alteração",
-    "changes_count_plural": "{count} alterações",
-    "save_changes_btn": "Salvar alterações",
-    "overview_link": "Visão geral →",
-    "settings_link": "Configurações →",
-    "desc_moderation": "Expulsar, banir, timeout — sempre ativo",
-    "desc_levels": "XP e cargos ao subir de nível",
-    "desc_welcome": "Boas-vindas e despedida de membros",
-    "desc_reaction_roles": "Atribuição de cargos por reações",
-    "desc_boosts": "Anúncios de boosts do servidor",
-    "desc_embeds": "Mensagens embed personalizadas",
-    "desc_automod": "Automod, anti-nuke, honeypot",
-    "desc_stream_alerts": "Notificações de Twitch/YouTube/Kick",
-    "desc_tickets": "Sistema de tickets de suporte"
+    "toggle_label": "Ativar ou desativar {module}",
+    "state_on": "{module} está ativo",
+    "state_off": "{module} está desativado",
+    "off_title": "{module} está desativado",
+    "off_desc": "Você pode configurar tudo – suas configurações são salvas, mas só entram em vigor quando você ativar o módulo.",
+    "enable_now": "Ativar agora"
   },
   "overview": {
     "hierarchy_warning_title": "O Nexus não está alto o suficiente na ordem dos cargos",
@@ -506,7 +493,6 @@
     "stats_timeouts": "Timeouts ativos",
     "nobody_live": "Ninguém ao vivo",
     "live_more": "+{count} mais",
-    "manage_modules": "Gerenciar →",
     "modules_active": "Módulos ativos",
     "view_all": "Ver tudo →",
     "top_levels_title": "Maiores níveis",

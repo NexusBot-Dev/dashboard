@@ -154,9 +154,6 @@
     "tab_panel": "Panel",
     "tab_categories": "Kategorien",
     "tab_settings": "Einstellungen",
-    "module_disabled_title": "Ticket-System ist deaktiviert",
-    "module_disabled_desc": "Neue Tickets können auf diesem Server derzeit nicht erstellt werden. Aktiviere das Modul in der Modul-Übersicht.",
-    "module_disabled_link": "Zu den Modulen →",
     "panel_status_title": "Aktuelles Panel",
     "panel_status_none": "Es ist noch kein Panel gepostet.",
     "panel_status_missing": "Das gepostete Panel wurde gelöscht. Titel und Beschreibung sind gespeichert — du kannst es neu posten.",
@@ -272,7 +269,6 @@
   },
   "nav": {
     "overview": "Übersicht",
-    "modules": "Module",
     "open_navigation": "Navigation öffnen",
     "module_moderation": "Moderation",
     "module_welcome": "Welcome & Boosts",
@@ -473,21 +469,12 @@
     "unexpected_response": "Unerwartete Antwort (Status {status})"
   },
   "modules": {
-    "subtitle": "Aktiviere oder deaktiviere Module und öffne die jeweiligen Einstellungen.",
-    "changes_count_singular": "{count} Änderung",
-    "changes_count_plural": "{count} Änderungen",
-    "save_changes_btn": "Änderungen speichern",
-    "overview_link": "Übersicht →",
-    "settings_link": "Einstellungen →",
-    "desc_moderation": "Kick, Ban, Timeout — immer aktiv",
-    "desc_levels": "XP & Rollen bei Level-Up",
-    "desc_welcome": "Begrüßung & Verabschiedung von Mitgliedern",
-    "desc_reaction_roles": "Rollenvergabe per Reaktion",
-    "desc_boosts": "Ankündigungen bei Server-Boosts",
-    "desc_embeds": "Individuelle Embed-Nachrichten",
-    "desc_automod": "Auto-Mod, Anti-Nuke, Honeypot",
-    "desc_stream_alerts": "Twitch/YouTube/Kick-Benachrichtigungen",
-    "desc_tickets": "Support-Ticket-System"
+    "toggle_label": "{module} ein- oder ausschalten",
+    "state_on": "{module} ist aktiv",
+    "state_off": "{module} ist ausgeschaltet",
+    "off_title": "{module} ist ausgeschaltet",
+    "off_desc": "Du kannst alles einrichten – deine Einstellungen werden gespeichert, wirken aber erst, wenn du das Modul einschaltest.",
+    "enable_now": "Jetzt einschalten"
   },
   "overview": {
     "hierarchy_warning_title": "Nexus steht nicht hoch genug in der Rollen-Reihenfolge",
@@ -506,7 +493,6 @@
     "stats_timeouts": "Aktive Timeouts",
     "nobody_live": "Niemand live",
     "live_more": "+{count} weitere",
-    "manage_modules": "Verwalten →",
     "modules_active": "Module aktiv",
     "view_all": "Alle anzeigen →",
     "top_levels_title": "Top Level",

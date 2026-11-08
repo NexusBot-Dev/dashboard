@@ -1,9 +1,10 @@
 ---
-import { DASHBOARD_FOOTER_LINKS, BRAND_NAME, BASE_URL } from '../config';
+import { DASHBOARD_FOOTER_LINKS, BRAND_NAME, BASE_URL, SITE_LANGS } from '../config';
 
 const t = Astro.locals.t;
 const lang = Astro.locals.lang;
 const currentYear = new Date().getFullYear();
+const siteLang = SITE_LANGS.includes(lang) ? lang : 'en';   // z. B. es/pt → englisches Impressum
 
 const FOOTER_LABELS: Record<string, string> = {
   imprint: t('footer.link_imprint'),
@@ -13,7 +14,7 @@ const FOOTER_LABELS: Record<string, string> = {
 
 const footerLinks = DASHBOARD_FOOTER_LINKS.flatMap((group) => group.links).map((link) => ({
   ...link,
-  href: `${BASE_URL}/${lang}${link.path}`,
+  href: `${BASE_URL}/${siteLang}${link.path}`,
 }));
 ---
 

@@ -124,8 +124,8 @@ test.describe('Sidebar', () => {
     const hrefs = await page.locator('aside nav a').evaluateAll((links) => links.map((a) => a.getAttribute('href')));
     const base = `/server/${GUILD_ID}/`;
     expect(hrefs).toEqual([
-      base, `${base}moderation/`, `${base}embeds/`, `${base}giveaways/`,
-      `${base}tickets/`, `${base}levels/`, `${base}welcome/`, `${base}reaction-roles/`, `${base}automod/`, `${base}stream-alerts/`,
+      base, `${base}moderation/`, `${base}embeds/`, `${base}levels/`, `${base}stream-alerts/`,
+      `${base}welcome/`, `${base}reaction-roles/`, `${base}automod/`, `${base}tickets/`, `${base}giveaways/`,
       `${base}settings/`,
     ]);
     await expect(page.locator('aside nav p')).toHaveCount(0);

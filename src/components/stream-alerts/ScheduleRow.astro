@@ -1,0 +1,27 @@
+---
+// Eine Zeile im Tab „Streamplan“: Twitch-Kanal mit Status und Schalter. Wird für die Kanäle vom Bot gerendert
+// und — ohne entry — als <template>, aus dem das Skript die Liste nach jeder Änderung neu aufbaut.
+import PlatformIcon from '../icons/PlatformIcon.astro';
+import Switch from '../Switch.astro';
+import { PLATFORM_META } from '../../lib/streamPlatforms';
+import { scheduleRowText, type ScheduleEntry, type ScheduleTexts } from '../../lib/streamSchedule';
+
+interface Props {
+  entry?: ScheduleEntry;
+  texts: ScheduleTexts;
+  disabled: boolean;   // Bot offline oder Limit erreicht (nur beim Einschalten)
+}
+
+const { entry, texts, disabled } = Astro.props;
+const { status, error } = entry ? scheduleRowText(entry, texts) : { status: '', error: '' };
+---
+
+<div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-schedule-row={entry?.monitored_channel_id ?? ''}>
+  <PlatformIcon platform="twitch" class={`w-4 h-4 flex-shrink-0 ${PLATFORM_META.twitch.colorClass}`} />
+  <div class="min-w-0 flex-1">
+    <p class="text-sm font-medium text-slate-900 dark:text-white truncate" data-field="name">{entry?.streamer_name}</p>
+    <p class="text-xs text-slate-500 dark:text-slate-400" data-field="status">{status}</p>
+    <p class:list={['text-xs text-amber-700 dark:text-amber-400', { hidden: !error }]} data-field="error">{error}</p>
+  </div>
+  <Switch checked={entry?.enabled ?? false} disabled={disabled} data-schedule-toggle="" />
+</div>

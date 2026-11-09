@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, delayPageWiring, expectNotWiredYet } from './support/helpers';
-import { CHANNELS, ROLES, defaultBotData } from './support/fixtures.mjs';
+import { CHANNELS, ROLES, SCHEDULE, defaultBotData } from './support/fixtures.mjs';
 import { GUILD_ID } from './support/env.mjs';
 
 // Stream-Alerts: Ping-Rollen, überwachte Kanäle (Twitch/YouTube/Kick) und Verknüpfungen zwischen Kanälen.
@@ -23,6 +23,8 @@ const linkRow = (page: Page, id: number | string) => page.locator(`[data-link-ro
 const linkRows = (page: Page) => page.locator('[data-link-row]');
 const savePingBtn = (page: Page) => page.locator('#save-ping-roles-btn');
 const counters = (page: Page) => page.locator('#add-sub-btn').locator('xpath=../following-sibling::p[1]');
+const scheduleRow = (page: Page, id: number | string) => page.locator(`[data-schedule-row="${id}"]`);
+const scheduleSwitch = (page: Page, id: number | string) => scheduleRow(page, id).locator('[data-schedule-toggle]');
 const expectNoXss = async (page: Page) => expect(await page.evaluate(() => (window as any).__xss)).toBeUndefined();
 
 async function fillSubForm(page: Page, values: { platform?: string; username?: string; channel?: string; message?: string }) {
@@ -488,6 +490,141 @@ test.describe('Anzeige nach Änderungen', () => {
   });
 });
 
+test.describe('Tab „Streamplan“', () => {
+  const scheduleTab = (page: Page) => page.locator('#tab-schedule');
+  const limitNote = (page: Page) => page.locator('#schedule-limit-note');
+  const withSchedule = (values: Record<string, unknown>) => ({ 'stream_alerts/schedule': { data: { ...SCHEDULE, ...values } } });
+  const MAX = { ...SCHEDULE.entries[0], monitored_channel_id: 14, streamer_name: 'MaxStreams', enabled: false, active: false, events: 0 };
+
+  async function openSchedule(page: Page) {
+    await page.goto(PAGE);
+    await scheduleTab(page).click();
+    await expect(page.locator('#tab-panel-schedule')).toBeVisible();
+  }
+
+  test('Tabs: Alerts zuerst, Streamplan per Klick und per #schedule in der Adresse', async ({ page }) => {
+    await page.goto(PAGE);
+    await expect(page.locator('#tab-panel-alerts')).toBeVisible();
+    await expect(page.locator('#tab-panel-schedule')).toBeHidden();
+    await scheduleTab(page).click();
+    await expect(page.locator('#tab-panel-alerts')).toBeHidden();
+    await expect(page).toHaveURL(/#schedule$/);
+
+    await page.goto(`${PAGE}#schedule`);
+    await page.reload();
+    await expect(page.locator('#tab-panel-schedule')).toBeVisible();
+  });
+
+  test('Übersicht: Zeitfenster, Premium-Hinweis, Status und Limit', async ({ page }) => {
+    await openSchedule(page);
+    await expect(page.locator('#schedule-desc')).toHaveText(t('stream_alerts.schedule_desc', { days: 7 }));
+    await expect(page.getByText(t('stream_alerts.schedule_premium_hint', { max: 5, max_days: 14 }))).toBeVisible();
+    await expect(scheduleRow(page, 11)).toContainText('TwitchStar');
+    await expect(scheduleRow(page, 11).locator('[data-field="status"]')).toHaveText(t('stream_alerts.schedule_events', { count: 2 }));
+    await expect(scheduleSwitch(page, 11)).toHaveAttribute('aria-checked', 'true');
+    await expect(scheduleSwitch(page, 11)).toBeEnabled();   // ausschalten geht immer
+    await expect(limitNote(page)).toHaveText(t('stream_alerts.schedule_limit_premium', { limit: 1, max: 5 }));
+    await expect(page.locator('#schedule-permission-warning')).toHaveCount(0);
+    await expect(page.locator('#no-schedule-msg')).toBeHidden();
+  });
+
+  test('ausschalten: Payload, Zeile und Limit-Hinweis aus der Antwort des Bots', async ({ page }) => {
+    await openSchedule(page);
+    await scheduleSwitch(page, 11).click();
+    expect(await waitForBotCall('stream_alerts/schedule-toggle')).toMatchObject({ monitored_channel_id: '11', enabled: false });
+    await expect(scheduleSwitch(page, 11)).toHaveAttribute('aria-checked', 'false');
+    await expect(scheduleRow(page, 11).locator('[data-field="status"]')).toHaveText(t('stream_alerts.schedule_off'));
+    await expect(limitNote(page)).toBeHidden();
+
+    await scheduleSwitch(page, 11).click();   // wieder ein
+    expect((await waitForBotCall('stream_alerts/schedule-toggle', 1)).enabled).toBe(true);
+    await expect(scheduleRow(page, 11).locator('[data-field="status"]')).toHaveText(t('stream_alerts.schedule_events', { count: 3 }));
+    await expect(scheduleSwitch(page, 11)).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('am Limit: ausgeschaltete Kanäle sind gesperrt, mit Premium ohne Kauf-Hinweis', async ({ page }) => {
+    await resetBot(withSchedule({ entries: [SCHEDULE.entries[0], MAX] }));
+    await openSchedule(page);
+    await expect(scheduleSwitch(page, 14)).toBeDisabled();
+    await expect(scheduleSwitch(page, 11)).toBeEnabled();
+
+    await resetBot(withSchedule({ entries: [SCHEDULE.entries[0], MAX], limit: 5, premium_active: true }));
+    await page.reload();
+    await expect(scheduleSwitch(page, 14)).toBeEnabled();
+    await expect(limitNote(page)).toBeHidden();
+    await expect(page.getByText(t('stream_alerts.schedule_premium_hint', { max: 5, max_days: 14 }))).toHaveCount(0);
+
+    await resetBot(withSchedule({ entries: [SCHEDULE.entries[0]], limit: 1, premium_limit: 1, premium_active: true }));
+    await page.reload();
+    await expect(limitNote(page)).toHaveText(t('stream_alerts.schedule_limit_reached', { limit: 1 }));
+  });
+
+  test('Fehler aus dem Abgleich, inaktiv über dem Limit, fehlendes Recht', async ({ page }) => {
+    await resetBot(withSchedule({
+      entries: [{ ...SCHEDULE.entries[0], error: 'no_schedule' }, { ...MAX, enabled: true, active: false }],
+      can_create_events: false,
+    }));
+    await openSchedule(page);
+    await expect(scheduleRow(page, 11).locator('[data-field="error"]')).toHaveText(t('stream_alerts.schedule_err_no_schedule'));
+    await expect(scheduleRow(page, 14).locator('[data-field="status"]')).toHaveText(t('stream_alerts.inactive_limit'));
+    await expect(scheduleRow(page, 14).locator('[data-field="error"]')).toBeHidden();
+    await expect(page.locator('#schedule-permission-warning')).toHaveText(t('stream_alerts.schedule_missing_permission'));
+  });
+
+  test('ohne Twitch-Kanal ein Hinweis, ohne Antwort des Bots eine Meldung', async ({ page }) => {
+    await resetBot(withSchedule({ entries: [] }));
+    await openSchedule(page);
+    await expect(page.locator('#no-schedule-msg')).toHaveText(t('stream_alerts.schedule_no_twitch'));
+
+    await resetBot({ 'stream_alerts/schedule': { status: 500, error: 'internal_error' } });
+    await page.reload();
+    await expect(page.getByText(t('stream_alerts.schedule_unavailable'))).toBeVisible();
+    await expect(page.locator('#tab-panel-alerts')).toBeHidden();   // die restliche Seite funktioniert weiter
+    await page.locator('#tab-alerts').click();
+    await expect(subRow(page, 11)).toBeVisible();
+  });
+
+  test('Fehler des Bots beim Umschalten: Meldung, Schalter bleibt wie er war', async ({ page }) => {
+    await resetBot({ 'stream_alerts/schedule-toggle': { status: 400, error: 'Limit erreicht: höchstens 1 Streamer.' } });
+    const dialogs = collectDialogs(page);
+    await openSchedule(page);
+    await scheduleSwitch(page, 11).click();
+    await expect.poll(() => dialogs.join('\n')).toContain('Limit erreicht: höchstens 1 Streamer.');
+    await expect(scheduleSwitch(page, 11)).toHaveAttribute('aria-checked', 'true');
+    await expect(scheduleSwitch(page, 11)).toBeEnabled();
+  });
+
+  test('Twitch-Kanal im Tab „Alerts“ hinzugefügt oder entfernt: Streamplan-Liste wird neu geladen', async ({ page }) => {
+    collectDialogs(page);
+    await page.goto(PAGE);
+    expect(await botCalls('stream_alerts/schedule')).toHaveLength(1);   // beim Laden der Seite
+    await addKick(page);
+    await page.waitForTimeout(300);
+    expect(await botCalls('stream_alerts/schedule')).toHaveLength(1);   // Kick betrifft den Streamplan nicht
+
+    await subRow(page, 11).locator('[data-remove-sub]').click();
+    await expect.poll(async () => (await botCalls('stream_alerts/schedule')).length).toBe(2);
+  });
+
+  test('Namen bleiben Text, auch nach dem Neuaufbau', async ({ page }) => {
+    await resetBot(withSchedule({ entries: [{ ...SCHEDULE.entries[0], streamer_name: `Star ${XSS}` }] }));
+    await openSchedule(page);
+    await expect(scheduleRow(page, 11)).toContainText(`Star ${XSS}`);
+    await resetBot({
+      'stream_alerts/schedule-toggle': { data: { ...SCHEDULE, entries: [{ ...SCHEDULE.entries[0], streamer_name: `Neu ${XSS}`, enabled: false }] } },
+    });
+    await scheduleSwitch(page, 11).click();
+    await expect(scheduleRow(page, 11)).toContainText(`Neu ${XSS}`);
+    await expectNoXss(page);
+  });
+
+  test('ohne Bot: Schalter gesperrt', async ({ page }) => {
+    await resetBot({ 'stream_alerts/list': { status: 500, error: 'internal_error' } });
+    await openSchedule(page);
+    await expect(scheduleSwitch(page, 11)).toBeDisabled();
+  });
+});
+
 test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
   const sidebarLink = (page: Page, sub: string) => page.locator(`aside a[href="/server/${GUILD_ID}/${sub}"]`).first();
 
@@ -513,6 +650,12 @@ test.describe('Navigation ohne Neuladen (ClientRouter)', () => {
     await page.waitForTimeout(500); // etwaige doppelte Aufrufe abwarten
     expect(await botCalls('stream_alerts/remove')).toHaveLength(1);
     expect(await botCalls('stream_alerts/delete-link')).toHaveLength(1);
+
+    await page.locator('#tab-schedule').click();
+    await scheduleSwitch(page, 11).click();
+    await waitForBotCall('stream_alerts/schedule-toggle');
+    await page.waitForTimeout(500);
+    expect(await botCalls('stream_alerts/schedule-toggle')).toHaveLength(1);
   });
 });
 

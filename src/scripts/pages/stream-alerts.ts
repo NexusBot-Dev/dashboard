@@ -3,6 +3,9 @@
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
 import { PLATFORM_META, channelLabel, subscriptionLabel } from '../../lib/streamPlatforms';
+import { scheduleCanToggle, scheduleLimitNote, scheduleRowText, type ScheduleOverview, type ScheduleTexts } from '../../lib/streamSchedule';
+import { isSwitchOn, setSwitch } from '../switch';
+import { setupTabs } from '../tabs';
 
 interface StreamAlertsConfig {
   guildId: string;
@@ -19,6 +22,7 @@ interface StreamAlertsConfig {
     alertDifferentChannels: string;
     confirmRemoveLink: string;
     channelDeleted: string;
+    schedule: ScheduleTexts;
   };
 }
 
@@ -137,6 +141,67 @@ function refreshLinks() {
   byId('no-links-msg')?.classList.toggle('hidden', document.querySelector('#links-list [data-link-row]') !== null);
 }
 
+// ── Tab „Streamplan“ ─────────────────────────────────────────────────────────────────────────────
+
+/** Liste, Limit-Hinweis und Leer-Hinweis aus der Antwort des Bots neu aufbauen */
+function renderSchedule(overview: ScheduleOverview, config: StreamAlertsConfig) {
+  const list = byId('schedule-list');
+  if (!list) return;   // Streamplan nicht geladen (Hinweis statt Liste)
+  const texts = config.i18n.schedule;
+  list.replaceChildren(...overview.entries.map((entry) => {
+    const row = cloneTemplate('schedule-row-template');
+    const { status, error } = scheduleRowText(entry, texts);
+    row.dataset.scheduleRow = String(entry.monitored_channel_id);
+    row.querySelector('[data-field="name"]')!.textContent = entry.streamer_name;
+    row.querySelector('[data-field="status"]')!.textContent = status;
+    const errorEl = row.querySelector('[data-field="error"]')!;
+    errorEl.textContent = error;
+    errorEl.classList.toggle('hidden', !error);
+    const toggle = row.querySelector<HTMLButtonElement>('[data-schedule-toggle]')!;
+    setSwitch(toggle, entry.enabled);
+    toggle.disabled = !config.botOnline || !scheduleCanToggle(entry, overview);
+    return row;
+  }));
+  const note = scheduleLimitNote(overview, texts);
+  const noteEl = byId('schedule-limit-note');
+  if (noteEl) {
+    noteEl.textContent = note;
+    noteEl.classList.toggle('hidden', !note);
+  }
+  byId('no-schedule-msg')?.classList.toggle('hidden', overview.entries.length > 0);
+}
+
+function setupSchedule(api: DashboardApi, config: StreamAlertsConfig) {
+  const list = byId('schedule-list');
+  if (!list) return;
+  list.addEventListener('click', async (event) => {
+    const toggle = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-schedule-toggle]');
+    const row = toggle?.closest<HTMLElement>('[data-schedule-row]');
+    if (!toggle || !row || toggle.disabled) return;
+    toggle.disabled = true;
+    try {
+      // Der Bot gleicht sofort ab (Events anlegen oder löschen) und schickt die neue Übersicht zurück
+      const overview = await api.callModuleAction<ScheduleOverview>('stream_alerts', 'schedule-toggle', {
+        monitored_channel_id: row.dataset.scheduleRow, enabled: !isSwitchOn(toggle),
+      });
+      renderSchedule(overview, config);
+    } catch (err) {
+      alert(errorMessage(err));
+      toggle.disabled = false;
+    }
+  });
+}
+
+/** Nach dem Hinzufügen oder Entfernen eines Kanals: Twitch-Kanäle im Tab „Streamplan“ auf Stand bringen */
+async function refreshSchedule(api: DashboardApi, config: StreamAlertsConfig) {
+  if (!byId('schedule-list')) return;
+  try {
+    renderSchedule(await api.callModuleAction<ScheduleOverview>('stream_alerts', 'schedule'), config);
+  } catch {
+    // Nicht schlimm: nach dem Neuladen stimmt die Liste wieder
+  }
+}
+
 function setupSubscriptions(api: DashboardApi, config: StreamAlertsConfig) {
   const { i18n } = config;
   const addBtn = byId<HTMLButtonElement>('add-sub-btn');
@@ -219,6 +284,7 @@ function setupSubscriptions(api: DashboardApi, config: StreamAlertsConfig) {
           addLinkOption(String(result.subscription_id), platform, result.streamer_name, channelLabel(channelName, i18n.channelDeleted));
         }
         refreshSubscriptions(config);
+        if (platform === 'twitch') void refreshSchedule(api, config);
         warning = result.warning;
       }
       closeForm();
@@ -249,6 +315,7 @@ function setupSubscriptions(api: DashboardApi, config: StreamAlertsConfig) {
         if (section && !section.querySelector('[data-sub-row]')) section.style.display = 'none';
         if (row.dataset.subscriptionId) forgetSubscription(row.dataset.subscriptionId);
         refreshSubscriptions(config);
+        if (row.dataset.platform === 'twitch') void refreshSchedule(api, config);
       } catch (err) {
         alert(errorMessage(err));
       }
@@ -335,9 +402,11 @@ function setupStreamAlertsPage() {
   const { i18n } = config;
   const api = createDashboardApi(config.guildId, i18n);
 
+  setupTabs(root);
   setupPingRoles(root, api, i18n);
   setupSubscriptions(api, config);
   setupLinks(api, i18n);
+  setupSchedule(api, config);
 }
 
 document.addEventListener('astro:page-load', setupStreamAlertsPage);

@@ -123,6 +123,7 @@
     "schedule_limit_reached": "Limit erreicht: höchstens {limit} Streamer.",
     "schedule_limit_premium": "Limit erreicht: {limit} Streamer. Mit Premium bis zu {max}.",
     "schedule_unavailable": "Der Streamplan konnte gerade nicht geladen werden.",
+    "schedule_soon": "Bald verfügbar: Termine aus dem Twitch-Streamplan erscheinen dann automatisch als Server-Events. Die Funktion wird gerade noch getestet.",
     "unexpected_response": "Unerwartete Antwort (Status {status})"
   },
   "tickets": {

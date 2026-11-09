@@ -123,6 +123,7 @@
     "schedule_limit_reached": "Límite alcanzado: {limit} streamers como máximo.",
     "schedule_limit_premium": "Límite alcanzado: {limit} streamers. Hasta {max} con Premium.",
     "schedule_unavailable": "No se pudo cargar el horario en este momento.",
+    "schedule_soon": "Próximamente: las fechas del horario de Twitch aparecerán automáticamente como eventos del servidor. La función todavía se está probando.",
     "unexpected_response": "Respuesta inesperada (estado {status})"
   },
   "tickets": {

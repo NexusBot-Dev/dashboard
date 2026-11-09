@@ -123,6 +123,7 @@
     "schedule_limit_reached": "Limite atingido: no máximo {limit} streamers.",
     "schedule_limit_premium": "Limite atingido: {limit} streamers. Até {max} com o Premium.",
     "schedule_unavailable": "Não foi possível carregar a agenda agora.",
+    "schedule_soon": "Em breve: as datas da agenda da Twitch vão aparecer automaticamente como eventos do servidor. A função ainda está em teste.",
     "unexpected_response": "Resposta inesperada (status {status})"
   },
   "tickets": {

@@ -123,6 +123,7 @@
     "schedule_limit_reached": "Limit reached: at most {limit} streamers.",
     "schedule_limit_premium": "Limit reached: {limit} streamers. Up to {max} with Premium.",
     "schedule_unavailable": "The stream schedule couldn't be loaded right now.",
+    "schedule_soon": "Coming soon: dates from the Twitch schedule will automatically show up as server events. The feature is still being tested.",
     "unexpected_response": "Unexpected response (status {status})"
   },
   "tickets": {

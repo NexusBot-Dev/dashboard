@@ -20,6 +20,7 @@ export interface ScheduleOverview {
   premium_days: number;
   premium_active: boolean;
   can_create_events: boolean;
+  available?: boolean;     // false: Testphase, auf diesem Server noch nicht nutzbar (ältere Bots schicken es nicht)
 }
 
 export interface ScheduleTexts {

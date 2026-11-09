@@ -618,6 +618,30 @@ test.describe('Tab „Streamplan“', () => {
     await expectNoXss(page);
   });
 
+  test('Testphase: auf anderen Servern nur „Bald verfügbar“, keine Schalter', async ({ page }) => {
+    await resetBot(withSchedule({ available: false }));
+    await openSchedule(page);
+    await expect(page.locator('#schedule-soon')).toHaveText(t('stream_alerts.schedule_soon'));
+    await expect(page.locator('[data-schedule-toggle]')).toHaveCount(0);
+    await expect(page.locator('#schedule-desc')).toHaveCount(0);
+
+    // Twitch-Kanal entfernt: das Neuladen der Liste darf ohne Liste nichts kaputt machen
+    collectDialogs(page);
+    await page.locator('#tab-alerts').click();
+    await subRow(page, 11).locator('[data-remove-sub]').click();
+    await expect(subRow(page, 11)).toHaveCount(0);
+    await page.waitForTimeout(300);
+    expect(await botCalls('stream_alerts/schedule')).toHaveLength(1);   // nur beim Laden der Seite
+  });
+
+  test('ältere Bots ohne Angabe gelten als freigegeben', async ({ page }) => {
+    const withoutFlag: Record<string, unknown> = { ...SCHEDULE };
+    delete withoutFlag.available;
+    await resetBot({ 'stream_alerts/schedule': { data: withoutFlag } });
+    await openSchedule(page);
+    await expect(scheduleSwitch(page, 11)).toBeVisible();
+  });
+
   test('ohne Bot: Schalter gesperrt', async ({ page }) => {
     await resetBot({ 'stream_alerts/list': { status: 500, error: 'internal_error' } });
     await openSchedule(page);

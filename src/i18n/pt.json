@@ -111,7 +111,7 @@
     "tab_schedule": "Agenda",
     "schedule_title": "Agenda de stream como eventos",
     "schedule_desc": "As datas da agenda da Twitch aparecem como eventos do servidor – para os próximos {days} dias. O bot verifica a cada hora e atualiza ou remove eventos quando a agenda muda.",
-    "schedule_premium_hint": "Com o Premium: até {max} streamers e {max_days} dias de antecedência.",
+    "schedule_premium_hint": "Com o Premium: até {max} streamers.",
     "schedule_missing_permission": "Falta ao bot a permissão “Criar eventos”. Enquanto ela faltar, não é possível criar eventos.",
     "schedule_no_twitch": "Ainda não há nenhum canal da Twitch monitorado. Adicione um primeiro na aba “Alertas”.",
     "schedule_off": "Desligado",

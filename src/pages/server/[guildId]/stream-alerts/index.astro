@@ -316,8 +316,8 @@ const pageConfig = {
         ) : schedule ? (
           <>
             <p class="text-sm text-slate-500 dark:text-slate-400" id="schedule-desc">{t('stream_alerts.schedule_desc', { days: schedule.days })}</p>
-            {!schedule.premium_active && (schedule.premium_limit > schedule.limit || schedule.premium_days > schedule.days) && (
-              <p class="text-sm text-slate-400 mt-1">{t('stream_alerts.schedule_premium_hint', { max: schedule.premium_limit, max_days: schedule.premium_days })}</p>
+            {!schedule.premium_active && schedule.premium_limit > schedule.limit && (
+              <p class="text-sm text-slate-400 mt-1">{t('stream_alerts.schedule_premium_hint', { max: schedule.premium_limit })}</p>
             )}
             {!schedule.can_create_events && (
               <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mt-4" id="schedule-permission-warning">

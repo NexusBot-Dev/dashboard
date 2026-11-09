@@ -111,7 +111,7 @@
     "tab_schedule": "Stream schedule",
     "schedule_title": "Stream schedule as events",
     "schedule_desc": "Dates from the Twitch schedule show up as server events — for the next {days} days. The bot checks every hour and updates or removes events when the schedule changes.",
-    "schedule_premium_hint": "With Premium: up to {max} streamers and {max_days} days ahead.",
+    "schedule_premium_hint": "With Premium: up to {max} streamers.",
     "schedule_missing_permission": "The bot is missing the “Create Events” permission. Until it's granted, no events can be created.",
     "schedule_no_twitch": "No Twitch channel is being monitored yet. Add one in the “Alerts” tab first.",
     "schedule_off": "Off",

@@ -16,7 +16,7 @@ export const ROLES = [
 // Tab „Streamplan“ (stream_alerts/schedule): TwitchStar ist eingeschaltet, Free-Limit 1
 export const SCHEDULE = {
   entries: [{ monitored_channel_id: 11, streamer_name: 'TwitchStar', enabled: true, active: true, error: null, events: 2 }],
-  limit: 1, premium_limit: 5, days: 7, premium_days: 14, premium_active: false, can_create_events: true, available: true,
+  limit: 1, premium_limit: 5, days: 7, premium_days: 7, premium_active: false, can_create_events: true, available: true,
 };
 
 export const defaultBotData = {

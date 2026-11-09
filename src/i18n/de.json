@@ -111,7 +111,7 @@
     "tab_schedule": "Streamplan",
     "schedule_title": "Streamplan als Events",
     "schedule_desc": "Termine aus dem Twitch-Streamplan erscheinen als Server-Events – für die nächsten {days} Tage. Der Bot gleicht stündlich ab und passt Events an oder entfernt sie, wenn sich der Plan ändert.",
-    "schedule_premium_hint": "Mit Premium: bis zu {max} Streamer und {max_days} Tage im Voraus.",
+    "schedule_premium_hint": "Mit Premium: bis zu {max} Streamer.",
     "schedule_missing_permission": "Dem Bot fehlt das Recht „Events erstellen“. Solange es fehlt, kann er keine Events anlegen.",
     "schedule_no_twitch": "Noch kein Twitch-Kanal wird überwacht. Füge im Tab „Alerts“ zuerst einen hinzu.",
     "schedule_off": "Aus",

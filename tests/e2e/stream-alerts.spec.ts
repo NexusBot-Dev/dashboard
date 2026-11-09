@@ -518,7 +518,7 @@ test.describe('Tab „Streamplan“', () => {
   test('Übersicht: Zeitfenster, Premium-Hinweis, Status und Limit', async ({ page }) => {
     await openSchedule(page);
     await expect(page.locator('#schedule-desc')).toHaveText(t('stream_alerts.schedule_desc', { days: 7 }));
-    await expect(page.getByText(t('stream_alerts.schedule_premium_hint', { max: 5, max_days: 14 }))).toBeVisible();
+    await expect(page.getByText(t('stream_alerts.schedule_premium_hint', { max: 5 }))).toBeVisible();
     await expect(scheduleRow(page, 11)).toContainText('TwitchStar');
     await expect(scheduleRow(page, 11).locator('[data-field="status"]')).toHaveText(t('stream_alerts.schedule_events', { count: 2 }));
     await expect(scheduleSwitch(page, 11)).toHaveAttribute('aria-checked', 'true');
@@ -552,7 +552,7 @@ test.describe('Tab „Streamplan“', () => {
     await page.reload();
     await expect(scheduleSwitch(page, 14)).toBeEnabled();
     await expect(limitNote(page)).toBeHidden();
-    await expect(page.getByText(t('stream_alerts.schedule_premium_hint', { max: 5, max_days: 14 }))).toHaveCount(0);
+    await expect(page.getByText(t('stream_alerts.schedule_premium_hint', { max: 5 }))).toHaveCount(0);
 
     await resetBot(withSchedule({ entries: [SCHEDULE.entries[0]], limit: 1, premium_limit: 1, premium_active: true }));
     await page.reload();

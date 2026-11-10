@@ -4,15 +4,17 @@
 import PlatformIcon from '../icons/PlatformIcon.astro';
 import Switch from '../Switch.astro';
 import { PLATFORM_META } from '../../lib/streamPlatforms';
-import { scheduleRowText, type ScheduleEntry, type ScheduleTexts } from '../../lib/streamSchedule';
+import { SCHEDULE_IMAGE_SOURCES, scheduleImageSelectable, scheduleRowText, type ScheduleEntry, type ScheduleTexts } from '../../lib/streamSchedule';
 
 interface Props {
   entry?: ScheduleEntry;
   texts: ScheduleTexts;
-  disabled: boolean;   // Bot offline oder Limit erreicht (nur beim Einschalten)
+  disabled: boolean;      // Schalter: Bot offline oder Limit erreicht (nur beim Einschalten)
+  botOnline: boolean;     // Bildauswahl
+  imageLabel: string;     // Beschriftung der Bildauswahl (für Screenreader)
 }
 
-const { entry, texts, disabled } = Astro.props;
+const { entry, texts, disabled, botOnline, imageLabel } = Astro.props;
 const { status, error } = entry ? scheduleRowText(entry, texts) : { status: '', error: '' };
 ---
 
@@ -23,5 +25,9 @@ const { status, error } = entry ? scheduleRowText(entry, texts) : { status: '', 
     <p class="text-xs text-slate-500 dark:text-slate-400" data-field="status">{status}</p>
     <p class:list={['text-xs text-amber-700 dark:text-amber-400', { hidden: !error }]} data-field="error">{error}</p>
   </div>
+  <select data-schedule-image data-initial={entry?.image_source ?? ''} aria-label={imageLabel} disabled={!botOnline}
+    class:list={['px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50', { hidden: !entry || !scheduleImageSelectable(entry) }]}>
+    {SCHEDULE_IMAGE_SOURCES.map((source) => <option value={source} selected={entry?.image_source === source}>{texts.images[source]}</option>)}
+  </select>
   <Switch checked={entry?.enabled ?? false} disabled={disabled} data-schedule-toggle="" />
 </div>

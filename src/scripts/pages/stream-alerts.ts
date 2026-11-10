@@ -3,7 +3,7 @@
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
 import { PLATFORM_META, channelLabel, subscriptionLabel } from '../../lib/streamPlatforms';
-import { scheduleCanToggle, scheduleLimitNote, scheduleRowText, type ScheduleOverview, type ScheduleTexts } from '../../lib/streamSchedule';
+import { scheduleCanToggle, scheduleImageSelectable, scheduleLimitNote, scheduleRowText, type ScheduleOverview, type ScheduleTexts } from '../../lib/streamSchedule';
 import { isSwitchOn, setSwitch } from '../switch';
 import { setupTabs } from '../tabs';
 
@@ -160,6 +160,10 @@ function renderSchedule(overview: ScheduleOverview, config: StreamAlertsConfig) 
     const toggle = row.querySelector<HTMLButtonElement>('[data-schedule-toggle]')!;
     setSwitch(toggle, entry.enabled);
     toggle.disabled = !config.botOnline || !scheduleCanToggle(entry, overview);
+    const image = row.querySelector<HTMLSelectElement>('[data-schedule-image]')!;
+    image.classList.toggle('hidden', !scheduleImageSelectable(entry));
+    if (entry.image_source) image.value = entry.image_source;
+    image.dataset.initial = image.value;
     return row;
   }));
   const note = scheduleLimitNote(overview, texts);
@@ -188,6 +192,24 @@ function setupSchedule(api: DashboardApi, config: StreamAlertsConfig) {
     } catch (err) {
       alert(errorMessage(err));
       toggle.disabled = false;
+    }
+  });
+
+  // Bildquelle: Der Bot gleicht sofort ab (kommende Events bekommen das neue Bild)
+  list.addEventListener('change', async (event) => {
+    const image = (event.target as HTMLElement).closest<HTMLSelectElement>('[data-schedule-image]');
+    const row = image?.closest<HTMLElement>('[data-schedule-row]');
+    if (!image || !row) return;
+    image.disabled = true;
+    try {
+      const overview = await api.callModuleAction<ScheduleOverview>('stream_alerts', 'schedule-image', {
+        monitored_channel_id: row.dataset.scheduleRow, source: image.value,
+      });
+      renderSchedule(overview, config);
+    } catch (err) {
+      alert(errorMessage(err));
+      image.value = image.dataset.initial ?? image.value;   // zurück auf die gespeicherte Quelle
+      image.disabled = false;
     }
   });
 }

@@ -8,7 +8,11 @@ export interface ScheduleEntry {
   active: boolean;        // eingeschaltet und im Limit
   error: ScheduleError | null;
   events: number;         // kommende Events, die der Bot angelegt hat
+  image_source?: ScheduleImageSource;   // ältere Bots schicken es nicht — dann keine Auswahl
 }
+
+export type ScheduleImageSource = 'banner' | 'offline' | 'none';
+export const SCHEDULE_IMAGE_SOURCES: ScheduleImageSource[] = ['banner', 'offline', 'none'];
 
 export type ScheduleError = 'missing_permission' | 'no_schedule' | 'twitch_error' | 'discord_error';
 
@@ -30,7 +34,11 @@ export interface ScheduleTexts {
   errors: Record<ScheduleError, string>;
   limitReached: string;   // enthält "{limit}"
   limitPremium: string;   // enthält "{limit}" und "{max}"
+  images: Record<ScheduleImageSource, string>;   // Namen der Bildquellen für die Auswahl
 }
+
+/** Bildquelle wählbar? Nur für eingeschaltete Kanäle — und nur, wenn der Bot sie kennt (neuere Versionen). */
+export const scheduleImageSelectable = (entry: ScheduleEntry) => entry.enabled && entry.image_source !== undefined;
 
 /** Status und (falls vorhanden) Fehler einer Zeile */
 export function scheduleRowText(entry: ScheduleEntry, texts: ScheduleTexts): { status: string; error: string } {

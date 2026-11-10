@@ -15,7 +15,7 @@ export const ROLES = [
 
 // Tab „Streamplan“ (stream_alerts/schedule): TwitchStar ist eingeschaltet, Free-Limit 1
 export const SCHEDULE = {
-  entries: [{ monitored_channel_id: 11, streamer_name: 'TwitchStar', enabled: true, active: true, error: null, events: 2 }],
+  entries: [{ monitored_channel_id: 11, streamer_name: 'TwitchStar', enabled: true, active: true, error: null, events: 2, image_source: 'banner' }],
   limit: 1, premium_limit: 5, days: 7, premium_days: 7, premium_active: false, can_create_events: true, available: true,
 };
 
@@ -259,6 +259,12 @@ export const defaultBotData = {
   },
   // Streamplan: Twitch-Kanäle mit Schalter. Umschalten antwortet wie der Bot mit der neuen Übersicht.
   'stream_alerts/schedule': SCHEDULE,
+  'stream_alerts/schedule-image': (body) => ({
+    ...SCHEDULE,
+    entries: SCHEDULE.entries.map((e) => (String(e.monitored_channel_id) === String(body.monitored_channel_id)
+      ? { ...e, image_source: body.source }
+      : e)),
+  }),
   'stream_alerts/schedule-toggle': (body) => ({
     ...SCHEDULE,
     entries: SCHEDULE.entries.map((e) => (String(e.monitored_channel_id) === String(body.monitored_channel_id)

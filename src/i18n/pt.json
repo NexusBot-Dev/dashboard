@@ -124,6 +124,10 @@
     "schedule_limit_premium": "Limite atingido: {limit} streamers. Até {max} com o Premium.",
     "schedule_unavailable": "Não foi possível carregar a agenda agora.",
     "schedule_soon": "Em breve: as datas da agenda da Twitch vão aparecer automaticamente como eventos do servidor. A função ainda está em teste.",
+    "schedule_image_label": "Imagem",
+    "schedule_image_banner": "Banner do jogo",
+    "schedule_image_offline": "Imagem offline",
+    "schedule_image_none": "Sem imagem",
     "unexpected_response": "Resposta inesperada (status {status})"
   },
   "tickets": {

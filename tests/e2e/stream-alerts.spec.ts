@@ -618,6 +618,42 @@ test.describe('Tab „Streamplan“', () => {
     await expectNoXss(page);
   });
 
+  test('Bildquelle: Auswahl nur bei eingeschalteten Kanälen, Payload, Anzeige aus der Antwort', async ({ page }) => {
+    await resetBot(withSchedule({ entries: [SCHEDULE.entries[0], MAX] }));
+    await openSchedule(page);
+    const image = (id: number) => scheduleRow(page, id).locator('[data-schedule-image]');
+    await expect(image(11)).toBeVisible();
+    await expect(image(11)).toHaveValue('banner');
+    await expect(image(11).locator('option')).toHaveText([
+      t('stream_alerts.schedule_image_banner'), t('stream_alerts.schedule_image_offline'), t('stream_alerts.schedule_image_none'),
+    ]);
+    await expect(image(14)).toBeHidden();   // ausgeschaltet
+
+    await image(11).selectOption('none');
+    expect(await waitForBotCall('stream_alerts/schedule-image')).toMatchObject({ monitored_channel_id: '11', source: 'none' });
+    await expect(image(11)).toHaveValue('none');
+    await expect(image(11)).toBeEnabled();
+  });
+
+  test('Bildquelle: Fehler des Bots setzt die Auswahl zurück', async ({ page }) => {
+    await resetBot({ 'stream_alerts/schedule-image': { status: 400, error: 'Der Kanal wurde nicht gefunden.' } });
+    const dialogs = collectDialogs(page);
+    await openSchedule(page);
+    const image = scheduleRow(page, 11).locator('[data-schedule-image]');
+    await image.selectOption('offline');
+    await expect.poll(() => dialogs.join('\n')).toContain('Der Kanal wurde nicht gefunden.');
+    await expect(image).toHaveValue('banner');
+    await expect(image).toBeEnabled();
+  });
+
+  test('Bildquelle: ältere Bots ohne Angabe — keine Auswahl', async ({ page }) => {
+    const { image_source: _, ...entry } = SCHEDULE.entries[0];
+    await resetBot(withSchedule({ entries: [entry] }));
+    await openSchedule(page);
+    await expect(scheduleRow(page, 11).locator('[data-schedule-image]')).toBeHidden();
+    await expect(scheduleSwitch(page, 11)).toBeVisible();
+  });
+
   test('Testphase: auf anderen Servern nur „Bald verfügbar“, keine Schalter', async ({ page }) => {
     await resetBot(withSchedule({ available: false }));
     await openSchedule(page);

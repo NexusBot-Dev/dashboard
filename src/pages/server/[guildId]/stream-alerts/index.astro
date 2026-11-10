@@ -101,6 +101,11 @@ const scheduleTexts: ScheduleTexts = {
   },
   limitReached: t('stream_alerts.schedule_limit_reached'),   // enthält "{limit}"
   limitPremium: t('stream_alerts.schedule_limit_premium'),   // enthält "{limit}" und "{max}"
+  images: {
+    banner: t('stream_alerts.schedule_image_banner'),
+    offline: t('stream_alerts.schedule_image_offline'),
+    none: t('stream_alerts.schedule_image_none'),
+  },
 };
 const scheduleLimitText = schedule ? scheduleLimitNote(schedule, scheduleTexts) : '';
 const tabs = [
@@ -326,12 +331,12 @@ const pageConfig = {
             )}
             <div id="schedule-list" class="space-y-2 mt-5">
               {schedule.entries.map((entry) => (
-                <ScheduleRow entry={entry} texts={scheduleTexts} disabled={!botOnline || !scheduleCanToggle(entry, schedule)} />
+                <ScheduleRow entry={entry} texts={scheduleTexts} disabled={!botOnline || !scheduleCanToggle(entry, schedule)} botOnline={botOnline} imageLabel={t('stream_alerts.schedule_image_label')} />
               ))}
             </div>
             <p class:list={['text-xs text-slate-500 dark:text-slate-400 mt-3', { hidden: !scheduleLimitText }]} id="schedule-limit-note">{scheduleLimitText}</p>
             <p class:list={['text-sm text-slate-500 dark:text-slate-400 mt-5', { hidden: schedule.entries.length > 0 }]} id="no-schedule-msg">{t('stream_alerts.schedule_no_twitch')}</p>
-            <template id="schedule-row-template"><ScheduleRow texts={scheduleTexts} disabled={!botOnline} /></template>
+            <template id="schedule-row-template"><ScheduleRow texts={scheduleTexts} disabled={!botOnline} botOnline={botOnline} imageLabel={t('stream_alerts.schedule_image_label')} /></template>
           </>
         ) : (
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">{t('stream_alerts.schedule_unavailable')}</p>

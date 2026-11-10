@@ -124,6 +124,10 @@
     "schedule_limit_premium": "Límite alcanzado: {limit} streamers. Hasta {max} con Premium.",
     "schedule_unavailable": "No se pudo cargar el horario en este momento.",
     "schedule_soon": "Próximamente: las fechas del horario de Twitch aparecerán automáticamente como eventos del servidor. La función todavía se está probando.",
+    "schedule_image_label": "Imagen",
+    "schedule_image_banner": "Banner del juego",
+    "schedule_image_offline": "Imagen sin conexión",
+    "schedule_image_none": "Sin imagen",
     "unexpected_response": "Respuesta inesperada (estado {status})"
   },
   "tickets": {

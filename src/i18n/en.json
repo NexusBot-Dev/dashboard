@@ -124,6 +124,10 @@
     "schedule_limit_premium": "Limit reached: {limit} streamers. Up to {max} with Premium.",
     "schedule_unavailable": "The stream schedule couldn't be loaded right now.",
     "schedule_soon": "Coming soon: dates from the Twitch schedule will automatically show up as server events. The feature is still being tested.",
+    "schedule_image_label": "Image",
+    "schedule_image_banner": "Game banner",
+    "schedule_image_offline": "Offline image",
+    "schedule_image_none": "No image",
     "unexpected_response": "Unexpected response (status {status})"
   },
   "tickets": {

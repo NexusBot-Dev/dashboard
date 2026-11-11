@@ -108,6 +108,17 @@ test.describe('Panel', () => {
     expect(await page.evaluate(() => (window as any).__xss)).toBeUndefined();
   });
 
+  test('Markdown-Leiste formatiert die Auswahl, Vorschau zieht mit', async ({ page }) => {
+    await page.goto(guildPath('tickets/#panel'));
+    await page.locator('#tickets-textarea').fill('Schreib uns');
+    await page.locator('#tickets-textarea').evaluate((ta: HTMLTextAreaElement) => ta.setSelectionRange(8, 11));   // „uns“
+    await page.locator('[data-md-toolbar="tickets-textarea"] [data-md="bold"]').click();
+    await expect(page.locator('#tickets-textarea')).toHaveValue('Schreib **uns**');
+    await expect(page.locator('#tickets-preview strong')).toHaveText('uns');
+    await page.locator('[data-md-toolbar="tickets-textarea"] [data-md="h2"]').click();
+    await expect(page.locator('#tickets-textarea')).toHaveValue('## Schreib **uns**');
+  });
+
   test('bestehendes Panel speichern schickt Titel, Text und Channel', async ({ page }) => {
     const dialogs = collectDialogs(page);
     await page.goto(guildPath('tickets/#panel'));

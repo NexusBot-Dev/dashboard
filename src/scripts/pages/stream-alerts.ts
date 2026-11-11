@@ -4,7 +4,7 @@
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
 import { PLATFORM_META, channelLabel, subscriptionLabel } from '../../lib/streamPlatforms';
 import {
-  SCHEDULE_IMAGE_HEIGHT, SCHEDULE_IMAGE_WIDTH, SCHEDULE_MAX_TEXT_LENGTH, renderScheduleText, scheduleCanToggle, scheduleCropRect,
+  SCHEDULE_IMAGE_HEIGHT, SCHEDULE_IMAGE_MAX_BASE64, SCHEDULE_IMAGE_QUALITIES, SCHEDULE_IMAGE_WIDTH, SCHEDULE_MAX_TEXT_LENGTH, renderScheduleText, scheduleCanToggle, scheduleCropRect,
   scheduleCustomEditable, scheduleImageOptions, scheduleImageSelectable, scheduleLimitNote, scheduleRowText,
   type ScheduleEntry, type ScheduleOverview, type ScheduleTexts,
 } from '../../lib/streamSchedule';
@@ -286,7 +286,19 @@ function setupScheduleCustom(api: DashboardApi, config: StreamAlertsConfig) {
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = IMAGE_BACKGROUND;
     ctx.fillRect(0, 0, SCHEDULE_IMAGE_WIDTH, SCHEDULE_IMAGE_HEIGHT);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';   // Standard „low“ macht verkleinerte Bilder weich
     ctx.drawImage(picked, rect.x, rect.y, rect.width, rect.height, 0, 0, SCHEDULE_IMAGE_WIDTH, SCHEDULE_IMAGE_HEIGHT);
+  }
+
+  /** Canvas als JPEG (Base64) in der besten Qualität, die unter die Größengrenze des Bots passt */
+  function encodeCanvas(): string {
+    let data = '';
+    for (const quality of SCHEDULE_IMAGE_QUALITIES) {
+      data = canvas.toDataURL('image/jpeg', quality).split(',', 2)[1];
+      if (data.length <= SCHEDULE_IMAGE_MAX_BASE64) break;
+    }
+    return data;
   }
 
   function renderImage() {
@@ -454,7 +466,7 @@ function setupScheduleCustom(api: DashboardApi, config: StreamAlertsConfig) {
     const payload: Record<string, unknown> = { monitored_channel_id: String(entry.monitored_channel_id), text: textarea.value };
     if (picked) {
       drawPicked();
-      payload.image = canvas.toDataURL('image/jpeg', 0.92).split(',', 2)[1];
+      payload.image = encodeCanvas();
     } else if (removeStored) {
       payload.image = null;
     }

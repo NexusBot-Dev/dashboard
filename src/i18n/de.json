@@ -143,7 +143,7 @@
     "schedule_custom_image_choose": "Bild wählen …",
     "schedule_custom_image_remove": "Bild entfernen",
     "schedule_custom_image_restore": "Rückgängig",
-    "schedule_custom_image_hint": "PNG, JPG oder WebP. Wird auf 800 × 320 zugeschnitten und beim Speichern als Bildquelle gewählt.",
+    "schedule_custom_image_hint": "PNG, JPG oder WebP. Wird auf 1600 × 640 zugeschnitten und beim Speichern als Bildquelle gewählt.",
     "schedule_custom_position": "Ausschnitt",
     "schedule_custom_preview_label": "Vorschau mit Beispielwerten",
     "schedule_custom_preview_no_image": "Kein Bild",

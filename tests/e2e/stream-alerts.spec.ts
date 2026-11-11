@@ -785,7 +785,7 @@ test.describe('Streamplan: Text & Bild (Premium)', () => {
     await expect(imageNote(page)).toBeHidden();
     // Ausschnitt: ganz oben nur Blau, ganz unten nur Rot (Mitte des Vorschaubildes)
     const centerColor = () => page.locator('#schedule-custom-canvas').evaluate((canvas: HTMLCanvasElement) => {
-      const [r, , b] = canvas.getContext('2d')!.getImageData(400, 160, 1, 1).data;
+      const [r, , b] = canvas.getContext('2d')!.getImageData(800, 320, 1, 1).data;
       return r > b ? 'rot' : 'blau';
     });
     await page.locator('#schedule-custom-position').fill('100');
@@ -796,17 +796,39 @@ test.describe('Streamplan: Text & Bild (Premium)', () => {
     await page.locator('#schedule-custom-save').click();
     const body = await waitForBotCall('stream_alerts/schedule-custom');
     expect(body.image.startsWith('/9j/')).toBe(true);   // JPEG
-    expect(body.image.length).toBeLessThan(200_000);     // klein genug für den Bot (höchstens 1 MiB pro Anfrage)
+    expect(body.image.length).toBeLessThan(900_000);     // klein genug für den Bot (höchstens 1 MiB pro Anfrage)
     const size = await page.evaluate(async (b64) => {
       const bitmap = await createImageBitmap(await (await fetch(`data:image/jpeg;base64,${b64}`)).blob());
       return [bitmap.width, bitmap.height];
     }, body.image);
-    expect(size).toEqual([800, 320]);
+    expect(size).toEqual([1600, 640]);   // doppelte Mindestgröße: scharf auf hochauflösenden Bildschirmen
 
     // Antwort: Quelle „Eigenes Bild“ gewählt
     const select = scheduleRow(page, 11).locator('[data-schedule-image]');
     await expect(select).toHaveValue('custom');
     await expect(select.locator('option[value="custom"]')).toHaveText(t('stream_alerts.schedule_image_custom'));
+  });
+
+  test('Bild mit viel Detail: Qualität sinkt, bis es unter die Grenze des Bots passt', async ({ page }) => {
+    await resetBot(PREMIUM);
+    await openEditor(page);
+    // Rauschen ist für JPEG der schlimmste Fall — in bester Qualität deutlich über 1 MiB
+    const base64 = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1600;
+      canvas.height = 640;
+      const ctx = canvas.getContext('2d')!;
+      const pixels = ctx.createImageData(1600, 640);
+      for (let i = 0; i < pixels.data.length; i++) pixels.data[i] = i % 4 === 3 ? 255 : Math.floor(Math.random() * 256);
+      ctx.putImageData(pixels, 0, 0);
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    await page.locator('#schedule-custom-file').setInputFiles({ name: 'rauschen.png', mimeType: 'image/png', buffer: Buffer.from(base64, 'base64') });
+    await expect(page.locator('#schedule-custom-canvas')).toBeVisible();
+    await page.locator('#schedule-custom-save').click();
+    const body = await waitForBotCall('stream_alerts/schedule-custom');
+    expect(body.image.startsWith('/9j/')).toBe(true);
+    expect(body.image.length).toBeLessThanOrEqual(900_000);
   });
 
   test('Bild im Seitenverhältnis 5:2: kein Ausschnitt nötig', async ({ page }) => {

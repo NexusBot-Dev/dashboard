@@ -143,7 +143,7 @@
     "schedule_custom_image_choose": "Escolher imagem…",
     "schedule_custom_image_remove": "Remover imagem",
     "schedule_custom_image_restore": "Desfazer",
-    "schedule_custom_image_hint": "PNG, JPG ou WebP. Recortada para 800 × 320 e escolhida como fonte da imagem ao salvar.",
+    "schedule_custom_image_hint": "PNG, JPG ou WebP. Recortada para 1600 × 640 e escolhida como fonte da imagem ao salvar.",
     "schedule_custom_position": "Recorte",
     "schedule_custom_preview_label": "Prévia com valores de exemplo",
     "schedule_custom_preview_no_image": "Sem imagem",

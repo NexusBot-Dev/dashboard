@@ -143,7 +143,7 @@
     "schedule_custom_image_choose": "Choose image…",
     "schedule_custom_image_remove": "Remove image",
     "schedule_custom_image_restore": "Undo",
-    "schedule_custom_image_hint": "PNG, JPG or WebP. Cropped to 800 × 320 and selected as image source when you save.",
+    "schedule_custom_image_hint": "PNG, JPG or WebP. Cropped to 1600 × 640 and selected as image source when you save.",
     "schedule_custom_position": "Crop",
     "schedule_custom_preview_label": "Preview with sample values",
     "schedule_custom_preview_no_image": "No image",

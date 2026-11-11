@@ -20,8 +20,13 @@ export const SCHEDULE_IMAGE_SOURCES: ScheduleImageSource[] = ['banner', 'offline
 export const SCHEDULE_TEXT_PLACEHOLDERS = ['title', 'category', 'link', 'streamer'] as const;
 export const SCHEDULE_MAX_TEXT_LENGTH = 800;
 // Eigenes Bild: so groß wie das Bild im Discord-Event (der Bot schneidet genauso zu)
-export const SCHEDULE_IMAGE_WIDTH = 800;
-export const SCHEDULE_IMAGE_HEIGHT = 320;
+// Doppelte Mindestgröße von Discord (800×320): auf hochauflösenden Bildschirmen sonst unscharf. Wie im Bot.
+export const SCHEDULE_IMAGE_WIDTH = 1600;
+export const SCHEDULE_IMAGE_HEIGHT = 640;
+// Der Bot nimmt höchstens 1 MiB pro Anfrage an; Base64 bis hier lässt Platz für den Text
+export const SCHEDULE_IMAGE_MAX_BASE64 = 900_000;
+// JPEG-Qualitäten, von der besten abwärts, bis das Bild unter die Grenze passt
+export const SCHEDULE_IMAGE_QUALITIES = [0.95, 0.9, 0.85, 0.8, 0.7, 0.6, 0.5];
 
 export type ScheduleError = 'missing_permission' | 'no_schedule' | 'twitch_error' | 'discord_error';
 
@@ -64,7 +69,7 @@ export function renderScheduleText(template: string, values: Record<(typeof SCHE
   return template.replace(/\{(\w+)\}/g, (match, key: string) => (Object.hasOwn(values, key) ? values[key as keyof typeof values] : match));
 }
 
-/** Ausschnitt eines Bildes im Seitenverhältnis des Event-Bildes (800×320). position 0–1 verschiebt ihn entlang der
+/** Ausschnitt eines Bildes im Seitenverhältnis des Event-Bildes (5:2). position 0–1 verschiebt ihn entlang der
  *  Seite, die übersteht (0 = links bzw. oben, 0,5 = Mitte wie beim Bot). */
 export function scheduleCropRect(width: number, height: number, position = 0.5): { x: number; y: number; width: number; height: number } {
   const ratio = SCHEDULE_IMAGE_WIDTH / SCHEDULE_IMAGE_HEIGHT;

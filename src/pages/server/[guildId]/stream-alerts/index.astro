@@ -10,7 +10,7 @@ import Tabs from '../../../../components/Tabs.astro';
 import Badge from '../../../../components/Badge.astro';
 import { callGuildAction } from '../../../../lib/botApi';
 import { PLATFORM_META, channelLabel, subscriptionLabel } from '../../../../lib/streamPlatforms';
-import { SCHEDULE_MAX_TEXT_LENGTH, SCHEDULE_TEXT_PLACEHOLDERS, scheduleCanToggle, scheduleLimitNote, type ScheduleOverview, type ScheduleTexts } from '../../../../lib/streamSchedule';
+import { SCHEDULE_IMAGE_HEIGHT, SCHEDULE_IMAGE_WIDTH, SCHEDULE_MAX_TEXT_LENGTH, SCHEDULE_TEXT_PLACEHOLDERS, scheduleCanToggle, scheduleLimitNote, type ScheduleOverview, type ScheduleTexts } from '../../../../lib/streamSchedule';
 
 const { guildId } = Astro.params;
 const moduleEnabled = (await getModuleStates(guildId!).catch(() => null))?.stream_alerts ?? false;
@@ -410,7 +410,7 @@ const pageConfig = {
                   <p class="text-xs text-slate-400 mb-1.5">{t('stream_alerts.schedule_custom_preview_label')}</p>
                   <div class="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <div class="aspect-[5/2] bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                      <canvas id="schedule-custom-canvas" width="800" height="320" class="hidden w-full h-full"></canvas>
+                      <canvas id="schedule-custom-canvas" width={SCHEDULE_IMAGE_WIDTH} height={SCHEDULE_IMAGE_HEIGHT} class="hidden w-full h-full"></canvas>
                       <img id="schedule-custom-stored-image" alt="" class="hidden w-full h-full object-cover" />
                       <p id="schedule-custom-image-note" class="text-xs text-slate-500 dark:text-slate-400 px-4 text-center"></p>
                     </div>

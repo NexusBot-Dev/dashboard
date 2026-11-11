@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, dbQuery } from './support/helpers';
+import { login, browserPost, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, dbQuery } from './support/helpers';
 import { FOREIGN_GUILD_ID, GUILD_ID } from './support/env.mjs';
 
 // Module werden auf ihrer eigenen Seite ein- und ausgeschaltet (src/components/ModuleToggle.astro).
@@ -155,10 +155,11 @@ test.describe('Alte Adressen', () => {
 test.describe('API-Proxy', () => {
   test('fremder Server: Schalten wird abgewiesen und erreicht den Bot nicht', async ({ page }) => {
     await page.goto(guildPath('levels/'));
-    const res = await page.request.post(`/api/server/${FOREIGN_GUILD_ID}/module/modules/toggle/`, {
-      data: { changes: { levels: true } },
+    const res = await browserPost(page, `/api/server/${FOREIGN_GUILD_ID}/module/modules/toggle/`, {
+      changes: { levels: true },
     });
-    expect(res.status()).toBe(403);
+    expect(res.status).toBe(403);
+    expect(res.json.error).toBe(t('api_errors.forbidden'));
     expect(await botCalls('modules/toggle')).toHaveLength(0);
   });
 });

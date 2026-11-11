@@ -15,8 +15,19 @@ export function t(key: string, vars: Record<string, string | number> = {}): stri
   return value.replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? `{${name}}`));
 }
 
-export async function login(context: BrowserContext) {
-  await context.addCookies([{ name: 'nexus_session_id', value: SESSION_ID, url: APP_URL }]);
+export const SESSION_COOKIE = '__Host-nexus_session_id';
+
+export async function login(context: BrowserContext, sessionId = SESSION_ID) {
+  // __Host- verlangt Secure und Path=/; mit `url` statt domain/path lässt Chromium das nicht zu
+  await context.addCookies([{ name: SESSION_COOKIE, value: sessionId, domain: new URL(APP_URL).hostname, path: '/', secure: true }]);
+}
+
+/** POST wie von unseren eigenen Seiten: echtes fetch im Browser, mit Origin und Sec-Fetch-Site */
+export async function browserPost(page: Page, url: string, body: unknown): Promise<{ status: number; json: any }> {
+  return page.evaluate(async ({ url, body }) => {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: res.status, json: await res.json() };
+  }, { url, body });
 }
 
 /** Setzt den Fake-Bot zurück; einzelne Aktionen können eine eigene Antwort oder einen Fehler bekommen */
@@ -57,10 +68,11 @@ export function collectDialogs(page: Page, { accept = true } = {}) {
 export const guildPath = (sub: string) => `/server/${GUILD_ID}/${sub}`;
 
 /** Direkter Zugriff auf die Test-DB — für Seiten, die (wie Settings) selbst aus der DB lesen */
-export async function dbQuery(sql: string, params: unknown[] = []) {
+export async function dbQuery(sql: string, params: unknown[] = []): Promise<any> {
   const conn = await mysql.createConnection(DB);
   try {
-    await conn.query(sql, params);
+    const [rows] = await conn.query(sql, params);
+    return rows;
   } finally {
     await conn.end();
   }

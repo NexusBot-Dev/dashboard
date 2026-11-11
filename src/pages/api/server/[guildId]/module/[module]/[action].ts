@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getSession } from '../../../../../../lib/session';
 import { callBotModuleAction, BotApiError } from '../../../../../../lib/botApi';
 import { apiErrorMessage } from '../../../../../../lib/apiErrors';
+import { readJsonObject } from '../../../../../../lib/requestGuard';
 
 export const POST: APIRoute = async ({ params, request, cookies, locals }) => {
   const session = await getSession(cookies);
@@ -14,11 +15,10 @@ export const POST: APIRoute = async ({ params, request, cookies, locals }) => {
     return new Response(JSON.stringify({ ok: false, error: apiErrorMessage(locals.t, 'invalid_request') }), { status: 400 });
   }
 
-  let body: Record<string, unknown> = {};
-  try {
-    body = await request.json();
-  } catch {
-    // Manche Aktionen (z.B. "list") brauchen keinen Body — kein harter Fehler
+  // Leerer Body ist erlaubt (z. B. "list"), kaputtes JSON nicht — sonst liefe die Aktion mit {}
+  const body = await readJsonObject(request);
+  if (!body) {
+    return new Response(JSON.stringify({ ok: false, error: apiErrorMessage(locals.t, 'invalid_request') }), { status: 400 });
   }
 
   try {

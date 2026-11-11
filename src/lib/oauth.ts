@@ -1,5 +1,8 @@
 import { CLIENT_ID, CLIENT_SECRET } from './secrets';
 
+// __Host-: andere Subdomains können den State nicht vorgeben (sonst Login in ein fremdes Konto möglich)
+export const OAUTH_STATE_COOKIE = '__Host-nexus_oauth_state';
+
 // Basis-URL der Discord-API für Server-Aufrufe. Nur die Tests setzen DISCORD_API_BASE
 // (Fake-Discord); die Login-Weiterleitung unten zeigt immer auf das echte Discord.
 const DISCORD_API = process.env.DISCORD_API_BASE ?? 'https://discord.com/api';

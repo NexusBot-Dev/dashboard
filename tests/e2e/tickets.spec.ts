@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t } from './support/helpers';
+import { login, browserPost, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t } from './support/helpers';
 import { CHANNELS, ROLES, defaultBotData } from './support/fixtures.mjs';
 import { FOREIGN_GUILD_ID, GUILD_ID, USER_ID } from './support/env.mjs';
 
@@ -248,10 +248,10 @@ test.describe('Einstellungen', () => {
 test.describe('API-Proxy', () => {
   test('Browser kann acting_user_id und guild_id nicht überschreiben', async ({ page }) => {
     await page.goto(guildPath('tickets/'));
-    const res = await page.request.post(`/api/server/${GUILD_ID}/module/tickets/set-timeouts/`, {
-      data: { acting_user_id: '666', guild_id: FOREIGN_GUILD_ID, closure_timeout_hours: 12 },
+    const res = await browserPost(page, `/api/server/${GUILD_ID}/module/tickets/set-timeouts/`, {
+      acting_user_id: '666', guild_id: FOREIGN_GUILD_ID, closure_timeout_hours: 12,
     });
-    expect(res.ok()).toBe(true);
+    expect(res.status).toBe(200);
 
     const body = (await botCalls('tickets/set-timeouts'))[0].body;
     expect(body.acting_user_id).toBe(USER_ID);

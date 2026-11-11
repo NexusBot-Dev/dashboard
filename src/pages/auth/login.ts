@@ -1,10 +1,10 @@
 import type { APIRoute } from 'astro';
 import { randomBytes } from 'node:crypto';
-import { getDiscordAuthUrl } from '../../lib/oauth';
+import { getDiscordAuthUrl, OAUTH_STATE_COOKIE } from '../../lib/oauth';
 
 export const GET: APIRoute = ({ cookies, redirect }) => {
   const state = randomBytes(32).toString('hex');
-  cookies.set('oauth_state', state, {
+  cookies.set(OAUTH_STATE_COOKIE, state, {
     path: '/',
     httpOnly: true,
     secure: true,

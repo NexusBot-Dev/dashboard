@@ -4,7 +4,11 @@ import pool from './db';
 import { encrypt, decrypt } from './crypto';
 import { refreshAccessToken } from './oauth';
 
-const SESSION_COOKIE = 'nexus_session_id';
+// __Host-: nur von dashboard.trynexus.de selbst setzbar (Secure, Path=/, ohne Domain) — eine andere
+// Subdomain kann uns so kein Session-Cookie unterschieben.
+export const SESSION_COOKIE = '__Host-nexus_session_id';
+// Alter Name vor dem __Host--Präfix; wird nicht mehr gelesen, nur noch beim Login/Logout entfernt
+const LEGACY_SESSION_COOKIE = 'nexus_session_id';
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 const REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 1 Tag
@@ -49,6 +53,7 @@ export async function createSession(cookies: AstroCookies, data: Omit<SessionDat
     ]
   );
 
+  cookies.delete(LEGACY_SESSION_COOKIE, { path: '/' });
   cookies.set(SESSION_COOKIE, sessionId, {
     httpOnly: true,
     secure: true,
@@ -172,5 +177,6 @@ export async function clearSession(cookies: AstroCookies) {
   if (sessionId) {
     await pool.query('DELETE FROM dashboard_sessions WHERE id = ?', [hashSessionId(sessionId)]);
   }
-  cookies.delete(SESSION_COOKIE, { path: '/' });
+  cookies.delete(SESSION_COOKIE, { path: '/', secure: true });
+  cookies.delete(LEGACY_SESSION_COOKIE, { path: '/' });
 }

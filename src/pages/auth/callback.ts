@@ -1,13 +1,13 @@
 import type { APIRoute } from 'astro';
 import { timingSafeEqual } from 'node:crypto';
-import { exchangeCodeForToken, getDiscordUser } from '../../lib/oauth';
+import { exchangeCodeForToken, getDiscordUser, OAUTH_STATE_COOKIE } from '../../lib/oauth';
 import { createSession } from '../../lib/session';
 
 export const GET: APIRoute = async ({ url, cookies, redirect }) => {
   const code = url.searchParams.get('code');
   const urlState = url.searchParams.get('state');
-  const cookieState = cookies.get('oauth_state')?.value;
-  cookies.delete('oauth_state', { path: '/' });
+  const cookieState = cookies.get(OAUTH_STATE_COOKIE)?.value;
+  cookies.delete(OAUTH_STATE_COOKIE, { path: '/', secure: true });
 
   if (
     !cookieState || !urlState ||

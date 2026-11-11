@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, dbQuery, delayPageWiring, expectNotWiredYet } from './support/helpers';
+import { login, browserPost, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, dbQuery, delayPageWiring, expectNotWiredYet } from './support/helpers';
 import { CHANNELS } from './support/fixtures.mjs';
 import { FOREIGN_GUILD_ID, GUILD_ID } from './support/env.mjs';
 
@@ -306,8 +306,9 @@ test.describe('Danger Zone', () => {
 test.describe('API-Proxy', () => {
   test('fremder Server: Speichern wird abgewiesen und erreicht den Bot nicht', async ({ page }) => {
     await page.goto(PAGE);
-    const res = await page.request.post(`/api/server/${FOREIGN_GUILD_ID}/settings/`, { data: { locale: 'en' } });
-    expect(res.status()).toBe(403);
+    const res = await browserPost(page, `/api/server/${FOREIGN_GUILD_ID}/settings/`, { locale: 'en' });
+    expect(res.status).toBe(403);
+    expect(res.json.error).toBe(t('api_errors.forbidden'));
     expect(await botCalls('settings')).toHaveLength(0);
   });
 });

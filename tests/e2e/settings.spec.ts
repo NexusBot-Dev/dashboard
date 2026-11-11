@@ -251,6 +251,22 @@ test.describe('Danger Zone', () => {
     });
   }
 
+  test('Dialog hebt sich vom dunklen Hintergrund ab: roter Rahmen, unscharfer Hintergrund', async ({ page, context }) => {
+    await context.addInitScript(() => localStorage.setItem('theme', 'dark'));   // das Dashboard ist immer dunkel
+    await page.goto(PAGE);
+    await leaveBtn(page).click();
+    const look = await dialog(page).evaluate((el) => {
+      const style = getComputedStyle(el);
+      // Tailwind liefert oklch(...) — der Browser rechnet die Farbe über ein Canvas in RGB um
+      const ctx = document.createElement('canvas').getContext('2d')!;
+      ctx.fillStyle = style.borderTopColor;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+      return { width: style.borderTopWidth, reddish: r > 150 && r > 2 * g && r > 2 * b, blur: getComputedStyle(el, '::backdrop').backdropFilter };
+    });
+    expect(look).toEqual({ width: '1px', reddish: true, blur: expect.stringContaining('blur') });
+  });
+
   test('Nexus entfernen: delete_now = false, danach Serverliste', async ({ page }) => {
     await page.goto(PAGE);
     await leaveBtn(page).click();

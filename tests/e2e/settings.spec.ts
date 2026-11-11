@@ -239,6 +239,18 @@ test.describe('Danger Zone', () => {
     await expect(page.locator('#danger-dialog-title')).toHaveText(t('settings.danger_dialog_delete_title', { server: 'Testserver' }));
   });
 
+  for (const [name, viewport] of [['Desktop', { width: 1280, height: 800 }], ['Handy', { width: 375, height: 700 }]] as const) {
+    test(`Dialog liegt mittig über der Seite (${name})`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto(PAGE);
+      await leaveBtn(page).click();
+      const box = (await dialog(page).boundingBox())!;
+      expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(2);
+      expect(Math.abs(box.y + box.height / 2 - viewport.height / 2)).toBeLessThan(2);
+      expect(box.x).toBeGreaterThanOrEqual(15);   // auf dem Handy Abstand zum Rand
+    });
+  }
+
   test('Nexus entfernen: delete_now = false, danach Serverliste', async ({ page }) => {
     await page.goto(PAGE);
     await leaveBtn(page).click();

@@ -775,6 +775,20 @@ test.describe('Streamplan: Text & Bild (Premium)', () => {
     await expect(textarea(page)).toHaveAttribute('maxlength', '800');
   });
 
+  test('Text: Markdown-Leiste formatiert die Auswahl, Vorschau und Zähler ziehen mit', async ({ page }) => {
+    await resetBot(PREMIUM);
+    await openEditor(page);
+    await textarea(page).fill('Heute live');
+    await textarea(page).evaluate((ta: HTMLTextAreaElement) => ta.setSelectionRange(6, 10));   // „live“
+    await page.locator('[data-md-toolbar="schedule-custom-text"] [data-md="bold"]').click();
+    await expect(textarea(page)).toHaveValue('Heute **live**');
+    await expect(page.locator('#schedule-custom-count')).toHaveText('14/800');
+    await expect(previewText(page).locator('strong')).toHaveText('live');
+
+    await page.locator('[data-md-toolbar="schedule-custom-text"] [data-md="list"]').click();
+    await expect(textarea(page)).toHaveValue('- Heute **live**');
+  });
+
   test('Bild: zuschneiden im Browser, Ausschnitt wählen, als JPEG speichern', async ({ page }) => {
     await resetBot(PREMIUM);
     await openEditor(page);

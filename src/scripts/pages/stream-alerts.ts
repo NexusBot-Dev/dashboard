@@ -9,6 +9,7 @@ import {
   type ScheduleEntry, type ScheduleOverview, type ScheduleTexts,
 } from '../../lib/streamSchedule';
 import { renderPreview } from '../../lib/discordMarkdown';
+import { setupMarkdownToolbars } from '../markdown-toolbar';
 import { isSwitchOn, setSwitch } from '../switch';
 import { setupTabs } from '../tabs';
 
@@ -701,6 +702,7 @@ function setupStreamAlertsPage() {
   setupLinks(api, i18n);
   setupSchedule(api, config);
   setupScheduleCustom(api, config);
+  setupMarkdownToolbars();
 }
 
 document.addEventListener('astro:page-load', setupStreamAlertsPage);

@@ -138,8 +138,8 @@ function setupLevelUpChannel(api: DashboardApi, i18n: I18n) {
   });
 }
 
-const CHIP_CLASS = 'inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700';
-const CHIP_REMOVE_CLASS = 'w-5 h-5 inline-flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40';
+const CHIP_CLASS = 'inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700';
+const CHIP_REMOVE_CLASS = 'w-5 h-5 inline-flex items-center justify-center rounded-full text-slate-400 hover:text-red-400 hover:bg-slate-700 disabled:opacity-40';
 
 function setupXpExclude(api: DashboardApi, config: LevelsConfig) {
   const select = byId<HTMLSelectElement>('xp-exclude-select');

@@ -107,9 +107,9 @@ const tabs = [
   { key: 'settings', label: t('tickets.tab_settings') },
 ];
 
-const inputClass = 'w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50';
-const labelClass = 'block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5';
-const mdBtnClass = 'h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800';
+const inputClass = 'w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50';
+const labelClass = 'block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5';
+const mdBtnClass = 'h-8 rounded-md border border-slate-700 hover:bg-slate-800';
 const mdButtons = [
   { md: 'bold', label: 'B', title: t('tickets.md_bold'), cls: 'w-8 text-sm font-bold' },
   { md: 'italic', label: 'I', title: t('tickets.md_italic'), cls: 'w-8 text-sm italic' },
@@ -146,13 +146,13 @@ const i18n = {
 ---
 
 <DashboardLayout title={t('tickets.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
-  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('tickets.title')}</h1>
+  <h1 class="text-2xl md:text-3xl font-bold text-white mb-1">{t('tickets.title')}</h1>
 
   <ModuleToggle guildId={guildId!} moduleKey="tickets" name={t('tickets.title')} enabled={moduleEnabled} disabled={!botOnline}>{t('tickets.subtitle')}</ModuleToggle>
 
   {!botOnline && (
-    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
-      <p class="text-sm text-amber-700 dark:text-amber-400">{t('common.bot_offline')}</p>
+    <div class="rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-400">{t('common.bot_offline')}</p>
     </div>
   )}
 
@@ -164,56 +164,56 @@ const i18n = {
     <div role="tabpanel" id="tab-panel-overview" aria-labelledby="tab-overview" data-tab-panel="overview">
       <section class="rounded-xl glass-panel p-6">
         <div class="flex items-center justify-between mb-5">
-          <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('tickets.open_tickets_title')}</h2>
-          <span class="text-sm text-slate-500 dark:text-slate-400">{openTickets.length} {openTickets.length === 1 ? t('tickets.ticket_singular') : t('tickets.ticket_plural')}</span>
+          <h2 class="text-base font-bold text-white">{t('tickets.open_tickets_title')}</h2>
+          <span class="text-sm text-slate-400">{openTickets.length} {openTickets.length === 1 ? t('tickets.ticket_singular') : t('tickets.ticket_plural')}</span>
         </div>
         <div class="space-y-2">
           {openTickets.map((ticket) => (
-            <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+            <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-800">
               <span class="text-sm font-mono text-slate-400 flex-shrink-0">#{ticket.ticket_number}</span>
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{ticket.user_tag}</p>
-                <p class="text-xs text-slate-500 dark:text-slate-400">{ticket.category_name}</p>
+                <p class="text-sm font-medium text-white truncate">{ticket.user_tag}</p>
+                <p class="text-xs text-slate-400">{ticket.category_name}</p>
               </div>
               <Badge variant={statusVariant[ticket.status] ?? 'neutral'}>{statusLabel[ticket.status] ?? ticket.status}</Badge>
               <a
                 href={`https://discord.com/channels/${guildId}/${ticket.channel_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline flex-shrink-0"
+                class="text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline flex-shrink-0"
               >
                 {t('tickets.open_ticket_link')}
               </a>
             </div>
           ))}
         </div>
-        {openTickets.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('tickets.no_open_tickets')}</p>}
+        {openTickets.length === 0 && <p class="text-sm text-slate-400 py-4">{t('tickets.no_open_tickets')}</p>}
       </section>
     </div>
 
     <!-- ═══ Panel ═══ -->
     <div role="tabpanel" id="tab-panel-panel" aria-labelledby="tab-panel" data-tab-panel="panel" class="hidden">
       <section class="rounded-xl glass-panel p-6 mb-6">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('tickets.panel_section_title')}</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">{t('tickets.panel_section_desc')}</p>
+        <h2 class="text-base font-bold text-white mb-1">{t('tickets.panel_section_title')}</h2>
+        <p class="text-sm text-slate-400 mb-5">{t('tickets.panel_section_desc')}</p>
 
         <!-- Aktueller Stand -->
-        <div class="mb-5 rounded-lg border border-slate-200 dark:border-slate-800 px-4 py-3">
+        <div class="mb-5 rounded-lg border border-slate-800 px-4 py-3">
           <p class={labelClass}>{t('tickets.panel_status_title')}</p>
           {hasPanel ? (
-            <p class="text-sm text-slate-700 dark:text-slate-300">
+            <p class="text-sm text-slate-300">
               <span class="font-medium">{panelChannel ? `#${panelChannel.name}` : t('tickets.panel_unknown_channel')}</span>
-              <a href={panelLink!} target="_blank" rel="noopener noreferrer" class="ml-2 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">{t('tickets.panel_status_open_link')}</a>
+              <a href={panelLink!} target="_blank" rel="noopener noreferrer" class="ml-2 text-xs font-medium text-primary-400 hover:underline">{t('tickets.panel_status_open_link')}</a>
             </p>
           ) : panelWasDeleted ? (
-            <p class="text-sm text-amber-600 dark:text-amber-400">{t('tickets.panel_status_missing')}</p>
+            <p class="text-sm text-amber-400">{t('tickets.panel_status_missing')}</p>
           ) : (
-            <p class="text-sm text-slate-500 dark:text-slate-400">{t('tickets.panel_status_none')}</p>
+            <p class="text-sm text-slate-400">{t('tickets.panel_status_none')}</p>
           )}
         </div>
 
         {botOnline && categories.length === 0 && (
-          <p class="text-xs text-amber-600 dark:text-amber-400 mb-4">{t('tickets.panel_needs_categories')}</p>
+          <p class="text-xs text-amber-400 mb-4">{t('tickets.panel_needs_categories')}</p>
         )}
 
         <div id="panel-form" data-has-panel={String(hasPanel)} data-panel-channel-id={panelChannelId ?? ''}>
@@ -244,20 +244,20 @@ const i18n = {
             <div class="flex flex-wrap gap-1 mb-2" data-md-toolbar="tickets-textarea">
               {mdButtons.map((b) => (
                 'sep' in b
-                  ? <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+                  ? <span class="w-px bg-slate-700 mx-1"></span>
                   : <button type="button" data-md={b.md} title={b.title} class:list={[mdBtnClass, b.cls]}>{b.label}</button>
               ))}
             </div>
             <textarea id="tickets-textarea" rows="4" maxlength="1000" disabled={!botOnline} placeholder={t('tickets.description_placeholder')} class={`${inputClass} resize-none`}>{panelDescription}</textarea>
-            <div class="mt-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+            <div class="mt-3 rounded-lg bg-slate-800/50 p-3">
               <p class="text-xs text-slate-400 mb-1">{t('tickets.live_preview_label')}</p>
               {panelDescription
-                ? <p id="tickets-preview" class="text-sm text-slate-700 dark:text-slate-300 italic" set:html={baseRenderPreview(panelDescription)} />
-                : <p id="tickets-preview" class="text-sm text-slate-700 dark:text-slate-300 italic">—</p>}
+                ? <p id="tickets-preview" class="text-sm text-slate-300 italic" set:html={baseRenderPreview(panelDescription)} />
+                : <p id="tickets-preview" class="text-sm text-slate-300 italic">—</p>}
             </div>
           </div>
 
-          <button id="post-panel-btn" type="button" disabled={!botOnline || categories.length === 0} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <button id="post-panel-btn" type="button" disabled={!botOnline || categories.length === 0} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {hasPanel ? t('tickets.update_panel_btn') : t('tickets.post_panel_btn')}
           </button>
         </div>
@@ -265,11 +265,11 @@ const i18n = {
 
       <!-- Bestehendes Panel übernehmen -->
       <section class="rounded-xl glass-panel p-6">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('tickets.import_title')}</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('tickets.import_desc')}</p>
+        <h2 class="text-base font-bold text-white mb-1">{t('tickets.import_title')}</h2>
+        <p class="text-sm text-slate-400 mb-4">{t('tickets.import_desc')}</p>
         <div class="flex flex-col sm:flex-row gap-3">
           <input type="text" id="import-panel-input" placeholder={t('tickets.import_placeholder')} disabled={!botOnline} class={`${inputClass} sm:max-w-md`} />
-          <button id="import-panel-btn" type="button" disabled={!botOnline} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <button id="import-panel-btn" type="button" disabled={!botOnline} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {t('tickets.import_btn')}
           </button>
         </div>
@@ -280,12 +280,12 @@ const i18n = {
     <div role="tabpanel" id="tab-panel-categories" aria-labelledby="tab-categories" data-tab-panel="categories" class="hidden">
       <section class="rounded-xl glass-panel p-6">
         <div class="flex items-center justify-between mb-1">
-          <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('tickets.categories_title')}</h2>
-          <button id="add-category-btn" type="button" disabled={!botOnline || categories.length >= limit} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <h2 class="text-base font-bold text-white">{t('tickets.categories_title')}</h2>
+          <button id="add-category-btn" type="button" disabled={!botOnline || categories.length >= limit} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             + {t('common.create')}
           </button>
         </div>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+        <p class="text-sm text-slate-400 mb-5">
           {t('tickets.categories_count', { count: categories.length, limit })}
           {!premiumActive && categories.length >= limitFree && (
             <span class="ml-1">— <Badge variant="primary">Premium</Badge> {t('tickets.premium_hint', { max: limitPremium })}</span>
@@ -294,12 +294,12 @@ const i18n = {
 
         <div id="categories-list" class="space-y-2">
           {categories.map((cat) => (
-            <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-category-row={cat.id} data-category-name={cat.name} data-role-ids={JSON.stringify(cat.role_ids)}>
+            <div class="p-3 rounded-lg border border-slate-800" data-category-row={cat.id} data-category-name={cat.name} data-role-ids={JSON.stringify(cat.role_ids)}>
               <div class="flex items-center justify-between gap-4">
-                <span class="text-sm font-medium text-slate-900 dark:text-white">{cat.name}</span>
+                <span class="text-sm font-medium text-white">{cat.name}</span>
                 <div class="flex items-center gap-3 flex-shrink-0">
-                  <button type="button" data-edit-category={cat.id} disabled={!botOnline} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline disabled:opacity-50">{t('common.edit')}</button>
-                  <button type="button" data-remove-category={cat.id} disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline disabled:opacity-50">{t('common.delete')}</button>
+                  <button type="button" data-edit-category={cat.id} disabled={!botOnline} class="text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline disabled:opacity-50">{t('common.edit')}</button>
+                  <button type="button" data-remove-category={cat.id} disabled={!botOnline} class="text-xs font-medium text-red-400 hover:underline disabled:opacity-50">{t('common.delete')}</button>
                 </div>
               </div>
               <p class="mt-1 text-xs text-slate-400">
@@ -308,10 +308,10 @@ const i18n = {
             </div>
           ))}
         </div>
-        {categories.length === 0 && <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('tickets.no_categories')}</p>}
+        {categories.length === 0 && <p class="text-sm text-slate-400 py-4">{t('tickets.no_categories')}</p>}
 
-        <div id="category-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-          <p id="category-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('tickets.category_form_add_title')}</p>
+        <div id="category-form" class="hidden mt-4 pt-4 border-t border-slate-800">
+          <p id="category-form-title" class="text-sm font-semibold text-white mb-3">{t('tickets.category_form_add_title')}</p>
           <div class="mb-3 max-w-sm">
             <label for="category-name-input" class={labelClass}>{t('tickets.name_label')}</label>
             <input type="text" id="category-name-input" maxlength="100" placeholder={t('tickets.name_placeholder')} class={inputClass} />
@@ -320,7 +320,7 @@ const i18n = {
             <p class={labelClass}>{t('tickets.allowed_roles_label')}</p>
             <div class="flex flex-wrap gap-2">
               {allRoles.map((r) => (
-                <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-950 text-sm">
+                <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-700 cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-950 text-sm">
                   <input type="checkbox" data-role-checkbox value={r.id} class="accent-primary-600" />
                   {r.name}
                 </label>
@@ -328,8 +328,8 @@ const i18n = {
             </div>
           </div>
           <div class="flex gap-2">
-            <button id="confirm-category-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
-            <button id="cancel-category-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+            <button id="confirm-category-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+            <button id="cancel-category-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">{t('common.cancel')}</button>
           </div>
           <p class="mt-2 text-xs text-slate-400">{t('tickets.category_form_note')}</p>
         </div>
@@ -340,8 +340,8 @@ const i18n = {
     <div role="tabpanel" id="tab-panel-settings" aria-labelledby="tab-settings" data-tab-panel="settings" class="hidden">
       <!-- Fristen -->
       <section class="rounded-xl glass-panel p-6 mb-6">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('tickets.timeouts_title')}</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">{t('tickets.timeouts_desc')}</p>
+        <h2 class="text-base font-bold text-white mb-1">{t('tickets.timeouts_title')}</h2>
+        <p class="text-sm text-slate-400 mb-5">{t('tickets.timeouts_desc')}</p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-4">
           <div>
@@ -360,15 +360,15 @@ const i18n = {
           </div>
         </div>
 
-        <button id="save-timeouts-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        <button id="save-timeouts-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           {t('common.save')}
         </button>
       </section>
 
       <!-- Ticket-Log-Channel (auch in den globalen Einstellungen editierbar) -->
       <section class="rounded-xl glass-panel p-6">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('tickets.log_channel_title')}</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('tickets.log_channel_desc')}</p>
+        <h2 class="text-base font-bold text-white mb-1">{t('tickets.log_channel_title')}</h2>
+        <p class="text-sm text-slate-400 mb-4">{t('tickets.log_channel_desc')}</p>
         <div class="flex flex-col sm:flex-row sm:items-end gap-3">
           <div class="flex-1 max-w-xs">
             <select id="log-channel-select" aria-label={t('tickets.log_channel_title')} data-initial={logChannelId ?? ''} disabled={!botOnline} class={inputClass}>
@@ -377,10 +377,10 @@ const i18n = {
               {channels.map((ch) => <option value={ch.id} selected={ch.id === logChannelId}>#{ch.name}</option>)}
             </select>
           </div>
-          <button id="save-log-channel-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <button id="save-log-channel-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {t('common.save')}
           </button>
-          <a href={`/server/${guildId}/settings/`} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline self-center sm:self-end sm:mb-2.5">
+          <a href={`/server/${guildId}/settings/`} class="text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline self-center sm:self-end sm:mb-2.5">
             {t('tickets.also_in_settings')}
           </a>
         </div>

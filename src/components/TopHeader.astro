@@ -45,7 +45,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
 };
 ---
 
-<header class="sticky top-0 z-[80] w-full glass-panel border-x-0 border-t-0 rounded-none bg-white/70 dark:bg-slate-900/70 backdrop-blur-md">
+<header class="sticky top-0 z-[80] w-full glass-panel border-x-0 border-t-0 rounded-none bg-slate-900/70 backdrop-blur-md">
   <div class="flex items-center justify-between h-16 px-6">
     <!-- Linker Bereich: Server-Switcher / Zurück zur Homepage / Leer -->
     <div class="flex items-center">
@@ -55,13 +55,13 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
             type="button"
             id="server-switcher-btn"
             aria-expanded="false"
-            class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-200 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
             title={t('common.switch_server')}
           >
             {guildIconUrl ? (
               <img src={guildIconUrl} class="w-5 h-5 rounded-full object-cover" alt="" />
             ) : (
-              <div class="w-5 h-5 rounded-full bg-primary-600 dark:bg-primary-500 flex items-center justify-center text-white dark:text-slate-900 text-[10px] font-bold">
+              <div class="w-5 h-5 rounded-full bg-primary-500 flex items-center justify-center text-slate-900 text-[10px] font-bold">
                 {guildName.charAt(0)}
               </div>
             )}
@@ -71,7 +71,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
 
           <div
             id="server-switcher-dropdown"
-            class="hidden absolute left-0 mt-2 w-64 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-sm max-h-80 overflow-y-auto"
+            class="hidden absolute left-0 mt-2 w-64 rounded-xl bg-slate-900 border border-slate-800 shadow-xl py-1.5 z-50 text-sm max-h-80 overflow-y-auto"
           >
             {otherGuilds.length > 0 ? (
               otherGuilds.map((g) => (
@@ -79,12 +79,12 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
                   href={g.targetUrl}
                   target={g.isExternal ? '_blank' : undefined}
                   rel={g.isExternal ? 'noopener noreferrer' : undefined}
-                  class="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  class="flex items-center gap-2.5 px-4 py-2 text-slate-300 hover:bg-slate-800 hover:text-primary-400 transition-colors"
                 >
                   {g.iconUrl ? (
                     <img src={g.iconUrl} class="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
                   ) : (
-                    <div class="w-5 h-5 rounded-full bg-primary-600 dark:bg-primary-500 flex items-center justify-center text-white dark:text-slate-900 text-[9px] font-bold flex-shrink-0">
+                    <div class="w-5 h-5 rounded-full bg-primary-500 flex items-center justify-center text-slate-900 text-[9px] font-bold flex-shrink-0">
                       {g.name.charAt(0)}
                     </div>
                   )}
@@ -95,10 +95,10 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
             ) : (
               <p class="px-4 py-2 text-xs text-slate-400">{t('common.no_other_servers')}</p>
             )}
-            <div class="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+            <div class="border-t border-slate-800 mt-1 pt-1">
               <a
                 href="/server/"
-                class="flex items-center gap-2 px-4 py-2 text-primary-600 dark:text-primary-400 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                class="flex items-center gap-2 px-4 py-2 text-primary-400 font-medium hover:bg-slate-800 transition-colors"
               >
                 {t('common.all_servers')}
               </a>
@@ -108,7 +108,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
       ) : !user ? (
         <a
           href="https://trynexus.de"
-          class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+          class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m15 18-6-6 6-6" />
@@ -126,7 +126,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
           type="button"
           id="lang-switcher-btn"
           aria-expanded="false"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
         >
           <span>{LANG_LABELS[lang]?.flag}</span>
           <span class="hidden sm:inline">{LANG_LABELS[lang]?.short}</span>
@@ -134,15 +134,15 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
         <div
           id="lang-dropdown"
           data-text-error={t('common.lang_change_failed')}
-          class="hidden absolute right-0 mt-2 w-36 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-sm"
+          class="hidden absolute right-0 mt-2 w-36 rounded-xl bg-slate-900 border border-slate-800 shadow-xl py-1.5 z-50 text-sm"
         >
           {Object.entries(LANG_LABELS).map(([code, meta]) => (
             <button
               type="button"
               data-lang-option={code}
               class:list={[
-                "w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors",
-                code === lang ? "text-primary-600 dark:text-primary-400 font-semibold" : "text-slate-700 dark:text-slate-300",
+                "w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-800 transition-colors",
+                code === lang ? "text-primary-400 font-semibold" : "text-slate-300",
               ]}
             >
               <span>{meta.flag}</span>
@@ -160,7 +160,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
               href={PREMIUM_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-900 dark:text-amber-100 bg-amber-200 dark:bg-amber-900/40 rounded-lg hover:bg-amber-300 dark:hover:bg-amber-900/60 transition-colors"
+              class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-100 bg-amber-900/40 rounded-lg hover:bg-amber-900/60 transition-colors"
             >
               <span>{t('common.upgrade_premium')}</span>
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -183,7 +183,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
                 type="button"
                 id="notifications-btn"
                 aria-expanded="false"
-                class="relative p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                class="relative p-2 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors"
                 aria-label={t('common.notifications')}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -200,16 +200,16 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
 
               <div
                 id="notifications-dropdown"
-                class="hidden absolute right-0 mt-2 w-80 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-sm max-h-96 overflow-y-auto"
+                class="hidden absolute right-0 mt-2 w-80 rounded-xl bg-slate-900 border border-slate-800 shadow-xl py-1.5 z-50 text-sm max-h-96 overflow-y-auto"
               >
-                <p class="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{t('notifications.title')}</p>
+                <p class="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{t('notifications.title')}</p>
 
                 {premiumNotice && (
                   <a
                     href={PREMIUM_STORE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="flex items-start gap-2.5 px-4 py-2 text-amber-700 dark:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    class="flex items-start gap-2.5 px-4 py-2 text-amber-400 hover:bg-slate-800 transition-colors"
                   >
                     <span class="flex-shrink-0">⏳</span>
                     <span>{premiumNotice}</span>
@@ -220,7 +220,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
                   <p class="px-4 py-2 text-xs text-slate-400">{t('notifications.loading')}</p>
                 </div>
 
-                <p class="border-t border-slate-100 dark:border-slate-800 mt-1 px-4 pt-2 pb-1 text-[11px] text-slate-400">{t('notifications.diagnose_hint')}</p>
+                <p class="border-t border-slate-800 mt-1 px-4 pt-2 pb-1 text-[11px] text-slate-400">{t('notifications.diagnose_hint')}</p>
               </div>
             </div>
           )}
@@ -234,12 +234,12 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
             type="button"
             id="user-menu-btn"
             aria-expanded="false"
-            class="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+            class="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
           >
             {user.avatarUrl ? (
               <img src={user.avatarUrl} alt={displayName} class="w-8 h-8 rounded-full object-cover pointer-events-none" />
             ) : (
-              <div class="w-8 h-8 rounded-full bg-primary-600 dark:bg-primary-500 flex items-center justify-center text-white dark:text-slate-900 text-sm font-bold shadow-sm pointer-events-none">
+              <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-slate-900 text-sm font-bold shadow-sm pointer-events-none">
                 {avatarLetter}
               </div>
             )}
@@ -248,11 +248,11 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
           <!-- Dropdown Menu für eingeloggte Nutzer -->
           <div
             id="user-dropdown"
-            class="hidden absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-sm"
+            class="hidden absolute right-0 mt-2 w-56 rounded-xl bg-slate-900 border border-slate-800 shadow-xl py-1.5 z-50 text-sm"
           >
-            <div class="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
-              <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">{t('common.logged_in_as')}</p>
-              <p class="font-semibold text-slate-900 dark:text-white truncate">{displayName}</p>
+            <div class="px-4 py-2.5 border-b border-slate-800">
+              <p class="text-xs text-slate-500 font-medium">{t('common.logged_in_as')}</p>
+              <p class="font-semibold text-white truncate">{displayName}</p>
             </div>
 
             <div class="py-1">
@@ -260,7 +260,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
                 href="https://trynexus.de/"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                class="flex items-center gap-2.5 px-4 py-2 text-slate-300 hover:bg-slate-800 hover:text-primary-400 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
                 <span>{t('common.main_page')}</span>
@@ -270,7 +270,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
                 href="https://trynexus.de/wiki/"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                class="flex items-center gap-2.5 px-4 py-2 text-slate-300 hover:bg-slate-800 hover:text-primary-400 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
                 <span>{t('common.documentation')}</span>
@@ -280,18 +280,18 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
                 href="https://discord.gg/YFCrvBb6t3"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="flex items-center gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                class="flex items-center gap-2.5 px-4 py-2 text-slate-300 hover:bg-slate-800 hover:text-primary-400 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
                 <span>{t('common.support_server')}</span>
               </a>
             </div>
 
-            <div class="border-t border-slate-100 dark:border-slate-800 pt-1">
+            <div class="border-t border-slate-800 pt-1">
               <form action="/auth/logout/" method="POST">
                 <button
                   type="submit"
-                  class="w-full flex items-center gap-2.5 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors font-medium text-left"
+                  class="w-full flex items-center gap-2.5 px-4 py-2 text-red-400 hover:bg-red-950/30 transition-colors font-medium text-left"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
                   <span>{t('common.logout')}</span>
@@ -303,7 +303,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
       ) : (
         <a
           href="/auth/login"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-950 dark:text-slate-900 btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors shadow-sm"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-900 btn-primary-surface hover:bg-primary-400 transition-colors shadow-sm"
         >
           <span>{t('common.login')}</span>
         </a>
@@ -445,7 +445,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
       text.split('`').forEach((part, i) => {
         if (i % 2) {
           const code = document.createElement('code');
-          code.className = 'px-1 rounded bg-slate-100 dark:bg-slate-800 text-[11px]';
+          code.className = 'px-1 rounded bg-slate-800 text-[11px]';
           code.textContent = part;
           el.appendChild(code);
         } else if (part) {
@@ -465,7 +465,7 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
       list.replaceChildren();
       for (const issue of issues) {
         const row = document.createElement('div');
-        row.className = 'flex items-start gap-2.5 px-4 py-2 text-slate-700 dark:text-slate-300';
+        row.className = 'flex items-start gap-2.5 px-4 py-2 text-slate-300';
         const icon = document.createElement('span');
         icon.className = 'flex-shrink-0';
         icon.textContent = ICON[issue.severity] || '•';

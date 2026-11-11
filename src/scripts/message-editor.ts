@@ -73,19 +73,19 @@ function setupEditor(root: HTMLElement, api: DashboardApi) {
 
   function buildRow(id: string, text: string) {
     const row = document.createElement('div');
-    row.className = 'rounded-lg border border-slate-200 dark:border-slate-800 p-4';
+    row.className = 'rounded-lg border border-slate-800 p-4';
     row.dataset.messageRow = id;
     row.innerHTML = `
       <div class="flex items-start justify-between gap-4">
-        <p class="text-sm text-slate-700 dark:text-slate-300 flex-1" data-message-text></p>
+        <p class="text-sm text-slate-300 flex-1" data-message-text></p>
         <div class="flex items-center gap-3 flex-shrink-0">
-          <button type="button" data-edit-message class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">${i18n.edit}</button>
-          <button type="button" data-remove-message class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">${i18n.delete}</button>
+          <button type="button" data-edit-message class="text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline">${i18n.edit}</button>
+          <button type="button" data-remove-message class="text-xs font-medium text-red-400 hover:underline">${i18n.delete}</button>
         </div>
       </div>
-      <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+      <div class="mt-3 pt-3 border-t border-slate-800/60">
         <p class="text-xs text-slate-400 mb-1">${i18n.previewLabel}</p>
-        <p class="text-sm text-slate-600 dark:text-slate-400 italic" data-message-preview></p>
+        <p class="text-sm text-slate-400 italic" data-message-preview></p>
       </div>
     `;
     // Text per DOM-API setzen — so kann nichts davon Markup werden

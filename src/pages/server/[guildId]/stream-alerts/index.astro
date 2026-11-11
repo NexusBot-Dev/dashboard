@@ -166,13 +166,13 @@ const pageConfig = {
 ---
 
 <DashboardLayout title={t('stream_alerts.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
-  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('stream_alerts.title')}</h1>
+  <h1 class="text-2xl md:text-3xl font-bold text-white mb-1">{t('stream_alerts.title')}</h1>
 
   <ModuleToggle guildId={guildId!} moduleKey="stream_alerts" name={t('stream_alerts.title')} enabled={moduleEnabled} disabled={!botOnline}>{t('stream_alerts.subtitle')}</ModuleToggle>
 
   {!botOnline && (
-    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
-      <p class="text-sm text-amber-700 dark:text-amber-400">{t('common.bot_offline')}</p>
+    <div class="rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-400">{t('common.bot_offline')}</p>
     </div>
   )}
 
@@ -182,8 +182,8 @@ const pageConfig = {
     <div role="tabpanel" id="tab-panel-alerts" aria-labelledby="tab-alerts" data-tab-panel="alerts">
       <!-- Ping-Rollen -->
       <section class="rounded-xl glass-panel p-6 mb-6">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('stream_alerts.ping_roles_title')}</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
+        <h2 class="text-base font-bold text-white mb-1">{t('stream_alerts.ping_roles_title')}</h2>
+        <p class="text-sm text-slate-400 mb-4">
           {premiumActive ? t('stream_alerts.ping_roles_desc_premium') : t('stream_alerts.ping_roles_desc_free')}
         </p>
 
@@ -191,11 +191,11 @@ const pageConfig = {
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {Object.entries(PLATFORM_META).map(([key, meta]) => (
               <div>
-                <label class="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                <label class="flex items-center gap-1.5 text-xs font-medium text-slate-300 mb-1.5">
                   <PlatformIcon platform={key} class={`w-4 h-4 ${meta.colorClass}`} />
                   <span>{meta.label}</span>
                 </label>
-                <select data-ping-role={key} data-initial={pingRoles[key] ?? ''} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
+                <select data-ping-role={key} data-initial={pingRoles[key] ?? ''} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
                   <option value="">{t('common.none')}</option>
                   {roles.map((r) => <option value={r.id} selected={r.id === pingRoles[key]}>{r.name}</option>)}
                 </select>
@@ -204,15 +204,15 @@ const pageConfig = {
           </div>
         ) : (
           <div class="max-w-xs">
-            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.role_all_platforms_label')}</label>
-            <select data-ping-role="all" data-initial={pingRoles.all ?? ''} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('stream_alerts.role_all_platforms_label')}</label>
+            <select data-ping-role="all" data-initial={pingRoles.all ?? ''} disabled={!botOnline} class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
               <option value="">{t('common.none')}</option>
               {roles.map((r) => <option value={r.id} selected={r.id === pingRoles.all}>{r.name}</option>)}
             </select>
           </div>
         )}
 
-        <button id="save-ping-roles-btn" type="button" disabled class="mt-4 px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        <button id="save-ping-roles-btn" type="button" disabled class="mt-4 px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           {t('common.save')}
         </button>
       </section>
@@ -220,12 +220,12 @@ const pageConfig = {
       <!-- Überwachte Kanäle -->
       <section class="rounded-xl glass-panel p-6">
         <div class="flex items-center justify-between mb-1">
-          <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('stream_alerts.monitored_channels_title')}</h2>
-          <button id="add-sub-btn" type="button" disabled={!botOnline || totalSubs >= totalCapacity} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <h2 class="text-base font-bold text-white">{t('stream_alerts.monitored_channels_title')}</h2>
+          <button id="add-sub-btn" type="button" disabled={!botOnline || totalSubs >= totalCapacity} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             + {t('common.add')}
           </button>
         </div>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5 flex flex-wrap gap-x-4 gap-y-1">
+        <p class="text-sm text-slate-400 mb-5 flex flex-wrap gap-x-4 gap-y-1">
           {Object.entries(PLATFORM_META).map(([key, meta]) => (
             <span class="inline-flex items-center gap-1">
               <PlatformIcon platform={key} class={`w-3.5 h-3.5 ${meta.colorClass}`} />
@@ -240,7 +240,7 @@ const pageConfig = {
         <div id="subs-list">
           {Object.entries(PLATFORM_META).map(([key, meta]) => (
             <div class="mb-5 last:mb-0" data-platform-section={key} style={subscriptions[key]?.length ? '' : 'display:none'}>
-              <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+              <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                 <PlatformIcon platform={key} class={`w-3.5 h-3.5 ${meta.colorClass}`} />
                 <span>{meta.label}</span>
               </p>
@@ -251,66 +251,66 @@ const pageConfig = {
           ))}
         </div>
 
-        <p class:list={['text-sm text-slate-500 dark:text-slate-400 py-4', { hidden: totalSubs > 0 }]} id="no-subs-msg">{t('stream_alerts.no_subs')}</p>
+        <p class:list={['text-sm text-slate-400 py-4', { hidden: totalSubs > 0 }]} id="no-subs-msg">{t('stream_alerts.no_subs')}</p>
         <template id="sub-row-template"><SubRow botOnline={botOnline} /></template>
 
         <!-- Add/Edit-Form -->
-        <div id="sub-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-          <p id="sub-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('stream_alerts.sub_form_add_title')}</p>
+        <div id="sub-form" class="hidden mt-4 pt-4 border-t border-slate-800">
+          <p id="sub-form-title" class="text-sm font-semibold text-white mb-3">{t('stream_alerts.sub_form_add_title')}</p>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
             <div>
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.platform_label')}</label>
-              <select id="new-sub-platform" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('stream_alerts.platform_label')}</label>
+              <select id="new-sub-platform" class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {Object.entries(PLATFORM_META).map(([key, meta]) => <option value={key}>{meta.label}</option>)}
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.username_label')}</label>
-              <input type="text" id="new-sub-username" maxlength="200" placeholder={t('stream_alerts.username_placeholder', { name: previewDisplayName })} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('stream_alerts.username_label')}</label>
+              <input type="text" id="new-sub-username" maxlength="200" placeholder={t('stream_alerts.username_placeholder', { name: previewDisplayName })} class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.target_channel_label')}</label>
-              <select id="new-sub-channel" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('stream_alerts.target_channel_label')}</label>
+              <select id="new-sub-channel" class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {channels.map((ch) => <option value={ch.id} data-channel-name={ch.name}>#{ch.name}</option>)}
               </select>
             </div>
           </div>
 
           <div class="mb-4">
-            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.message_label')}</label>
-            <input type="text" id="new-sub-message" maxlength="200" placeholder={t('stream_alerts.message_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('stream_alerts.message_label')}</label>
+            <input type="text" id="new-sub-message" maxlength="200" placeholder={t('stream_alerts.message_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
 
           <div class="flex gap-2">
-            <button id="confirm-sub-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
-            <button id="cancel-sub-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+            <button id="confirm-sub-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+            <button id="cancel-sub-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">{t('common.cancel')}</button>
           </div>
           <p class="mt-2 text-xs text-slate-400">{t('stream_alerts.sub_form_note')}</p>
         </div>
       </section>
       <!-- Verknüpfungen -->
       <section class="rounded-xl glass-panel p-6 mt-6">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('stream_alerts.links_title')}</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+        <h2 class="text-base font-bold text-white mb-1">{t('stream_alerts.links_title')}</h2>
+        <p class="text-sm text-slate-400 mb-5">
           {t('stream_alerts.links_desc')}
         </p>
 
         <div id="links-list" class="space-y-2 mb-4">
           {links.map((link) => <LinkRow link={link} targets={linkTargets} />)}
         </div>
-        <p class:list={['text-sm text-slate-500 dark:text-slate-400 mb-4', { hidden: links.length > 0 }]} id="no-links-msg">{t('stream_alerts.no_links')}</p>
+        <p class:list={['text-sm text-slate-400 mb-4', { hidden: links.length > 0 }]} id="no-links-msg">{t('stream_alerts.no_links')}</p>
         <template id="link-row-template"><LinkRow /></template>
 
-        <button id="add-link-btn" type="button" disabled={!botOnline} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50">
+        <button id="add-link-btn" type="button" disabled={!botOnline} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-50">
           + {t('stream_alerts.create_link')}
         </button>
 
-        <div id="link-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+        <div id="link-form" class="hidden mt-4 pt-4 border-t border-slate-800">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <div>
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.channel_a_label')}</label>
-              <select id="link-sub-a" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('stream_alerts.channel_a_label')}</label>
+              <select id="link-sub-a" class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {linkGroups.map(([platform, options]) => (
                   <optgroup label={PLATFORM_META[platform].label} data-platform={platform}>
                     {options.map((o) => <option value={o.id} data-platform={o.platform} data-name={o.name} data-channel={o.channel}>{o.label}</option>)}
@@ -319,8 +319,8 @@ const pageConfig = {
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.channel_b_label')}</label>
-              <select id="link-sub-b" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('stream_alerts.channel_b_label')}</label>
+              <select id="link-sub-b" class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {linkGroups.map(([platform, options]) => (
                   <optgroup label={PLATFORM_META[platform].label} data-platform={platform}>
                     {options.map((o) => <option value={o.id} data-platform={o.platform} data-name={o.name} data-channel={o.channel}>{o.label}</option>)}
@@ -330,8 +330,8 @@ const pageConfig = {
             </div>
           </div>
           <div class="flex gap-2">
-            <button id="confirm-link-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('stream_alerts.link_confirm_btn')}</button>
-            <button id="cancel-link-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+            <button id="confirm-link-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors">{t('stream_alerts.link_confirm_btn')}</button>
+            <button id="cancel-link-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">{t('common.cancel')}</button>
           </div>
         </div>
       </section>
@@ -340,18 +340,18 @@ const pageConfig = {
     <!-- Streamplan als Discord-Events -->
     <div role="tabpanel" id="tab-panel-schedule" aria-labelledby="tab-schedule" data-tab-panel="schedule" class="hidden">
       <section class="rounded-xl glass-panel p-6">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-1">{t('stream_alerts.schedule_title')}</h2>
+        <h2 class="text-base font-bold text-white mb-1">{t('stream_alerts.schedule_title')}</h2>
         {schedule?.available === false ? (
-          <p class="text-sm text-slate-500 dark:text-slate-400 mt-2" id="schedule-soon">{t('stream_alerts.schedule_soon')}</p>
+          <p class="text-sm text-slate-400 mt-2" id="schedule-soon">{t('stream_alerts.schedule_soon')}</p>
         ) : schedule ? (
           <>
-            <p class="text-sm text-slate-500 dark:text-slate-400" id="schedule-desc">{t('stream_alerts.schedule_desc', { days: schedule.days })}</p>
+            <p class="text-sm text-slate-400" id="schedule-desc">{t('stream_alerts.schedule_desc', { days: schedule.days })}</p>
             {!schedule.premium_active && schedule.premium_limit > schedule.limit && (
               <p class="text-sm text-slate-400 mt-1">{t('stream_alerts.schedule_premium_hint', { max: schedule.premium_limit })}</p>
             )}
             {!schedule.can_create_events && (
-              <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mt-4" id="schedule-permission-warning">
-                <p class="text-sm text-amber-700 dark:text-amber-400">{t('stream_alerts.schedule_missing_permission')}</p>
+              <div class="rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 mt-4" id="schedule-permission-warning">
+                <p class="text-sm text-amber-400">{t('stream_alerts.schedule_missing_permission')}</p>
               </div>
             )}
             <div id="schedule-list" class="space-y-2 mt-5">
@@ -359,79 +359,79 @@ const pageConfig = {
                 <ScheduleRow entry={entry} texts={scheduleTexts} disabled={!botOnline || !scheduleCanToggle(entry, schedule)} botOnline={botOnline} premium={schedule.premium_active} imageLabel={t('stream_alerts.schedule_image_label')} />
               ))}
             </div>
-            <p class:list={['text-xs text-slate-500 dark:text-slate-400 mt-3', { hidden: !scheduleLimitText }]} id="schedule-limit-note">{scheduleLimitText}</p>
-            <p class:list={['text-sm text-slate-500 dark:text-slate-400 mt-5', { hidden: schedule.entries.length > 0 }]} id="no-schedule-msg">{t('stream_alerts.schedule_no_twitch')}</p>
+            <p class:list={['text-xs text-slate-400 mt-3', { hidden: !scheduleLimitText }]} id="schedule-limit-note">{scheduleLimitText}</p>
+            <p class:list={['text-sm text-slate-400 mt-5', { hidden: schedule.entries.length > 0 }]} id="no-schedule-msg">{t('stream_alerts.schedule_no_twitch')}</p>
             <template id="schedule-row-template"><ScheduleRow texts={scheduleTexts} disabled={!botOnline} botOnline={botOnline} premium={schedule.premium_active} imageLabel={t('stream_alerts.schedule_image_label')} /></template>
 
             <!-- Text & Bild eines Kanals (Premium). Verhalten: src/scripts/pages/stream-alerts.ts (setupScheduleCustom) -->
-            <div id="schedule-custom-form" class="hidden mt-5 pt-5 border-t border-slate-200 dark:border-slate-800">
-              <p id="schedule-custom-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3"></p>
+            <div id="schedule-custom-form" class="hidden mt-5 pt-5 border-t border-slate-800">
+              <p id="schedule-custom-title" class="text-sm font-semibold text-white mb-3"></p>
 
               <div id="schedule-custom-premium" class="hidden">
-                <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
-                  <p class="text-sm text-slate-500 dark:text-slate-400">{t('stream_alerts.schedule_custom_premium')}</p>
+                <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-800/50 p-3">
+                  <p class="text-sm text-slate-400">{t('stream_alerts.schedule_custom_premium')}</p>
                   <Badge variant="primary">Premium</Badge>
                 </div>
-                <p id="schedule-custom-stored" class="hidden text-xs text-slate-500 dark:text-slate-400 mt-2"></p>
+                <p id="schedule-custom-stored" class="hidden text-xs text-slate-400 mt-2"></p>
               </div>
 
               <div id="schedule-custom-fields" class="grid gap-5 lg:grid-cols-2">
                 <div>
-                  <label for="schedule-custom-text" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('stream_alerts.schedule_custom_text_label')}</label>
+                  <label for="schedule-custom-text" class="block text-xs font-medium text-slate-300 mb-1.5">{t('stream_alerts.schedule_custom_text_label')}</label>
                   <MarkdownToolbar target="schedule-custom-text" />
                   <textarea id="schedule-custom-text" rows="6" maxlength={SCHEDULE_MAX_TEXT_LENGTH} placeholder={t('stream_alerts.schedule_custom_text_placeholder')}
-                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"></textarea>
+                    class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"></textarea>
                   <div class="flex items-start justify-between gap-3 mt-1.5">
                     <p class="text-xs text-slate-400">
                       {t('stream_alerts.schedule_custom_placeholders')}{' '}
                       {SCHEDULE_TEXT_PLACEHOLDERS.map((key) => (
-                        <button type="button" data-insert-placeholder={key} class="font-mono text-primary-600 dark:text-primary-400 hover:underline mr-1">{`{${key}}`}</button>
+                        <button type="button" data-insert-placeholder={key} class="font-mono text-primary-400 hover:underline mr-1">{`{${key}}`}</button>
                       ))}
                     </p>
                     <p id="schedule-custom-count" class="text-xs text-slate-400 whitespace-nowrap"></p>
                   </div>
                   <p class="text-xs text-slate-400 mt-1">{t('stream_alerts.schedule_custom_text_hint')}</p>
 
-                  <p class="block text-xs font-medium text-slate-700 dark:text-slate-300 mt-5 mb-1.5">{t('stream_alerts.schedule_custom_image_label')}</p>
+                  <p class="block text-xs font-medium text-slate-300 mt-5 mb-1.5">{t('stream_alerts.schedule_custom_image_label')}</p>
                   <div class="flex flex-wrap items-center gap-2">
-                    <label class="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-primary-500 cursor-pointer focus-within:ring-2 focus-within:ring-primary-500">
+                    <label class="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-700 text-slate-300 hover:border-primary-500 cursor-pointer focus-within:ring-2 focus-within:ring-primary-500">
                       {t('stream_alerts.schedule_custom_image_choose')}
                       <input type="file" id="schedule-custom-file" accept="image/png,image/jpeg,image/webp" class="sr-only" />
                     </label>
-                    <button type="button" id="schedule-custom-remove" class="hidden text-xs font-medium text-red-600 dark:text-red-400 hover:underline">{t('stream_alerts.schedule_custom_image_remove')}</button>
-                    <button type="button" id="schedule-custom-restore" class="hidden text-xs font-medium text-slate-500 dark:text-slate-400 hover:underline">{t('stream_alerts.schedule_custom_image_restore')}</button>
+                    <button type="button" id="schedule-custom-remove" class="hidden text-xs font-medium text-red-400 hover:underline">{t('stream_alerts.schedule_custom_image_remove')}</button>
+                    <button type="button" id="schedule-custom-restore" class="hidden text-xs font-medium text-slate-400 hover:underline">{t('stream_alerts.schedule_custom_image_restore')}</button>
                   </div>
                   <p class="text-xs text-slate-400 mt-1.5">{t('stream_alerts.schedule_custom_image_hint')}</p>
                   <div id="schedule-custom-position-wrap" class="hidden mt-3">
-                    <label for="schedule-custom-position" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('stream_alerts.schedule_custom_position')}</label>
+                    <label for="schedule-custom-position" class="block text-xs font-medium text-slate-300 mb-1">{t('stream_alerts.schedule_custom_position')}</label>
                     <input type="range" id="schedule-custom-position" min="0" max="100" value="50" class="w-full accent-primary-600" />
                   </div>
                 </div>
 
                 <div>
                   <p class="text-xs text-slate-400 mb-1.5">{t('stream_alerts.schedule_custom_preview_label')}</p>
-                  <div class="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                    <div class="aspect-[5/2] bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <div class="rounded-lg overflow-hidden border border-slate-800 bg-slate-900">
+                    <div class="aspect-[5/2] bg-slate-800 flex items-center justify-center">
                       <canvas id="schedule-custom-canvas" width={SCHEDULE_IMAGE_WIDTH} height={SCHEDULE_IMAGE_HEIGHT} class="hidden w-full h-full"></canvas>
                       <img id="schedule-custom-stored-image" alt="" class="hidden w-full h-full object-cover" />
-                      <p id="schedule-custom-image-note" class="text-xs text-slate-500 dark:text-slate-400 px-4 text-center"></p>
+                      <p id="schedule-custom-image-note" class="text-xs text-slate-400 px-4 text-center"></p>
                     </div>
                     <div class="p-4">
-                      <p id="schedule-custom-preview-title" class="text-sm font-bold text-slate-900 dark:text-white"></p>
-                      <p id="schedule-custom-preview-text" class="text-sm text-slate-600 dark:text-slate-400 mt-2 break-words"></p>
+                      <p id="schedule-custom-preview-title" class="text-sm font-bold text-white"></p>
+                      <p id="schedule-custom-preview-text" class="text-sm text-slate-400 mt-2 break-words"></p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div class="flex gap-2 mt-5">
-                <button id="schedule-custom-save" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50">{t('common.save')}</button>
-                <button id="schedule-custom-cancel" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+                <button id="schedule-custom-save" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-50">{t('common.save')}</button>
+                <button id="schedule-custom-cancel" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">{t('common.cancel')}</button>
               </div>
             </div>
           </>
         ) : (
-          <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">{t('stream_alerts.schedule_unavailable')}</p>
+          <p class="text-sm text-slate-400 mt-2">{t('stream_alerts.schedule_unavailable')}</p>
         )}
       </section>
     </div>

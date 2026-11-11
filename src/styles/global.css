@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
-@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --color-primary-50: #e6fffb;
@@ -30,15 +29,10 @@
   --font-heading: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Custom base layer for Dark Mode support and smooth transitions */
+/* Das Dashboard hat nur ein dunkles Design (kein Hell-Modus) */
 @layer base {
   :root {
-    --bg-color: #fafafa;
-    --text-color: #0f172a;
-    --border-color: #e2e8f0;
-  }
-  
-  .dark {
+    color-scheme: dark; /* auch Auswahllisten, Datumsfelder und Scrollbalken des Browsers dunkel */
     --bg-color: #09090b; /* True deep black/slate */
     --text-color: #f8fafc;
     --border-color: #1e293b;
@@ -54,7 +48,6 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: background-color 0.3s ease, color 0.3s ease;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -71,22 +64,19 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 5px;
-  }
-  .dark ::-webkit-scrollbar-thumb {
     background: #334155;
+    border-radius: 5px;
   }
 }
 
 /* Utility layer for custom complex visual effects */
 @layer utilities {
   .glass-panel {
-    @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 shadow-xl;
+    @apply bg-slate-900/70 backdrop-blur-xl border border-slate-800/50 shadow-xl;
   }
   
   .text-gradient {
-    @apply text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-accent-500 dark:from-primary-400 dark:to-accent-300;
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-accent-300;
   }
 
   .hover-glow {
@@ -101,7 +91,7 @@
     mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
   }
   .btn-primary-surface {
-    @apply bg-primary-600 text-white dark:bg-primary-500 dark:text-slate-900;
+    @apply bg-primary-500 text-slate-900;
   }
 }
 

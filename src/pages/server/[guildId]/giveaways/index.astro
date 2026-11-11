@@ -111,26 +111,26 @@ const i18n = {
 const pageConfig = { guildId, i18n };
 
 const inputClass =
-  'w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
-const labelClass = 'block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5';
+  'w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
+const labelClass = 'block text-xs font-medium text-slate-300 mb-1.5';
 ---
 
 <DashboardLayout title={t('giveaways.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
-  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('giveaways.title')}</h1>
-  <p class="text-sm text-slate-500 dark:text-slate-400 mb-8">
+  <h1 class="text-2xl md:text-3xl font-bold text-white mb-1">{t('giveaways.title')}</h1>
+  <p class="text-sm text-slate-400 mb-8">
     {t('giveaways.subtitle')}
   </p>
 
   {!botOnline && (
-    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
-      <p class="text-sm text-amber-700 dark:text-amber-400">{t('giveaways.data_unavailable')}</p>
+    <div class="rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-400">{t('giveaways.data_unavailable')}</p>
     </div>
   )}
 
   <div id="giveaways-page" data-config={JSON.stringify(pageConfig)}>
     <!-- Neues Giveaway -->
     <section class="rounded-xl glass-panel p-6 mb-6">
-      <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5">{t('giveaways.create_title')}</h2>
+      <h2 class="text-base font-bold text-white mb-5">{t('giveaways.create_title')}</h2>
 
       <form data-giveaway-form class="grid gap-4 md:grid-cols-2">
         <div class="md:col-span-2">
@@ -143,7 +143,7 @@ const labelClass = 'block text-xs font-medium text-slate-700 dark:text-slate-300
           <MarkdownToolbar target="gw-description" />
           <textarea id="gw-description" name="description" rows="4" maxlength={limits.max_description} placeholder={t('giveaways.description_placeholder')} class={inputClass}></textarea>
           <p class="text-xs text-slate-400 mt-2 mb-1">{t('boost.preview_label')}</p>
-          <p class="text-sm text-slate-600 dark:text-slate-400 italic" id="gw-description-preview">—</p>
+          <p class="text-sm text-slate-400 italic" id="gw-description-preview">—</p>
         </div>
 
         <div>
@@ -165,21 +165,21 @@ const labelClass = 'block text-xs font-medium text-slate-700 dark:text-slate-300
           <div class="flex items-end gap-3 flex-wrap">
             <div>
               <label class={labelClass} for="gw-date">{t('embeds.date_label')}</label>
-              <input id="gw-date" name="end_date" type="date" required min={minDate} class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input id="gw-date" name="end_date" type="date" required min={minDate} class="px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
             <div>
               <label class={labelClass} for="gw-time">{t('embeds.time_label')}</label>
-              <input id="gw-time" name="end_clock" type="time" required class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input id="gw-time" name="end_clock" type="time" required class="px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
           </div>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5">{t('giveaways.end_time_hint', { timezone })}</p>
+          <p class="text-xs text-slate-400 mt-1.5">{t('giveaways.end_time_hint', { timezone })}</p>
         </div>
 
         <div class="md:col-span-2 flex items-center gap-4">
-          <button type="submit" disabled={!botOnline} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <button type="submit" disabled={!botOnline} class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {t('giveaways.create_btn')}
           </button>
-          <p class="text-sm text-red-600 dark:text-red-400 hidden" data-form-error></p>
+          <p class="text-sm text-red-400 hidden" data-form-error></p>
         </div>
       </form>
     </section>
@@ -187,28 +187,28 @@ const labelClass = 'block text-xs font-medium text-slate-700 dark:text-slate-300
     <!-- Laufende Giveaways -->
     <section class="rounded-xl glass-panel p-6 mb-6">
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('giveaways.active_title')}</h2>
-        <span class="text-sm text-slate-500 dark:text-slate-400">{active.length}</span>
+        <h2 class="text-base font-bold text-white">{t('giveaways.active_title')}</h2>
+        <span class="text-sm text-slate-400">{active.length}</span>
       </div>
 
       {active.length === 0 ? (
-        <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('giveaways.no_active')}</p>
+        <p class="text-sm text-slate-400 py-4">{t('giveaways.no_active')}</p>
       ) : (
         <div class="space-y-3">
           {active.map((g) => (
-            <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-giveaway>
+            <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-800" data-giveaway>
               <div class="min-w-0 flex-1">
-                <p class="font-medium text-slate-900 dark:text-white truncate">🎉 {g.prize}</p>
-                <p class="text-sm text-slate-500 dark:text-slate-400">
+                <p class="font-medium text-white truncate">🎉 {g.prize}</p>
+                <p class="text-sm text-slate-400">
                   {g.channel_name ? `#${g.channel_name}` : '–'} · {t('giveaways.ends')} {formatDate(g.end_time)}
                 </p>
-                <p class="text-sm text-slate-500 dark:text-slate-400">
+                <p class="text-sm text-slate-400">
                   {t('giveaways.participants')}: {g.participant_count} · {t('giveaways.winners')}: {g.winners_count}
                 </p>
               </div>
               <div class="flex-shrink-0 text-right">
-                <a href={g.message_url} target="_blank" rel="noopener noreferrer" class="block text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">{t('giveaways.open_in_discord')}</a>
-                <button type="button" data-cancel-giveaway={g.id} class="block mt-1 text-xs font-medium text-red-600 dark:text-red-400 hover:underline ml-auto">{t('giveaways.cancel_btn')}</button>
+                <a href={g.message_url} target="_blank" rel="noopener noreferrer" class="block text-xs font-medium text-primary-400 hover:underline">{t('giveaways.open_in_discord')}</a>
+                <button type="button" data-cancel-giveaway={g.id} class="block mt-1 text-xs font-medium text-red-400 hover:underline ml-auto">{t('giveaways.cancel_btn')}</button>
               </div>
             </div>
           ))}
@@ -219,19 +219,19 @@ const labelClass = 'block text-xs font-medium text-slate-700 dark:text-slate-300
     <!-- Verlauf -->
     <section class="rounded-xl glass-panel p-6">
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('giveaways.history_title')}</h2>
-        <span class="text-sm text-slate-500 dark:text-slate-400">{history.length}</span>
+        <h2 class="text-base font-bold text-white">{t('giveaways.history_title')}</h2>
+        <span class="text-sm text-slate-400">{history.length}</span>
       </div>
 
       {history.length === 0 ? (
-        <p class="text-sm text-slate-500 dark:text-slate-400 py-4">{t('giveaways.no_history')}</p>
+        <p class="text-sm text-slate-400 py-4">{t('giveaways.no_history')}</p>
       ) : (
         <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1" data-list="history">
           {history.map((g) => (
-            <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+            <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-800">
               <div class="min-w-0 flex-1">
-                <p class="font-medium text-slate-900 dark:text-white truncate">{g.prize}</p>
-                <p class="text-sm text-slate-500 dark:text-slate-400">
+                <p class="font-medium text-white truncate">{g.prize}</p>
+                <p class="text-sm text-slate-400">
                   {formatDate(g.end_time)} · {t('giveaways.participants')}: {g.participant_count} · {t('giveaways.winners')}: {g.winners_count}
                 </p>
               </div>

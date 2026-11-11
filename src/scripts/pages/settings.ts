@@ -110,11 +110,11 @@ function setupSettingsPage() {
 
       const originalText = saveStatus.textContent;
       saveStatus.textContent = i18n.saved;
-      saveStatus.classList.add('text-primary-600', 'dark:text-primary-400');
+      saveStatus.classList.add('text-primary-400');
       setTimeout(() => {
         refreshSaveBar();
         saveStatus.textContent = originalText;
-        saveStatus.classList.remove('text-primary-600', 'dark:text-primary-400');
+        saveStatus.classList.remove('text-primary-400');
       }, 1200);
     } catch (err) {
       console.error(err);

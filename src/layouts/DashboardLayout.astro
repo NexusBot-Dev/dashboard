@@ -70,46 +70,8 @@ if (premiumExpiresAt) {
     <title>{fullTitle}</title>
 
     <ClientRouter />
-
-    <script is:inline data-astro-rerun>
-      (() => {
-        const getPreferredTheme = () => {
-          if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-            return localStorage.getItem('theme');
-          }
-          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            return 'dark';
-          }
-          return 'light';
-        };
-
-        const applyTheme = (theme, root = document.documentElement) => {
-          root.classList.toggle('dark', theme === 'dark');
-          window.localStorage.setItem('theme', theme);
-        };
-
-        applyTheme(getPreferredTheme());
-
-        if (!window.__zenixThemeBound) {
-          window.__zenixThemeBound = true;
-
-          document.addEventListener('astro:before-swap', (event) => {
-            const theme = localStorage.getItem('theme') || getPreferredTheme();
-            event.newDocument.documentElement.classList.toggle('dark', theme === 'dark');
-          });
-
-          document.addEventListener('astro:after-swap', () => {
-            applyTheme(localStorage.getItem('theme') || getPreferredTheme());
-          });
-
-          document.addEventListener('astro:page-load', () => {
-            applyTheme(localStorage.getItem('theme') || getPreferredTheme());
-          });
-        }
-      })();
-    </script>
   </head>
-  <body class="bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#09090b] dark:text-slate-100">
+  <body class="bg-[#09090b] text-slate-100">
     <noscript>
       <div class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/95 text-white p-6 text-center">
         <div>

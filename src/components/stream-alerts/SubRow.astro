@@ -28,14 +28,14 @@ const target = sub
   : '';
 ---
 
-<div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-sub-row={sub?.monitored_channel_id ?? ''} data-subscription-id={sub?.subscription_id ?? ''} data-platform={platform} data-channel-id={sub?.channel_id ?? ''} data-message={sub?.message ?? ''}>
-  <span class={`w-2 h-2 rounded-full flex-shrink-0 ${live ? 'bg-primary-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+<div class="flex items-center gap-4 p-3 rounded-lg border border-slate-800" data-sub-row={sub?.monitored_channel_id ?? ''} data-subscription-id={sub?.subscription_id ?? ''} data-platform={platform} data-channel-id={sub?.channel_id ?? ''} data-message={sub?.message ?? ''}>
+  <span class={`w-2 h-2 rounded-full flex-shrink-0 ${live ? 'bg-primary-500 animate-pulse' : 'bg-slate-600'}`}></span>
   <div class="min-w-0 flex-1">
-    <p class="text-sm font-medium text-slate-900 dark:text-white truncate" data-field="name">{sub?.streamer_name}</p>
-    <p class="text-xs text-slate-500 dark:text-slate-400" data-field="target">{target}</p>
+    <p class="text-sm font-medium text-white truncate" data-field="name">{sub?.streamer_name}</p>
+    <p class="text-xs text-slate-400" data-field="target">{target}</p>
   </div>
   {sub && !sub.active && <Badge variant="warning">{t('stream_alerts.inactive_limit')}</Badge>}
   <Badge variant={live ? 'success' : 'neutral'}>{live ? t('stream_alerts.live') : t('stream_alerts.offline')}</Badge>
-  <button type="button" data-edit-sub disabled={!botOnline} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline flex-shrink-0 disabled:opacity-50">{t('common.edit')}</button>
-  <button type="button" data-remove-sub disabled={!botOnline} class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline flex-shrink-0 disabled:opacity-50">{t('common.remove')}</button>
+  <button type="button" data-edit-sub disabled={!botOnline} class="text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline flex-shrink-0 disabled:opacity-50">{t('common.edit')}</button>
+  <button type="button" data-remove-sub disabled={!botOnline} class="text-xs font-medium text-red-400 hover:underline flex-shrink-0 disabled:opacity-50">{t('common.remove')}</button>
 </div>

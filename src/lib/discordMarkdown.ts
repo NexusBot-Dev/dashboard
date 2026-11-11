@@ -8,7 +8,7 @@ export function renderDiscordMarkdown(text: string): string {
     return `%%CB${codeBlocks.length - 1}%%`;
   });
 
-  out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">$1</code>');
+  out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-700 text-xs">$1</code>');
 
   // Kombinierte Formatierungen vor den einfachen, sonst greifen die falschen Regeln zuerst
   out = out.replace(/__\*\*\*(.+?)\*\*\*__/g, '<u><strong><em>$1</em></strong></u>');
@@ -37,7 +37,7 @@ export function renderDiscordMarkdown(text: string): string {
   out = out.replace(
     /%%CB(\d+)%%/g,
     (_m, i) =>
-      `<pre class="bg-slate-200 dark:bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`,
+      `<pre class="bg-slate-700 rounded p-2 text-xs overflow-x-auto my-1"><code>${codeBlocks[Number(i)]}</code></pre>`,
   );
 
   return out.replace(/\n/g, '<br>');

@@ -72,24 +72,24 @@ const pageConfig = { guildId, i18n };
 
 <DashboardLayout title={t('moderation.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
   <div class="flex items-center gap-3 mb-1">
-    <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{t('moderation.title')}</h1>
+    <h1 class="text-2xl md:text-3xl font-bold text-white">{t('moderation.title')}</h1>
   </div>
-  <p class="text-sm text-slate-500 dark:text-slate-400 mb-8">
+  <p class="text-sm text-slate-400 mb-8">
     {t('moderation.subtitle')}
   </p>
 
   <div id="moderation-page" data-config={JSON.stringify(pageConfig)}>
     {!botOnline && (
-      <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
-        <p class="text-sm text-amber-700 dark:text-amber-400">{t('moderation.data_unavailable')}</p>
+      <div class="rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 mb-6">
+        <p class="text-sm text-amber-400">{t('moderation.data_unavailable')}</p>
       </div>
     )}
 
     <!-- Bans -->
     <section class="rounded-xl glass-panel p-6 mb-6">
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('moderation.banned_members_title')}</h2>
-        {bans && <span class="text-sm text-slate-500 dark:text-slate-400" data-count="bans">{entryCount(bans.length)}</span>}
+        <h2 class="text-base font-bold text-white">{t('moderation.banned_members_title')}</h2>
+        {bans && <span class="text-sm text-slate-400" data-count="bans">{entryCount(bans.length)}</span>}
       </div>
 
       <div class:list={['relative mb-5', { hidden: !bans }]}>
@@ -100,37 +100,37 @@ const pageConfig = { guildId, i18n };
           type="text"
           data-search="bans"
           placeholder={t('moderation.search_placeholder')}
-          class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
 
-      {!bans && <p class="text-sm text-amber-700 dark:text-amber-400 py-4">{t('moderation.list_unavailable')}</p>}
-      <p class:list={['text-sm text-slate-500 dark:text-slate-400 py-4', { hidden: !bans || bans.length > 0 }]} data-empty-list="bans">{t('moderation.no_bans')}</p>
+      {!bans && <p class="text-sm text-amber-400 py-4">{t('moderation.list_unavailable')}</p>}
+      <p class:list={['text-sm text-slate-400 py-4', { hidden: !bans || bans.length > 0 }]} data-empty-list="bans">{t('moderation.no_bans')}</p>
       <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1" data-list="bans">
         {(bans ?? []).map((ban) => (
-          <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-search-value={`${ban.username} ${ban.user_id}`.toLowerCase()}>
+          <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-800" data-search-value={`${ban.username} ${ban.user_id}`.toLowerCase()}>
             <img src={ban.avatar_url || avatarFallback(ban.user_id)} alt="" class="w-10 h-10 rounded-full flex-shrink-0" />
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
-                <span class="font-medium text-slate-900 dark:text-white truncate">{ban.username}</span>
+                <span class="font-medium text-white truncate">{ban.username}</span>
                 <span class="text-xs text-slate-400 font-mono">{ban.user_id}</span>
               </div>
-              <p class="text-sm text-slate-500 dark:text-slate-400 truncate">{ban.reason || t('moderation.no_reason')}</p>
+              <p class="text-sm text-slate-400 truncate">{ban.reason || t('moderation.no_reason')}</p>
             </div>
             <div class="flex-shrink-0 text-right">
-              <button type="button" data-unban={ban.user_id} class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">{t('moderation.unban_btn')}</button>
+              <button type="button" data-unban={ban.user_id} class="text-xs font-medium text-primary-400 hover:underline">{t('moderation.unban_btn')}</button>
             </div>
           </div>
         ))}
       </div>
-      <p class="text-sm text-slate-500 dark:text-slate-400 py-4 hidden" data-empty-search="bans">{t('moderation.no_search_results')}</p>
+      <p class="text-sm text-slate-400 py-4 hidden" data-empty-search="bans">{t('moderation.no_search_results')}</p>
     </section>
 
     <!-- Timeouts -->
     <section class="rounded-xl glass-panel p-6">
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('moderation.active_timeouts_title')}</h2>
-        {timeouts && <span class="text-sm text-slate-500 dark:text-slate-400" data-count="timeouts">{entryCount(timeouts.length)}</span>}
+        <h2 class="text-base font-bold text-white">{t('moderation.active_timeouts_title')}</h2>
+        {timeouts && <span class="text-sm text-slate-400" data-count="timeouts">{entryCount(timeouts.length)}</span>}
       </div>
 
       <div class:list={['relative mb-5', { hidden: !timeouts }]}>
@@ -141,30 +141,30 @@ const pageConfig = { guildId, i18n };
           type="text"
           data-search="timeouts"
           placeholder={t('moderation.search_placeholder')}
-          class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
 
-      {!timeouts && <p class="text-sm text-amber-700 dark:text-amber-400 py-4">{t('moderation.list_unavailable')}</p>}
-      <p class:list={['text-sm text-slate-500 dark:text-slate-400 py-4', { hidden: !timeouts || timeouts.length > 0 }]} data-empty-list="timeouts">{t('moderation.no_timeouts')}</p>
+      {!timeouts && <p class="text-sm text-amber-400 py-4">{t('moderation.list_unavailable')}</p>}
+      <p class:list={['text-sm text-slate-400 py-4', { hidden: !timeouts || timeouts.length > 0 }]} data-empty-list="timeouts">{t('moderation.no_timeouts')}</p>
       <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1" data-list="timeouts">
         {(timeouts ?? []).map((to) => (
-          <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-search-value={`${to.username} ${to.user_id}`.toLowerCase()}>
+          <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-800" data-search-value={`${to.username} ${to.user_id}`.toLowerCase()}>
             <img src={to.avatar_url || avatarFallback(to.user_id)} alt="" class="w-10 h-10 rounded-full flex-shrink-0" />
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
-                <span class="font-medium text-slate-900 dark:text-white truncate">{to.username}</span>
+                <span class="font-medium text-white truncate">{to.username}</span>
                 <span class="text-xs text-slate-400 font-mono">{to.user_id}</span>
               </div>
             </div>
             <div class="flex-shrink-0 text-right">
               <Badge variant="warning">{formatRemaining(to.until)}</Badge>
-              <button type="button" data-remove-timeout={to.user_id} class="block mt-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline ml-auto">{t('moderation.remove_timeout_btn')}</button>
+              <button type="button" data-remove-timeout={to.user_id} class="block mt-1 text-xs font-medium text-primary-400 hover:underline ml-auto">{t('moderation.remove_timeout_btn')}</button>
             </div>
           </div>
         ))}
       </div>
-      <p class="text-sm text-slate-500 dark:text-slate-400 py-4 hidden" data-empty-search="timeouts">{t('moderation.no_search_results')}</p>
+      <p class="text-sm text-slate-400 py-4 hidden" data-empty-search="timeouts">{t('moderation.no_search_results')}</p>
     </section>
   </div>
 </DashboardLayout>

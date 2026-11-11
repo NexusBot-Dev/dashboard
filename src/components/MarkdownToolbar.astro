@@ -6,7 +6,7 @@ interface Props {
 
 const { target } = Astro.props;
 const t = Astro.locals.t;
-const BTN = 'h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800';
+const BTN = 'h-8 rounded-md border border-slate-700 hover:bg-slate-800';
 ---
 
 <div class="flex flex-wrap gap-1 mb-2" data-md-toolbar={target}>
@@ -14,11 +14,11 @@ const BTN = 'h-8 rounded-md border border-slate-200 dark:border-slate-700 hover:
   <button type="button" data-md="italic" title={t('tickets.md_italic')} class={`w-8 ${BTN} text-sm italic`}>I</button>
   <button type="button" data-md="underline" title={t('tickets.md_underline')} class={`w-8 ${BTN} text-sm underline`}>U</button>
   <button type="button" data-md="strike" title={t('tickets.md_strike')} class={`w-8 ${BTN} text-sm line-through`}>S</button>
-  <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+  <span class="w-px bg-slate-700 mx-1"></span>
   <button type="button" data-md="h1" class={`px-2 ${BTN} text-xs font-bold`}>H1</button>
   <button type="button" data-md="h2" class={`px-2 ${BTN} text-xs font-bold`}>H2</button>
   <button type="button" data-md="h3" class={`px-2 ${BTN} text-xs font-bold`}>H3</button>
-  <span class="w-px bg-slate-200 dark:bg-slate-700 mx-1"></span>
+  <span class="w-px bg-slate-700 mx-1"></span>
   <button type="button" data-md="list" class={`w-8 ${BTN} text-sm`}>•</button>
   <button type="button" data-md="code" class={`w-8 ${BTN} text-xs font-mono`}>{'</>'}</button>
   <button type="button" data-md="codeblock" class={`px-2 ${BTN} text-xs font-mono`}>{'{ }'}</button>

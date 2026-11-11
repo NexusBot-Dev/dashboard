@@ -21,19 +21,19 @@ const { status, error } = entry ? scheduleRowText(entry, texts, premium) : { sta
 const sources = entry ? scheduleImageOptions(entry, premium) : SCHEDULE_IMAGE_SOURCES;
 ---
 
-<div class="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-2 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-schedule-row={entry?.monitored_channel_id ?? ''}>
+<div class="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-2 p-3 rounded-lg border border-slate-800" data-schedule-row={entry?.monitored_channel_id ?? ''}>
   <PlatformIcon platform="twitch" class={`w-4 h-4 flex-shrink-0 ${PLATFORM_META.twitch.colorClass}`} />
   <div class="min-w-0 flex-1">
-    <p class="text-sm font-medium text-slate-900 dark:text-white truncate" data-field="name">{entry?.streamer_name}</p>
-    <p class="text-xs text-slate-500 dark:text-slate-400" data-field="status">{status}</p>
-    <p class:list={['text-xs text-amber-700 dark:text-amber-400', { hidden: !error }]} data-field="error">{error}</p>
+    <p class="text-sm font-medium text-white truncate" data-field="name">{entry?.streamer_name}</p>
+    <p class="text-xs text-slate-400" data-field="status">{status}</p>
+    <p class:list={['text-xs text-amber-400', { hidden: !error }]} data-field="error">{error}</p>
   </div>
   <button type="button" data-schedule-custom disabled={!botOnline}
-    class:list={['text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline disabled:opacity-50 disabled:no-underline', { hidden: !entry || !scheduleCustomEditable(entry) }]}>
+    class:list={['text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline disabled:opacity-50 disabled:no-underline', { hidden: !entry || !scheduleCustomEditable(entry) }]}>
     {texts.customButton}
   </button>
   <select data-schedule-image data-initial={entry?.image_source ?? ''} aria-label={imageLabel} disabled={!botOnline}
-    class:list={['px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50', { hidden: !entry || !scheduleImageSelectable(entry) }]}>
+    class:list={['px-2 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-white text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50', { hidden: !entry || !scheduleImageSelectable(entry) }]}>
     {sources.map((source) => <option value={source} selected={entry?.image_source === source}>{texts.images[source]}</option>)}
   </select>
   <Switch checked={entry?.enabled ?? false} disabled={disabled} data-schedule-toggle="" />

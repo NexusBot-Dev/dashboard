@@ -95,14 +95,14 @@ const i18n = {
 ---
 
 <DashboardLayout title={t('embeds.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
-  <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('embeds.title')}</h1>
-  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+  <h1 class="text-2xl md:text-3xl font-bold text-white mb-1">{t('embeds.title')}</h1>
+  <p class="text-sm text-slate-400 mb-6">
     {t('embeds.subtitle')}
   </p>
 
   {!botOnline && (
-    <div class="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 mb-6">
-      <p class="text-sm text-amber-700 dark:text-amber-400">{t('common.bot_offline')}</p>
+    <div class="rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 mb-6">
+      <p class="text-sm text-amber-400">{t('common.bot_offline')}</p>
     </div>
   )}
 
@@ -110,14 +110,14 @@ const i18n = {
   <section class="rounded-xl glass-panel p-6 mb-6">
     <div class="flex items-center justify-between">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">{t('embeds.rules_channel_label')}</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">{t('embeds.rules_channel_label')}</p>
         {settings.rules_channel_id ? (
-          <p class="text-sm font-medium text-slate-900 dark:text-white">#{rulesChannelName ?? settings.rules_channel_id}</p>
+          <p class="text-sm font-medium text-white">#{rulesChannelName ?? settings.rules_channel_id}</p>
         ) : (
-          <p class="text-sm text-amber-600 dark:text-amber-400">{t('embeds.no_channel_set')}</p>
+          <p class="text-sm text-amber-400">{t('embeds.no_channel_set')}</p>
         )}
       </div>
-      <a href={`/server/${guildId}/settings/`} class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">
+      <a href={`/server/${guildId}/settings/`} class="text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline">
         {t('embeds.change_in_settings')}
       </a>
     </div>
@@ -126,12 +126,12 @@ const i18n = {
   <!-- Gespeicherte Embeds -->
   <section class="rounded-xl glass-panel p-6">
     <div class="flex items-center justify-between mb-1">
-      <h2 class="text-base font-bold text-slate-900 dark:text-white">{t('embeds.saved_embeds_title')}</h2>
-      <button id="add-embed-btn" type="button" disabled={!botOnline || embeds.length >= limit} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+      <h2 class="text-base font-bold text-white">{t('embeds.saved_embeds_title')}</h2>
+      <button id="add-embed-btn" type="button" disabled={!botOnline || embeds.length >= limit} class="px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
         + {t('common.create')}
       </button>
     </div>
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+    <p class="text-sm text-slate-400 mb-5">
       <span id="embeds-count">{t('embeds.embeds_count', { count: embeds.length, limit })}</span>
       {!premiumActive && limitPremium > limitFree && (
         <span id="embeds-premium-hint" class="ml-1">— <Badge variant="primary">Premium</Badge> {t('embeds.premium_hint', { max: limitPremium })}</span>
@@ -154,20 +154,20 @@ const i18n = {
     <template id="embed-row-template"><EmbedRow premiumActive={premiumActive} /></template>
 
     <!-- Immer im Markup, damit das Skript den Hinweis nach dem Löschen des letzten Embeds wieder zeigen kann -->
-    <p id="embeds-empty" class:list={['text-sm text-slate-500 dark:text-slate-400 py-4', embeds.length > 0 && 'hidden']}>{t('embeds.no_embeds')}</p>
+    <p id="embeds-empty" class:list={['text-sm text-slate-400 py-4', embeds.length > 0 && 'hidden']}>{t('embeds.no_embeds')}</p>
 
     <!-- Add/Edit-Form -->
-    <div id="embed-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-      <p id="embed-form-title" class="text-sm font-semibold text-slate-900 dark:text-white mb-3">{t('embeds.embed_form_add_title')}</p>
+    <div id="embed-form" class="hidden mt-4 pt-4 border-t border-slate-800">
+      <p id="embed-form-title" class="text-sm font-semibold text-white mb-3">{t('embeds.embed_form_add_title')}</p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.internal_name_label')}</label>
-          <input type="text" id="embed-name-input" maxlength="100" placeholder={t('embeds.internal_name_placeholder')} class="read-only:opacity-60 read-only:cursor-not-allowed w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('embeds.internal_name_label')}</label>
+          <input type="text" id="embed-name-input" maxlength="100" placeholder={t('embeds.internal_name_placeholder')} class="read-only:opacity-60 read-only:cursor-not-allowed w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('tickets.target_channel_label')}</label>
-          <select id="embed-channel-select" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('tickets.target_channel_label')}</label>
+          <select id="embed-channel-select" class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
             <option value="">{t('common.please_select')}</option>
             {channels.map((ch) => <option value={ch.id}>#{ch.name}</option>)}
           </select>
@@ -175,49 +175,49 @@ const i18n = {
       </div>
 
       <div class="mb-3">
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.title_optional_label')}</label>
-        <input type="text" id="embed-title-input" maxlength="256" placeholder={t('embeds.title_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+        <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('embeds.title_optional_label')}</label>
+        <input type="text" id="embed-title-input" maxlength="256" placeholder={t('embeds.title_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
       </div>
 
       <MarkdownToolbar target="embed-description-input" />
 
       <div class="mb-3">
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.content_label')}</label>
-        <textarea id="embed-description-input" rows="4" maxlength="4000" placeholder={t('embeds.content_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+        <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('embeds.content_label')}</label>
+        <textarea id="embed-description-input" rows="4" maxlength="4000" placeholder={t('embeds.content_placeholder')} class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
       </div>
 
-      <div class="mb-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+      <div class="mb-4 rounded-lg bg-slate-800/50 p-3">
         <p class="text-xs text-slate-400 mb-1">{t('tickets.live_preview_label')}</p>
-        <p id="embed-preview" class="text-sm text-slate-700 dark:text-slate-300 italic">—</p>
+        <p id="embed-preview" class="text-sm text-slate-300 italic">—</p>
       </div>
 
       <div class="flex gap-2">
-        <button id="confirm-embed-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('common.save')}</button>
-        <button id="cancel-embed-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+        <button id="confirm-embed-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+        <button id="cancel-embed-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">{t('common.cancel')}</button>
       </div>
     </div>
 
     <!-- Zeitplan-Form -->
-    <div id="schedule-form" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-      <p class="text-sm font-semibold text-slate-900 dark:text-white mb-1">{t('embeds.schedule_embed_title')}</p>
+    <div id="schedule-form" class="hidden mt-4 pt-4 border-t border-slate-800">
+      <p class="text-sm font-semibold text-white mb-1">{t('embeds.schedule_embed_title')}</p>
       <p class="text-xs text-slate-400 mb-3">{t('embeds.timezone_label', { tz: settings.timezone })}</p>
 
       {premiumActive ? (
         <div class="flex items-end gap-3 flex-wrap">
           <div>
-            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.date_label')}</label>
-            <input type="date" id="schedule-date-input" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('embeds.date_label')}</label>
+            <input type="date" id="schedule-date-input" class="px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('embeds.time_label')}</label>
-            <input type="time" id="schedule-time-input" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('embeds.time_label')}</label>
+            <input type="time" id="schedule-time-input" class="px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
-          <button id="confirm-schedule-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors">{t('embeds.schedule_confirm_btn')}</button>
-          <button id="cancel-schedule-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{t('common.cancel')}</button>
+          <button id="confirm-schedule-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors">{t('embeds.schedule_confirm_btn')}</button>
+          <button id="cancel-schedule-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">{t('common.cancel')}</button>
         </div>
       ) : (
-        <div class="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
-          <p class="text-sm text-slate-500 dark:text-slate-400">{t('embeds.premium_scheduling_desc')}</p>
+        <div class="flex items-center justify-between rounded-lg bg-slate-800/50 p-3">
+          <p class="text-sm text-slate-400">{t('embeds.premium_scheduling_desc')}</p>
           <Badge variant="primary">Premium</Badge>
         </div>
       )}

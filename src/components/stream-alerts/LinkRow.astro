@@ -16,20 +16,20 @@ const t = Astro.locals.t;
 const sides = [['a', link?.a], ['b', link?.b]] as const;
 ---
 
-<div class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-800" data-link-row={link?.id ?? ''} data-subscription-ids={link ? `${link.a.subscription_id},${link.b.subscription_id}` : ''}>
+<div class="flex items-center gap-3 p-3 rounded-lg border border-slate-800" data-link-row={link?.id ?? ''} data-subscription-ids={link ? `${link.a.subscription_id},${link.b.subscription_id}` : ''}>
   {sides.map(([key, side], i) => (
     <>
       {i === 1 && <span class="text-slate-400">↔</span>}
-      <span class="inline-flex items-center gap-1.5 text-sm text-slate-900 dark:text-white" data-side={key}>
+      <span class="inline-flex items-center gap-1.5 text-sm text-white" data-side={key}>
         {Object.entries(PLATFORM_META).map(([platform, meta]) => (
           <span data-platform-icon={platform} class={side?.platform === platform ? 'inline-flex' : 'hidden'}>
             <PlatformIcon platform={platform} class={`w-4 h-4 ${meta.colorClass}`} />
           </span>
         ))}
         <span data-field="name">{side?.streamer_name}</span>
-        <span data-field="target" class="text-xs text-slate-500 dark:text-slate-400">{side && targets[side.subscription_id] ? `→ ${targets[side.subscription_id]}` : ''}</span>
+        <span data-field="target" class="text-xs text-slate-400">{side && targets[side.subscription_id] ? `→ ${targets[side.subscription_id]}` : ''}</span>
       </span>
     </>
   ))}
-  <button type="button" data-remove-link class="ml-auto text-xs font-medium text-red-600 dark:text-red-400 hover:underline">{t('stream_alerts.disconnect_btn')}</button>
+  <button type="button" data-remove-link class="ml-auto text-xs font-medium text-red-400 hover:underline">{t('stream_alerts.disconnect_btn')}</button>
 </div>

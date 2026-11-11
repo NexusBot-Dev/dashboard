@@ -24,7 +24,7 @@ interface AutomodConfig {
 type I18n = AutomodConfig['i18n'];
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-const KEYWORD_CLASS = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300';
+const KEYWORD_CLASS = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 text-xs font-mono text-slate-300';
 
 function setupSwitches(root: HTMLElement, api: DashboardApi) {
   root.querySelectorAll<HTMLButtonElement>('[data-automod-toggle]').forEach((btn) => {

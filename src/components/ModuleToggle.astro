@@ -32,20 +32,20 @@ const config = {
 <div class="mb-6" data-module-toggle-root data-config={JSON.stringify(config)}>
   <!-- Beschreibung der Seite links, Schalter rechts in derselben Zeile -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6">
-    <div class="text-sm text-slate-500 dark:text-slate-400"><slot /></div>
+    <div class="text-sm text-slate-400"><slot /></div>
     <div class="flex items-center gap-3 flex-shrink-0">
-      <span data-module-state class="text-sm font-medium text-slate-600 dark:text-slate-300">
+      <span data-module-state class="text-sm font-medium text-slate-300">
         {enabled ? config.i18n.stateOn : config.i18n.stateOff}
       </span>
       <Switch checked={enabled} disabled={disabled} data-module-switch={moduleKey} aria-label={t('modules.toggle_label', { module: name })} />
     </div>
   </div>
-  <div data-module-off-note class:list={["mt-4 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3", enabled && "hidden"]}>
+  <div data-module-off-note class:list={["mt-4 rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3", enabled && "hidden"]}>
     <div>
-      <p class="text-sm font-semibold text-amber-700 dark:text-amber-400">{t('modules.off_title', { module: name })}</p>
-      <p class="text-sm text-amber-700/90 dark:text-amber-400/90">{t('modules.off_desc')}</p>
+      <p class="text-sm font-semibold text-amber-400">{t('modules.off_title', { module: name })}</p>
+      <p class="text-sm text-amber-400/90">{t('modules.off_desc')}</p>
     </div>
-    <button type="button" data-module-enable disabled={disabled} class="flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors disabled:opacity-50">
+    <button type="button" data-module-enable disabled={disabled} class="flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-50">
       {t('modules.enable_now')}
     </button>
   </div>

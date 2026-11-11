@@ -251,8 +251,7 @@ test.describe('Danger Zone', () => {
     });
   }
 
-  test('Dialog hebt sich vom dunklen Hintergrund ab: roter Rahmen, unscharfer Hintergrund', async ({ page, context }) => {
-    await context.addInitScript(() => localStorage.setItem('theme', 'dark'));   // das Dashboard ist immer dunkel
+  test('Dialog hebt sich vom dunklen Hintergrund ab: roter Rahmen, unscharfer Hintergrund', async ({ page }) => {
     await page.goto(PAGE);
     await leaveBtn(page).click();
     const look = await dialog(page).evaluate((el) => {

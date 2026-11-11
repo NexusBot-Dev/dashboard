@@ -38,7 +38,7 @@ const navLinks = DASHBOARD_NAV_LINKS
 
 <aside class="hidden md:flex fixed top-0 left-0 h-screen w-64 flex-col glass-panel border-y-0 border-l-0 z-[90]">
   <!-- Logo -->
-  <div class="flex-shrink-0 px-4 h-16 flex items-center border-b border-slate-200 dark:border-slate-800">
+  <div class="flex-shrink-0 px-4 h-16 flex items-center border-b border-slate-800">
     <a href="/" class="flex items-center gap-2 group">
       <div class="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 overflow-hidden">
         <Image
@@ -49,7 +49,7 @@ const navLinks = DASHBOARD_NAV_LINKS
           class="rounded-xl object-contain"
         />
       </div>
-      <span class="font-heading font-bold text-xl text-slate-900 dark:text-white">{BRAND_NAME}</span>
+      <span class="font-heading font-bold text-xl text-white">{BRAND_NAME}</span>
     </a>
   </div>
 
@@ -61,8 +61,8 @@ const navLinks = DASHBOARD_NAV_LINKS
         class:list={[
           "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
           link.isActive
-            ? "bg-primary-500/15 text-primary-600 dark:text-primary-400 font-semibold"
-            : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+            ? "bg-primary-500/15 text-primary-400 font-semibold"
+            : "text-slate-300 hover:text-white hover:bg-slate-800"
         ]}
       >
         <Fragment set:html={link.icon} />
@@ -74,8 +74,8 @@ const navLinks = DASHBOARD_NAV_LINKS
 
 <!-- Mobile: Top-Bar mit Hamburger-Trigger -->
 <div class="md:hidden fixed top-0 left-0 right-0 h-14 glass-panel z-[100] flex items-center justify-between px-4">
-  <span class="font-heading font-bold text-xl text-slate-900 dark:text-white">{BRAND_NAME}</span>
-  <button id="mobile-sidebar-btn" class="p-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('nav.open_navigation')}>
+  <span class="font-heading font-bold text-xl text-white">{BRAND_NAME}</span>
+  <button id="mobile-sidebar-btn" class="p-2 rounded-md text-slate-300 hover:bg-slate-800" aria-label={t('nav.open_navigation')}>
     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
     </svg>

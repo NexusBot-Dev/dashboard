@@ -42,8 +42,8 @@ const EMOJI_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|[‍️�
 const CUSTOM_EMOJI_REGEX = /^<a?:\w+:\d+>$/;
 const isValidEmojiInput = (value: string) => CUSTOM_EMOJI_REGEX.test(value) || EMOJI_REGEX.test(value);
 
-const BADGE_PRIMARY = 'bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300 border border-primary-200 dark:border-primary-800';
-const BADGE_NEUTRAL = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700';
+const BADGE_PRIMARY = 'bg-primary-900/30 text-primary-300 border border-primary-800';
+const BADGE_NEUTRAL = 'bg-slate-800 text-slate-300 border border-slate-700';
 const BADGE_BASE = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase';
 
 // ─── Beschreibungs-Vorschau ──────────────────────────────────────────────────
@@ -82,11 +82,11 @@ function setupGroups(api: DashboardApi, i18n: I18n) {
     try {
       const result = await api.callModuleAction<{ id: number }>('reaction_roles', 'create-group', { name });
       const row = document.createElement('div');
-      row.className = 'flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800';
+      row.className = 'flex items-center justify-between p-3 rounded-lg border border-slate-800';
       row.dataset.groupRow = String(result.id);
       row.innerHTML = `
         <div class="flex items-center gap-2">
-          <span class="text-sm font-medium text-slate-900 dark:text-white"></span>
+          <span class="text-sm font-medium text-white"></span>
           <span class="${BADGE_BASE} ${BADGE_PRIMARY}">${i18n.uniqueOption}</span>
         </div>
         <span class="text-xs text-slate-400" data-group-role-count>${i18n.roleCountTemplate.replace('{count}', '0')}</span>
@@ -206,19 +206,19 @@ function setupNewMessage(api: DashboardApi, i18n: I18n) {
     block.innerHTML = `
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400" data-channel-label></span>
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400" data-channel-label></span>
           <span class="text-xs text-slate-400 font-mono" data-message-id-label></span>
           <span class="${BADGE_BASE} ${modeBadgeClass}">${modeLabel}</span>
         </div>
         <div class="flex items-center gap-3">
-          <button type="button" data-edit-message class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:underline">${i18n.editBtn}</button>
-          <button type="button" data-add-entry-to class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">+ ${i18n.addEntryBtn}</button>
-          <button type="button" data-delete-message class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">${i18n.deleteMessageBtn}</button>
+          <button type="button" data-edit-message class="text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline">${i18n.editBtn}</button>
+          <button type="button" data-add-entry-to class="text-xs font-medium text-primary-400 hover:underline">+ ${i18n.addEntryBtn}</button>
+          <button type="button" data-delete-message class="text-xs font-medium text-red-400 hover:underline">${i18n.deleteMessageBtn}</button>
         </div>
       </div>
       <div class="mb-2">
-        <p class="text-sm font-semibold text-slate-900 dark:text-white truncate" data-msg-title></p>
-        <p class="text-xs text-slate-500 dark:text-slate-400 italic" data-msg-desc></p>
+        <p class="text-sm font-semibold text-white truncate" data-msg-title></p>
+        <p class="text-xs text-slate-400 italic" data-msg-desc></p>
       </div>
       <div class="space-y-2" data-entries-list></div>
       <p class="text-sm text-slate-400 py-2">${i18n.noEntries}</p>
@@ -327,17 +327,17 @@ function setupEntryForm(api: DashboardApi, i18n: I18n) {
 
         const groupName = groupSelect.selectedOptions[0]?.textContent ?? '?';
         const row = document.createElement('div');
-        row.className = 'flex items-center gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800';
+        row.className = 'flex items-center gap-4 p-3 rounded-lg border border-slate-800';
         row.dataset.entryRow = String(result.entry_id ?? Date.now());
         row.dataset.emoji = emoji;
         // emoji ist durch isValidEmojiInput auf Emoji-Zeichen bzw. <:name:id> beschränkt
         row.innerHTML = `
           <span class="text-lg flex-shrink-0 w-8 text-center">${emoji.startsWith('<') ? '🔹' : emoji}</span>
           <div class="flex items-center gap-2 flex-1 min-w-0">
-            <span class="text-sm font-medium text-slate-900 dark:text-white truncate" data-role-name></span>
+            <span class="text-sm font-medium text-white truncate" data-role-name></span>
           </div>
           <span data-mode-label class="${BADGE_BASE} ${mode === 'unique' ? BADGE_PRIMARY : BADGE_NEUTRAL}"></span>
-          <button type="button" data-remove-entry class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline flex-shrink-0">${i18n.remove}</button>
+          <button type="button" data-remove-entry class="text-xs font-medium text-red-400 hover:underline flex-shrink-0">${i18n.remove}</button>
         `;
         row.querySelector<HTMLElement>('[data-role-name]')!.textContent = result.role_name;
         row.querySelector<HTMLElement>('[data-mode-label]')!.textContent =

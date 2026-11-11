@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t, delayPageWiring, expectNotWiredYet } from './support/helpers';
-import { CHANNELS, ROLES, SCHEDULE, defaultBotData } from './support/fixtures.mjs';
+import { CHANNELS, ROLES, SCHEDULE, STORED_IMAGE, defaultBotData } from './support/fixtures.mjs';
 import { GUILD_ID } from './support/env.mjs';
 
 // Stream-Alerts: Ping-Rollen, überwachte Kanäle (Twitch/YouTube/Kick) und Verknüpfungen zwischen Kanälen.
@@ -682,6 +682,231 @@ test.describe('Tab „Streamplan“', () => {
     await resetBot({ 'stream_alerts/list': { status: 500, error: 'internal_error' } });
     await openSchedule(page);
     await expect(scheduleSwitch(page, 11)).toBeDisabled();
+  });
+});
+
+test.describe('Streamplan: Text & Bild (Premium)', () => {
+  const PREMIUM = { 'stream_alerts/schedule': { data: { ...SCHEDULE, limit: 5, premium_active: true } } };
+  const withEntry = (values: Record<string, unknown>, premium = true) => ({
+    'stream_alerts/schedule': { data: { ...SCHEDULE, limit: 5, premium_active: premium, entries: [{ ...SCHEDULE.entries[0], ...values }] } },
+  });
+  const form = (page: Page) => page.locator('#schedule-custom-form');
+  const customBtn = (page: Page, id = 11) => scheduleRow(page, id).locator('[data-schedule-custom]');
+  const textarea = (page: Page) => page.locator('#schedule-custom-text');
+  const previewText = (page: Page) => page.locator('#schedule-custom-preview-text');
+  const imageNote = (page: Page) => page.locator('#schedule-custom-image-note');
+
+  async function openEditor(page: Page, id = 11) {
+    await page.goto(`${PAGE}#schedule`);
+    await customBtn(page, id).click();
+    await expect(form(page)).toBeVisible();
+  }
+
+  /** Ein Bild wie vom Rechner: PNG in der gewünschten Größe, im Browser gezeichnet — obere Hälfte blau, untere rot */
+  async function pngFile(page: Page, width: number, height: number) {
+    const base64 = await page.evaluate(([w, h]) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#2828d0';
+      ctx.fillRect(0, 0, w, h / 2);
+      ctx.fillStyle = '#d02828';
+      ctx.fillRect(0, h / 2, w, h / 2);
+      return canvas.toDataURL('image/png').split(',')[1];
+    }, [width, height]);
+    return { name: 'banner.png', mimeType: 'image/png', buffer: Buffer.from(base64, 'base64') };
+  }
+
+  test('ohne Premium: Hinweis statt Editor, gespeicherte Inhalte werden erwähnt', async ({ page }) => {
+    await openEditor(page);
+    await expect(page.locator('#schedule-custom-title')).toHaveText(t('stream_alerts.schedule_custom_title', { streamer: 'TwitchStar' }));
+    await expect(page.locator('#schedule-custom-premium')).toContainText(t('stream_alerts.schedule_custom_premium'));
+    await expect(page.locator('#schedule-custom-fields')).toBeHidden();
+    await expect(page.locator('#schedule-custom-save')).toBeHidden();
+    await expect(page.locator('#schedule-custom-stored')).toBeHidden();
+
+    await resetBot(withEntry({ custom_text: 'Mein Text', custom_image_hash: 'b'.repeat(64), image_source: 'banner' }, false));
+    await openEditor(page);
+    await expect(page.locator('#schedule-custom-stored')).toHaveText(t('stream_alerts.schedule_custom_stored_hint'));
+    // Ohne Premium kein „Eigenes Bild“ in der Auswahl und kein „Eigener Text“ im Status
+    await expect(scheduleRow(page, 11).locator('[data-schedule-image] option[value="custom"]')).toHaveCount(0);
+    await expect(scheduleRow(page, 11).locator('[data-field="status"]')).toHaveText(t('stream_alerts.schedule_events', { count: 2 }));
+    expect(await botCalls('stream_alerts/schedule-custom-image')).toHaveLength(0);   // Bild nur mit Premium laden
+  });
+
+  test('Button nur bei eingeschalteten Kanälen und neueren Bots', async ({ page }) => {
+    const off = { ...SCHEDULE.entries[0], monitored_channel_id: 14, streamer_name: 'MaxStreams', enabled: false, active: false };
+    const { custom_text: _, ...older } = { ...SCHEDULE.entries[0], monitored_channel_id: 15, streamer_name: 'Alt' };
+    await resetBot({ 'stream_alerts/schedule': { data: { ...SCHEDULE, limit: 5, entries: [SCHEDULE.entries[0], off, older] } } });
+    await page.goto(`${PAGE}#schedule`);
+    await expect(customBtn(page, 11)).toHaveText(t('stream_alerts.schedule_custom_button'));
+    await expect(customBtn(page, 11)).toBeVisible();
+    await expect(customBtn(page, 14)).toBeHidden();
+    await expect(customBtn(page, 15)).toBeHidden();
+  });
+
+  test('Text: Platzhalter einfügen, Zähler, Vorschau mit Beispielwerten, Speichern', async ({ page }) => {
+    await resetBot(PREMIUM);
+    await openEditor(page);
+    await expect(textarea(page)).toHaveValue('');
+    await expect(page.locator('#schedule-custom-count')).toHaveText('0/800');
+    await expect(previewText(page)).toContainText('twitch.tv/twitchstar');
+    await expect(previewText(page)).toContainText(t('stream_alerts.schedule_custom_default_source', { streamer: 'TwitchStar' }));
+    await expect(imageNote(page)).toHaveText(t('stream_alerts.schedule_custom_preview_banner'));
+
+    await textarea(page).fill('Heute **');
+    await page.locator('[data-insert-placeholder="category"]').click();
+    await textarea(page).press('End');
+    await textarea(page).type('** {unbekannt} ');
+    await page.locator('[data-insert-placeholder="link"]').click();
+    await expect(textarea(page)).toHaveValue('Heute **{category}** {unbekannt} {link}');
+    await expect(page.locator('#schedule-custom-count')).toHaveText('39/800');
+    await expect(previewText(page).locator('strong')).toHaveText(t('stream_alerts.schedule_custom_sample_category'));
+    await expect(previewText(page)).toContainText('{unbekannt} https://twitch.tv/twitchstar');   // wie der Bot
+
+    await page.locator('#schedule-custom-save').click();
+    const body = await waitForBotCall('stream_alerts/schedule-custom');
+    expect(body).toMatchObject({ monitored_channel_id: '11', text: 'Heute **{category}** {unbekannt} {link}' });
+    expect('image' in body).toBe(false);   // Bild unverändert
+    await expect(form(page)).toBeHidden();
+    await expect(scheduleRow(page, 11).locator('[data-field="status"]')).toHaveText(
+      `${t('stream_alerts.schedule_events', { count: 2 })} · ${t('stream_alerts.schedule_custom_set')}`);
+    await expect(textarea(page)).toHaveAttribute('maxlength', '800');
+  });
+
+  test('Bild: zuschneiden im Browser, Ausschnitt wählen, als JPEG speichern', async ({ page }) => {
+    await resetBot(PREMIUM);
+    await openEditor(page);
+    await expect(page.locator('#schedule-custom-position-wrap')).toBeHidden();
+    await page.locator('#schedule-custom-file').setInputFiles(await pngFile(page, 1200, 1200));
+    await expect(page.locator('#schedule-custom-canvas')).toBeVisible();
+    await expect(page.locator('#schedule-custom-position-wrap')).toBeVisible();   // quadratisch: Ausschnitt wählbar
+    await expect(imageNote(page)).toBeHidden();
+    // Ausschnitt: ganz oben nur Blau, ganz unten nur Rot (Mitte des Vorschaubildes)
+    const centerColor = () => page.locator('#schedule-custom-canvas').evaluate((canvas: HTMLCanvasElement) => {
+      const [r, , b] = canvas.getContext('2d')!.getImageData(400, 160, 1, 1).data;
+      return r > b ? 'rot' : 'blau';
+    });
+    await page.locator('#schedule-custom-position').fill('100');
+    await expect.poll(centerColor).toBe('rot');
+    await page.locator('#schedule-custom-position').fill('0');
+    await expect.poll(centerColor).toBe('blau');
+
+    await page.locator('#schedule-custom-save').click();
+    const body = await waitForBotCall('stream_alerts/schedule-custom');
+    expect(body.image.startsWith('/9j/')).toBe(true);   // JPEG
+    expect(body.image.length).toBeLessThan(200_000);     // klein genug für den Bot (höchstens 1 MiB pro Anfrage)
+    const size = await page.evaluate(async (b64) => {
+      const bitmap = await createImageBitmap(await (await fetch(`data:image/jpeg;base64,${b64}`)).blob());
+      return [bitmap.width, bitmap.height];
+    }, body.image);
+    expect(size).toEqual([800, 320]);
+
+    // Antwort: Quelle „Eigenes Bild“ gewählt
+    const select = scheduleRow(page, 11).locator('[data-schedule-image]');
+    await expect(select).toHaveValue('custom');
+    await expect(select.locator('option[value="custom"]')).toHaveText(t('stream_alerts.schedule_image_custom'));
+  });
+
+  test('Bild im Seitenverhältnis 5:2: kein Ausschnitt nötig', async ({ page }) => {
+    await resetBot(PREMIUM);
+    await openEditor(page);
+    await page.locator('#schedule-custom-file').setInputFiles(await pngFile(page, 1000, 400));
+    await expect(page.locator('#schedule-custom-canvas')).toBeVisible();
+    await expect(page.locator('#schedule-custom-position-wrap')).toBeHidden();
+  });
+
+  test('gespeichertes Bild: Vorschau, entfernen, rückgängig, entfernen und speichern', async ({ page }) => {
+    await resetBot(withEntry({ custom_text: 'Gespeichert {title}', custom_image_hash: 'a'.repeat(64), image_source: 'custom' }));
+    await openEditor(page);
+    expect(await waitForBotCall('stream_alerts/schedule-custom-image')).toMatchObject({ monitored_channel_id: '11' });
+    await expect(textarea(page)).toHaveValue('Gespeichert {title}');
+    await expect(previewText(page)).toHaveText(`Gespeichert ${t('stream_alerts.schedule_custom_sample_title')}`);
+    const stored = page.locator('#schedule-custom-stored-image');
+    await expect(stored).toBeVisible();
+    await expect(stored).toHaveAttribute('src', `data:image/jpeg;base64,${STORED_IMAGE}`);
+    await expect(scheduleRow(page, 11).locator('[data-schedule-image]')).toHaveValue('custom');
+
+    await page.locator('#schedule-custom-remove').click();
+    await expect(stored).toBeHidden();
+    await expect(imageNote(page)).toHaveText(t('stream_alerts.schedule_custom_preview_banner'));
+    await page.locator('#schedule-custom-restore').click();
+    await expect(stored).toBeVisible();
+    await page.locator('#schedule-custom-remove').click();
+
+    await page.locator('#schedule-custom-save').click();
+    const body = await waitForBotCall('stream_alerts/schedule-custom');
+    expect(body).toMatchObject({ monitored_channel_id: '11', text: 'Gespeichert {title}', image: null });
+    await expect(scheduleRow(page, 11).locator('[data-schedule-image]')).toHaveValue('banner');
+  });
+
+  test('neues Bild verwerfen: das gespeicherte bleibt', async ({ page }) => {
+    await resetBot(withEntry({ custom_image_hash: 'a'.repeat(64), image_source: 'custom' }));
+    await openEditor(page);
+    await page.locator('#schedule-custom-file').setInputFiles(await pngFile(page, 1000, 400));
+    await expect(page.locator('#schedule-custom-canvas')).toBeVisible();
+    await page.locator('#schedule-custom-remove').click();
+    await expect(page.locator('#schedule-custom-canvas')).toBeHidden();
+    await expect(page.locator('#schedule-custom-stored-image')).toBeVisible();
+    await page.locator('#schedule-custom-save').click();
+    expect('image' in await waitForBotCall('stream_alerts/schedule-custom')).toBe(false);
+  });
+
+  test('gespeichertes Bild nicht ladbar: Hinweis, Rest bleibt nutzbar', async ({ page }) => {
+    await resetBot({ ...withEntry({ custom_image_hash: 'a'.repeat(64), image_source: 'custom' }),
+      'stream_alerts/schedule-custom-image': { status: 500, error: 'internal_error' } });
+    collectDialogs(page);
+    await openEditor(page);
+    await expect(imageNote(page)).toHaveText(t('stream_alerts.schedule_custom_err_image_load'));
+    await expect(textarea(page)).toBeEditable();
+  });
+
+  test('falsche oder zu große Datei, Fehler des Bots: Meldung, Editor bleibt offen', async ({ page }) => {
+    await resetBot({ ...PREMIUM, 'stream_alerts/schedule-custom': { status: 400, error: 'Das Bild ist zu groß – höchstens 2 MB.' } });
+    const dialogs = collectDialogs(page);
+    await openEditor(page);
+    await page.locator('#schedule-custom-file').setInputFiles({ name: 'notiz.txt', mimeType: 'text/plain', buffer: Buffer.from('hallo') });
+    await expect.poll(() => dialogs.join('\n')).toContain(t('stream_alerts.schedule_custom_err_file_type'));
+    await page.locator('#schedule-custom-file').setInputFiles({ name: 'kaputt.png', mimeType: 'image/png', buffer: Buffer.from('kein Bild') });
+    await expect.poll(() => dialogs.join('\n')).toContain(t('stream_alerts.schedule_custom_err_file_read'));
+    await page.locator('#schedule-custom-file').setInputFiles({
+      name: 'riesig.png', mimeType: 'image/png', buffer: Buffer.alloc(20 * 1024 * 1024 + 1),
+    });
+    await expect.poll(() => dialogs.join('\n')).toContain(t('stream_alerts.schedule_custom_err_file_size', { mb: 20 }));
+    await expect(page.locator('#schedule-custom-canvas')).toBeHidden();
+
+    await textarea(page).fill('Text');
+    await page.locator('#schedule-custom-save').click();
+    await expect.poll(() => dialogs.join('\n')).toContain('Das Bild ist zu groß – höchstens 2 MB.');
+    await expect(form(page)).toBeVisible();
+    await expect(textarea(page)).toHaveValue('Text');
+    await expect(page.locator('#schedule-custom-save')).toBeEnabled();
+  });
+
+  test('Abbrechen schließt ohne Aufruf; Kanal ausgeschaltet schließt den Editor', async ({ page }) => {
+    await resetBot(PREMIUM);
+    await openEditor(page);
+    await textarea(page).fill('verworfen');
+    await page.locator('#schedule-custom-cancel').click();
+    await expect(form(page)).toBeHidden();
+    await customBtn(page).click();
+    await expect(textarea(page)).toHaveValue('');   // aus der letzten Antwort, nicht der verworfene Text
+
+    await scheduleSwitch(page, 11).click();
+    await waitForBotCall('stream_alerts/schedule-toggle');
+    await expect(form(page)).toBeHidden();
+    expect(await botCalls('stream_alerts/schedule-custom')).toHaveLength(0);
+  });
+
+  test('Texte bleiben Text: Vorschau und Titel escaped', async ({ page }) => {
+    await resetBot(withEntry({ streamer_name: `Star ${XSS}`, custom_text: `Hallo ${XSS} {streamer}` }));
+    await openEditor(page);
+    await expect(page.locator('#schedule-custom-title')).toContainText(`Star ${XSS}`);
+    // __xss__ ist in Discord-Markdown Unterstreichung — entscheidend: als Text, nicht als HTML
+    await expect(previewText(page)).toContainText('Hallo <img src=x onerror="window.');
+    await expect(previewText(page).locator('img')).toHaveCount(0);
+    await expectNoXss(page);
   });
 });
 

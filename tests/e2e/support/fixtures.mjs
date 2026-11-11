@@ -15,9 +15,15 @@ export const ROLES = [
 
 // Tab „Streamplan“ (stream_alerts/schedule): TwitchStar ist eingeschaltet, Free-Limit 1
 export const SCHEDULE = {
-  entries: [{ monitored_channel_id: 11, streamer_name: 'TwitchStar', enabled: true, active: true, error: null, events: 2, image_source: 'banner' }],
+  entries: [{
+    monitored_channel_id: 11, streamer_name: 'TwitchStar', enabled: true, active: true, error: null, events: 2, image_source: 'banner',
+    custom_text: null, custom_image_hash: null,
+  }],
   limit: 1, premium_limit: 5, days: 7, premium_days: 7, premium_active: false, can_create_events: true, available: true,
 };
+
+// Gespeichertes eigenes Bild (stream_alerts/schedule-custom-image): ein kleines JPEG als Base64
+export const STORED_IMAGE = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDl6KKK+4PBP//Z';
 
 export const defaultBotData = {
   'guild/info': {
@@ -265,6 +271,20 @@ export const defaultBotData = {
       ? { ...e, image_source: body.source }
       : e)),
   }),
+  // Eigener Text und eigenes Bild: wie der Bot — Bild hochgeladen → Quelle „custom“, entfernt → zurück aufs Banner
+  'stream_alerts/schedule-custom': (body) => ({
+    ...SCHEDULE,
+    premium_active: true,
+    entries: SCHEDULE.entries.map((e) => {
+      if (String(e.monitored_channel_id) !== String(body.monitored_channel_id)) return e;
+      const next = { ...e };
+      if ('text' in body) next.custom_text = String(body.text ?? '').trim() || null;
+      if (typeof body.image === 'string') Object.assign(next, { custom_image_hash: 'a'.repeat(64), image_source: 'custom' });
+      if (body.image === null) Object.assign(next, { custom_image_hash: null, image_source: 'banner' });
+      return next;
+    }),
+  }),
+  'stream_alerts/schedule-custom-image': { image: STORED_IMAGE },
   'stream_alerts/schedule-toggle': (body) => ({
     ...SCHEDULE,
     entries: SCHEDULE.entries.map((e) => (String(e.monitored_channel_id) === String(body.monitored_channel_id)

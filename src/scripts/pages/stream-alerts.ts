@@ -3,7 +3,12 @@
 // sorgt astro:page-load dafür, dass die neue Seite neu verdrahtet wird.
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
 import { PLATFORM_META, channelLabel, subscriptionLabel } from '../../lib/streamPlatforms';
-import { scheduleCanToggle, scheduleImageSelectable, scheduleLimitNote, scheduleRowText, type ScheduleOverview, type ScheduleTexts } from '../../lib/streamSchedule';
+import {
+  SCHEDULE_IMAGE_HEIGHT, SCHEDULE_IMAGE_WIDTH, SCHEDULE_MAX_TEXT_LENGTH, renderScheduleText, scheduleCanToggle, scheduleCropRect,
+  scheduleCustomEditable, scheduleImageOptions, scheduleImageSelectable, scheduleLimitNote, scheduleRowText,
+  type ScheduleEntry, type ScheduleOverview, type ScheduleTexts,
+} from '../../lib/streamSchedule';
+import { renderPreview } from '../../lib/discordMarkdown';
 import { isSwitchOn, setSwitch } from '../switch';
 import { setupTabs } from '../tabs';
 
@@ -11,6 +16,8 @@ interface StreamAlertsConfig {
   guildId: string;
   botOnline: boolean;
   limits: Record<string, number>;   // aktuelles Limit je Plattform
+  schedulePremium: boolean;         // Premium laut letzter Antwort des Bots (Streamplan)
+  scheduleEntries: ScheduleEntry[]; // Streamplan beim Laden der Seite (danach aus jeder Antwort des Bots)
   i18n: ApiMessages & {
     save: string;
     saving: string;
@@ -23,7 +30,25 @@ interface StreamAlertsConfig {
     confirmRemoveLink: string;
     channelDeleted: string;
     schedule: ScheduleTexts;
+    scheduleCustom: ScheduleCustomTexts;
   };
+}
+
+interface ScheduleCustomTexts {
+  title: string;            // enthält "{streamer}"
+  count: string;            // enthält "{count}" und "{max}"
+  sampleTitle: string;
+  sampleCategory: string;
+  defaultSource: string;    // enthält "{streamer}"
+  imageNone: string;
+  imageBanner: string;
+  imageOffline: string;
+  imageLoading: string;
+  storedHint: string;
+  errFileType: string;
+  errFileSize: string;      // enthält "{mb}"
+  errFileRead: string;
+  errImageLoad: string;
 }
 
 type I18n = StreamAlertsConfig['i18n'];
@@ -143,14 +168,21 @@ function refreshLinks() {
 
 // ── Tab „Streamplan“ ─────────────────────────────────────────────────────────────────────────────
 
+// Einträge laut letzter Antwort des Bots — für den Editor „Text & Bild“
+let scheduleEntries = new Map<string, ScheduleEntry>();
+// Nach jedem Neuaufbau der Liste: offenen Editor schließen, wenn sein Kanal weg oder ausgeschaltet ist
+let onScheduleRendered: (() => void) | null = null;
+
 /** Liste, Limit-Hinweis und Leer-Hinweis aus der Antwort des Bots neu aufbauen */
 function renderSchedule(overview: ScheduleOverview, config: StreamAlertsConfig) {
   const list = byId('schedule-list');
   if (!list) return;   // Streamplan nicht geladen (Hinweis statt Liste)
   const texts = config.i18n.schedule;
+  config.schedulePremium = overview.premium_active;
+  scheduleEntries = new Map(overview.entries.map((e) => [String(e.monitored_channel_id), e]));
   list.replaceChildren(...overview.entries.map((entry) => {
     const row = cloneTemplate('schedule-row-template');
-    const { status, error } = scheduleRowText(entry, texts);
+    const { status, error } = scheduleRowText(entry, texts, overview.premium_active);
     row.dataset.scheduleRow = String(entry.monitored_channel_id);
     row.querySelector('[data-field="name"]')!.textContent = entry.streamer_name;
     row.querySelector('[data-field="status"]')!.textContent = status;
@@ -162,7 +194,10 @@ function renderSchedule(overview: ScheduleOverview, config: StreamAlertsConfig) 
     toggle.disabled = !config.botOnline || !scheduleCanToggle(entry, overview);
     const image = row.querySelector<HTMLSelectElement>('[data-schedule-image]')!;
     image.classList.toggle('hidden', !scheduleImageSelectable(entry));
+    const allowed = new Set(scheduleImageOptions(entry, overview.premium_active));
+    image.querySelectorAll('option').forEach((option) => { if (!allowed.has(option.value as never)) option.remove(); });
     if (entry.image_source) image.value = entry.image_source;
+    row.querySelector('[data-schedule-custom]')!.classList.toggle('hidden', !scheduleCustomEditable(entry));
     image.dataset.initial = image.value;
     return row;
   }));
@@ -173,6 +208,7 @@ function renderSchedule(overview: ScheduleOverview, config: StreamAlertsConfig) 
     noteEl.classList.toggle('hidden', !note);
   }
   byId('no-schedule-msg')?.classList.toggle('hidden', overview.entries.length > 0);
+  onScheduleRendered?.();
 }
 
 function setupSchedule(api: DashboardApi, config: StreamAlertsConfig) {
@@ -210,6 +246,227 @@ function setupSchedule(api: DashboardApi, config: StreamAlertsConfig) {
       alert(errorMessage(err));
       image.value = image.dataset.initial ?? image.value;   // zurück auf die gespeicherte Quelle
       image.disabled = false;
+    }
+  });
+}
+
+// ── Editor „Text & Bild“ (Premium) ──────────────────────────────────────────────────────────────
+
+const MAX_SOURCE_FILE_MB = 20;   // Das Bild wird hier im Browser verkleinert — hochgeladen werden nur ~100–200 KB
+const SOURCE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const IMAGE_BACKGROUND = '#111214';   // wie der Bot (schedule_images.BACKGROUND) hinter durchsichtigen Stellen
+
+function setupScheduleCustom(api: DashboardApi, config: StreamAlertsConfig) {
+  const form = byId('schedule-custom-form');
+  const list = byId('schedule-list');
+  if (!form || !list) return;
+  const texts = config.i18n.scheduleCustom;
+  const el = <T extends HTMLElement>(id: string) => byId<T>(id)!;
+  const textarea = el<HTMLTextAreaElement>('schedule-custom-text');
+  const fileInput = el<HTMLInputElement>('schedule-custom-file');
+  const position = el<HTMLInputElement>('schedule-custom-position');
+  const canvas = el<HTMLCanvasElement>('schedule-custom-canvas');
+  const storedImage = el<HTMLImageElement>('schedule-custom-stored-image');
+  const saveBtn = el<HTMLButtonElement>('schedule-custom-save');
+
+  let entry: ScheduleEntry | null = null;
+  let picked: ImageBitmap | null = null;   // neu gewähltes Bild (noch nicht gespeichert)
+  let removeStored = false;                // gespeichertes Bild beim Speichern entfernen
+  let storedState: 'none' | 'loading' | 'loaded' | 'failed' = 'none';
+  let opened = 0;                          // verwirft Antworten zu einem inzwischen anders geöffneten Editor
+
+  const sample = () => {
+    const login = entry!.streamer_name.toLowerCase();
+    return { title: texts.sampleTitle, category: texts.sampleCategory, link: `https://twitch.tv/${login}`, streamer: entry!.streamer_name, login };
+  };
+
+  function drawPicked() {
+    if (!picked) return;
+    const rect = scheduleCropRect(picked.width, picked.height, Number(position.value) / 100);
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = IMAGE_BACKGROUND;
+    ctx.fillRect(0, 0, SCHEDULE_IMAGE_WIDTH, SCHEDULE_IMAGE_HEIGHT);
+    ctx.drawImage(picked, rect.x, rect.y, rect.width, rect.height, 0, 0, SCHEDULE_IMAGE_WIDTH, SCHEDULE_IMAGE_HEIGHT);
+  }
+
+  function renderImage() {
+    const hasStored = Boolean(entry?.custom_image_hash);
+    const showStored = !picked && hasStored && !removeStored;
+    canvas.classList.toggle('hidden', !picked);
+    storedImage.classList.toggle('hidden', !(showStored && storedState === 'loaded'));
+    const note = el('schedule-custom-image-note');
+    let noteText = '';
+    if (showStored && storedState === 'loading') noteText = texts.imageLoading;
+    else if (showStored && storedState === 'failed') noteText = texts.errImageLoad;
+    else if (!picked && !showStored) {
+      // Ohne eigenes Bild gilt die gewählte Quelle (nach dem Entfernen wieder das Spiel-Banner)
+      const source = entry?.image_source === 'custom' ? 'banner' : entry?.image_source;
+      noteText = source === 'none' ? texts.imageNone : source === 'offline' ? texts.imageOffline : texts.imageBanner;
+    }
+    note.textContent = noteText;
+    note.classList.toggle('hidden', !noteText);
+    el('schedule-custom-remove').classList.toggle('hidden', !(picked || showStored));
+    el('schedule-custom-restore').classList.toggle('hidden', !(removeStored && hasStored && !picked));
+    const overflow = picked ? Math.abs(picked.width / picked.height - SCHEDULE_IMAGE_WIDTH / SCHEDULE_IMAGE_HEIGHT) > 0.01 : false;
+    el('schedule-custom-position-wrap').classList.toggle('hidden', !overflow);
+    drawPicked();
+  }
+
+  function renderText() {
+    const value = textarea.value;
+    el('schedule-custom-count').textContent = texts.count.replace('{count}', String(value.length)).replace('{max}', String(SCHEDULE_MAX_TEXT_LENGTH));
+    const values = sample();
+    const description = value.trim()
+      ? renderScheduleText(value.trim(), values)
+      : `🎮 ${values.category}\ntwitch.tv/${values.login}\n\n${texts.defaultSource.replace('{streamer}', values.streamer)}`;
+    el('schedule-custom-preview-title').textContent = values.title;
+    el('schedule-custom-preview-text').innerHTML = renderPreview(description);   // escaped
+  }
+
+  async function loadStored(token: number, monitoredChannelId: number) {
+    storedState = 'loading';
+    renderImage();
+    try {
+      const { image } = await api.callModuleAction<{ image: string | null }>('stream_alerts', 'schedule-custom-image', {
+        monitored_channel_id: String(monitoredChannelId),
+      });
+      if (token !== opened) return;
+      if (!image) throw new Error('no image');
+      storedImage.src = `data:image/jpeg;base64,${image}`;
+      storedState = 'loaded';
+    } catch {
+      if (token !== opened) return;
+      storedState = 'failed';
+    }
+    renderImage();
+  }
+
+  function open(target: ScheduleEntry) {
+    entry = target;
+    opened += 1;
+    picked?.close();
+    picked = null;
+    removeStored = false;
+    storedState = 'none';
+    storedImage.removeAttribute('src');
+    fileInput.value = '';
+    position.value = '50';
+    form!.dataset.editing = String(target.monitored_channel_id);
+    el('schedule-custom-title').textContent = texts.title.replace('{streamer}', target.streamer_name);
+
+    const premium = config.schedulePremium;
+    el('schedule-custom-premium').classList.toggle('hidden', premium);
+    el('schedule-custom-fields').classList.toggle('hidden', !premium);
+    saveBtn.classList.toggle('hidden', !premium);
+    const stored = el('schedule-custom-stored');
+    const hasStored = Boolean(target.custom_text || target.custom_image_hash);
+    stored.textContent = texts.storedHint;
+    stored.classList.toggle('hidden', premium || !hasStored);
+
+    textarea.value = target.custom_text ?? '';
+    form!.classList.remove('hidden');
+    renderText();
+    renderImage();
+    if (premium && target.custom_image_hash) void loadStored(opened, target.monitored_channel_id);
+    form!.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function close() {
+    opened += 1;
+    entry = null;
+    picked?.close();
+    picked = null;
+    delete form!.dataset.editing;
+    form!.classList.add('hidden');
+  }
+
+  onScheduleRendered = () => {
+    if (!entry) return;
+    const current = scheduleEntries.get(String(entry.monitored_channel_id));
+    if (!current || !scheduleCustomEditable(current)) close();
+  };
+
+  list.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-schedule-custom]');
+    const row = button?.closest<HTMLElement>('[data-schedule-row]');
+    const target = row ? scheduleEntries.get(row.dataset.scheduleRow ?? '') : undefined;
+    if (button && !button.disabled && target) open(target);
+  });
+
+  textarea.addEventListener('input', renderText);
+  form.querySelectorAll<HTMLButtonElement>('[data-insert-placeholder]').forEach((button) => {
+    button.addEventListener('click', () => {
+      textarea.focus();
+      textarea.setRangeText(`{${button.dataset.insertPlaceholder}}`, textarea.selectionStart, textarea.selectionEnd, 'end');
+      renderText();
+    });
+  });
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = '';   // dieselbe Datei noch einmal wählbar
+    if (!file || !entry) return;
+    if (!SOURCE_TYPES.includes(file.type)) {
+      alert(texts.errFileType);
+      return;
+    }
+    if (file.size > MAX_SOURCE_FILE_MB * 1024 * 1024) {
+      alert(texts.errFileSize.replace('{mb}', String(MAX_SOURCE_FILE_MB)));
+      return;
+    }
+    const token = opened;
+    let bitmap: ImageBitmap;
+    try {
+      bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });   // Handyfotos richtig herum
+    } catch {
+      alert(texts.errFileRead);
+      return;
+    }
+    if (token !== opened) {
+      bitmap.close();
+      return;
+    }
+    picked?.close();
+    picked = bitmap;
+    removeStored = false;
+    position.value = '50';
+    renderImage();
+  });
+
+  position.addEventListener('input', drawPicked);
+  el('schedule-custom-remove').addEventListener('click', () => {
+    if (picked) {
+      picked.close();
+      picked = null;   // neues Bild verwerfen — das gespeicherte bleibt
+    } else {
+      removeStored = true;
+    }
+    renderImage();
+  });
+  el('schedule-custom-restore').addEventListener('click', () => {
+    removeStored = false;
+    renderImage();
+  });
+  el('schedule-custom-cancel').addEventListener('click', close);
+
+  saveBtn.addEventListener('click', async () => {
+    if (!entry || saveBtn.disabled) return;
+    const payload: Record<string, unknown> = { monitored_channel_id: String(entry.monitored_channel_id), text: textarea.value };
+    if (picked) {
+      drawPicked();
+      payload.image = canvas.toDataURL('image/jpeg', 0.92).split(',', 2)[1];
+    } else if (removeStored) {
+      payload.image = null;
+    }
+    saveBtn.disabled = true;
+    try {
+      const overview = await api.callModuleAction<ScheduleOverview>('stream_alerts', 'schedule-custom', payload);
+      close();
+      renderSchedule(overview, config);
+    } catch (err) {
+      alert(errorMessage(err));
+    } finally {
+      saveBtn.disabled = false;
     }
   });
 }
@@ -423,12 +680,15 @@ function setupStreamAlertsPage() {
   const config = readPageConfig<StreamAlertsConfig>(root);
   const { i18n } = config;
   const api = createDashboardApi(config.guildId, i18n);
+  scheduleEntries = new Map(config.scheduleEntries.map((e) => [String(e.monitored_channel_id), e]));
+  onScheduleRendered = null;
 
   setupTabs(root);
   setupPingRoles(root, api, i18n);
   setupSubscriptions(api, config);
   setupLinks(api, i18n);
   setupSchedule(api, config);
+  setupScheduleCustom(api, config);
 }
 
 document.addEventListener('astro:page-load', setupStreamAlertsPage);

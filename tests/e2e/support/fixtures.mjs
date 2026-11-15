@@ -13,6 +13,34 @@ export const ROLES = [
   { id: '300000000000000002', name: 'Helfer', color: 0 },
 ];
 
+// AutoMod 2.0 (automod/status mit v2): alle Regeln mit Einstellungen. Wortlisten noch nicht angelegt,
+// den Namensfilter-Platz belegt eine Regel des Servers (übernehmbar).
+const RULE_BASE = { enabled: true, custom_message: null, exempt_role_ids: [], exempt_channel_ids: [], timeout_minutes: 0 };
+export const AUTOMOD_V2 = {
+  spam_enabled: true, mentions_enabled: true, keywords_enabled: true, keywords: ['spoiler', 'kaufen'],
+  shield_enabled: false, honeypot_channel_id: null, honeypot_timeout_days: 7, honeypot_catches: 0,
+  honeypot_title: '⚠️ Achtung', honeypot_text: 'Nicht schreiben!',
+  honeypot_punish_members: 'timeout', honeypot_punish_bots: 'kick', honeypot_day_options: [1, 3, 7, 14, 28],
+  v2: true,
+  rules: {
+    spam: { ...RULE_BASE, exempt_role_ids: ['300000000000000001'] },
+    mentions: { ...RULE_BASE, mention_limit: 5, raid_protection: false },
+    keywords: { ...RULE_BASE, keywords: ['spoiler', 'kaufen'], timeout_minutes: 10 },
+    presets: null,
+    links: {
+      ...RULE_BASE, block_invites: true, allow_support: true, blocked_domains: ['example.com'], partner_codes: ['partner1'],
+      allow_list_count: 4,
+    },
+    names: null,
+  },
+  foreign_rules: { names: 'Namen vom Admin' },
+  presets: ['profanity', 'sexual_content', 'slurs'],
+  rule_limits: {
+    custom_message: 150, exempt_roles: 20, exempt_channels: 50, mention_limit: 50, timeout_minutes: 40320,
+    timeout_kinds: ['keywords', 'links', 'mentions'], words: 1000, allow_list: 1000, word_length: 60, partners: 25, link_allow_list: 100,
+  },
+};
+
 // Tab „Streamplan“ (stream_alerts/schedule): TwitchStar ist eingeschaltet, Free-Limit 1
 export const SCHEDULE = {
   entries: [{
@@ -176,6 +204,22 @@ export const defaultBotData = {
   'automod/set-honeypot-text': (body) => ({ title: body.title || '⚠️ Achtung', text: body.warn_text, status: 'updated' }),
   'automod/set-honeypot-punishment': (body) => ({ members: body.members ?? 'timeout', bots: body.bots ?? 'kick', days: body.days ?? 7 }),
   'automod/delete-honeypot': { deleted: true },
+  // AutoMod 2.0 — wie der Bot: gibt den neuen Stand der Regel zurück (bereinigt)
+  'automod/rule-settings': (body) => {
+    const { rule_key: kind, ...fields } = body;
+    return { rule_key: kind, ...AUTOMOD_V2.rules[kind], ...fields, custom_message: fields.custom_message?.trim() || null };
+  },
+  'automod/rule-content': (body) => {
+    const { rule_key: kind, partner_links, ...fields } = body;
+    const base = { presets: { presets: ['slurs'], allow_list: [] }, names: { keywords: [] }, links: AUTOMOD_V2.rules.links }[kind] ?? {};
+    const out = { rule_key: kind, ...base, ...fields };
+    if (fields.keywords) out.keywords = fields.keywords.map((k) => k.toLowerCase());
+    if (fields.allow_list) out.allow_list = fields.allow_list.map((k) => k.toLowerCase());
+    if (partner_links) out.partner_codes = partner_links.map((l) => l.split('/').pop());
+    if (kind === 'links') out.allow_list_count = 2 + (out.partner_codes ?? []).length;
+    return out;
+  },
+  'automod/adopt-rule': (body) => ({ rule_key: body.rule_key, ...RULE_BASE }),
 
   'leveling/get-xp-settings': {
     xp_min: 15, xp_max: 25, cooldown_seconds: 60, levelup_channel_id: null,

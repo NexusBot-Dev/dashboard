@@ -3,6 +3,8 @@ import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
 import ModuleToggle from '../../../../components/ModuleToggle.astro';
 import { getModuleStates } from '../../../../lib/modules';
 import Switch from '../../../../components/Switch.astro';
+import RuleCard from '../../../../components/automod/RuleCard.astro';
+import { DEFAULT_LIMITS, LEGACY_KINDS, PRESETS, RULE_KINDS, type RuleData, type RuleKind, type RuleLimits, type RuleTexts } from '../../../../lib/automodRules';
 import Tabs from '../../../../components/Tabs.astro';
 import MarkdownToolbar from '../../../../components/MarkdownToolbar.astro';
 import pool from '../../../../lib/db';
@@ -18,6 +20,7 @@ const lang = Astro.locals.lang;
 let guildName = `Server ${guildId}`;
 let guildIconUrl: string | null = null;
 let channels: { id: string; name: string }[] = [];
+let roles: { id: string; name: string }[] = [];
 let status: {
   spam_enabled: boolean; mentions_enabled: boolean; keywords_enabled: boolean;
   keywords: string[]; shield_enabled: boolean; honeypot_channel_id: string | null;
@@ -25,6 +28,11 @@ let status: {
   // Seit /honeypot: Warn-Texte und Bestrafung (ältere Bot-Versionen liefern sie nicht)
   honeypot_title?: string; honeypot_text?: string;
   honeypot_punish_members?: string; honeypot_punish_bots?: string; honeypot_day_options?: number[];
+  // AutoMod 2.0 (ältere Bot-Versionen liefern es nicht): Testphase, Regeln mit Einstellungen, fremde Regeln
+  v2?: boolean;
+  rules?: Partial<Record<RuleKind, RuleData | null>>;
+  foreign_rules?: Partial<Record<RuleKind, string>>;
+  rule_limits?: RuleLimits;
 } | null = null;
 let botOnline = true;
 let premiumActive = false;
@@ -38,10 +46,11 @@ async function getPremiumInfo(id: string) {
 }
 
 try {
-  const [premium, info, channelsResult, statusResult] = await Promise.all([
+  const [premium, info, channelsResult, rolesResult, statusResult] = await Promise.all([
     getPremiumInfo(guildId!),
     callGuildAction(Astro, 'guild', 'info', guildId!),
     callGuildAction(Astro, 'guild', 'channels', guildId!),
+    callGuildAction(Astro, 'guild', 'roles', guildId!),
     callGuildAction(Astro, 'automod', 'status', guildId!),
   ]);
 
@@ -49,6 +58,7 @@ try {
   guildName = info.name;
   guildIconUrl = info.icon_url;
   channels = channelsResult.channels;
+  roles = rolesResult.roles;
   status = statusResult;
 } catch {
   botOnline = false;
@@ -72,7 +82,42 @@ const labelClass = 'block text-xs font-medium text-slate-300 mb-1.5';
 const inputClass = 'w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50';
 const saveBtnClass = 'px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
-const MENTION_LIMIT = 5;
+// AutoMod 2.0: alle Regeln mit Einstellungen — sonst (Testphase, älterer Bot) nur die drei bisherigen
+const v2 = Boolean(status?.v2 && status.rules && status.rule_limits);
+const ruleKinds: readonly RuleKind[] = v2 ? RULE_KINDS : LEGACY_KINDS;
+const legacyEnabled: Partial<Record<RuleKind, boolean>> = {
+  spam: status?.spam_enabled, mentions: status?.mentions_enabled, keywords: status?.keywords_enabled,
+};
+const ruleOf = (kind: RuleKind): RuleData | null => (v2 ? status?.rules?.[kind] ?? null : null);
+const mentionLimit = ruleOf('mentions')?.mention_limit ?? 5;
+const ruleLimits = status?.rule_limits ?? DEFAULT_LIMITS;
+// Die drei bisherigen Regeln behalten ihre Texte
+const TITLE_KEYS: Record<RuleKind, string> = {
+  spam: 'automod.anti_spam_title', mentions: 'automod.mention_spam_title', keywords: 'automod.keyword_filter_title',
+  presets: 'automod.rule_presets_title', links: 'automod.rule_links_title', names: 'automod.rule_names_title',
+};
+const DESC_KEYS: Partial<Record<RuleKind, string>> = {
+  spam: 'automod.anti_spam_desc', keywords: 'automod.keyword_filter_desc',
+  presets: 'automod.rule_presets_desc', links: 'automod.rule_links_desc', names: 'automod.rule_names_desc',
+};
+const ruleTitle = (kind: RuleKind) => t(TITLE_KEYS[kind]);
+const ruleDescription = (kind: RuleKind) =>
+  kind === 'mentions'
+    ? `${t('automod.mention_spam_desc_prefix')} ${mentionLimit} ${t(v2 ? 'automod.mention_spam_desc_suffix_v2' : 'automod.mention_spam_desc_suffix')}`
+    : t(DESC_KEYS[kind]!);
+const ruleTexts: RuleTexts = {
+  minutes: t('automod.duration_minutes'), hours: t('automod.duration_hours'), days: t('automod.duration_days'), week: t('automod.duration_weeks'),
+  timeoutOff: t('automod.timeout_off'),
+  summaryWords: t('automod.summary_words'), summaryAllowed: t('automod.summary_allowed'), summaryRoles: t('automod.summary_roles'),
+  summaryChannels: t('automod.summary_channels'), summaryTimeout: t('automod.summary_timeout'), summaryLimit: t('automod.summary_limit'),
+  summaryRaid: t('automod.summary_raid'), summaryInvites: t('automod.summary_invites'), summaryDomains: t('automod.summary_domains'),
+  summaryPartners: t('automod.summary_partners'), summaryNotice: t('automod.summary_notice'),
+  one: {
+    words: t('automod.summary_words_one'), allowed: t('automod.summary_allowed_one'), roles: t('automod.summary_roles_one'),
+    channels: t('automod.summary_channels_one'), domains: t('automod.summary_domains_one'), partners: t('automod.summary_partners_one'),
+  },
+  presets: Object.fromEntries(PRESETS.map((p) => [p, t(`automod.preset_${p}`)])),
+};
 const SHIELD_WINDOW_SECONDS = 5;
 const SHIELD_SCORE_LIMIT = 3.0;
 
@@ -88,15 +133,18 @@ const i18n = {
   errorGeneric: t('common.error_generic'),
   errorServerTemplate: t('common.error_server'),
   unexpectedResponseTemplate: t('automod.unexpected_response'),
+  confirmAdoptTemplate: t('automod.confirm_adopt'),   // enthält "{name}"
+  allowListUsageTemplate: t('automod.allow_list_usage'),   // enthält "{count}" und "{max}"
 };
 
 const tabs = [
   { key: 'automod', label: t('automod.tab_automod') },
   { key: 'honeypot', label: t('automod.tab_honeypot') },
+  { key: 'shield', label: t('automod.tab_shield') },
 ];
 
 // Liest src/scripts/pages/automod.ts aus data-config
-const pageConfig = { guildId, i18n };
+const pageConfig = { guildId, i18n, v2, ruleTexts };
 ---
 
 <DashboardLayout title={t('automod.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
@@ -114,60 +162,42 @@ const pageConfig = { guildId, i18n };
     <div id="automod-page" data-config={JSON.stringify(pageConfig)}>
     <Tabs tabs={tabs} label={t('automod.title')} />
 
-    <!-- Tab: AutoMod (Regeln und Anti-Nuke Shield) -->
+    <!-- Tab: AutoMod — eine aufklappbare Karte pro Regel (src/components/automod/RuleCard.astro) -->
     <div role="tabpanel" id="tab-panel-automod" aria-labelledby="tab-automod" data-tab-panel="automod" class="space-y-6">
-      <!-- Anti-Spam -->
-      <section class="rounded-xl glass-panel p-6">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h2 class="text-base font-bold text-white mb-1">{t('automod.anti_spam_title')}</h2>
-            <p class="text-sm text-slate-400">{t('automod.anti_spam_desc')}</p>
-          </div>
-          <Switch checked={status.spam_enabled} data-automod-toggle="spam" disabled={!botOnline} />
-        </div>
-      </section>
+      {ruleKinds.map((kind) => (
+        <RuleCard
+          kind={kind} title={ruleTitle(kind)} description={ruleDescription(kind)} rule={ruleOf(kind)}
+          enabled={(v2 ? ruleOf(kind)?.enabled : legacyEnabled[kind]) ?? false} v2={v2}
+          foreignName={v2 && !ruleOf(kind) ? status.foreign_rules?.[kind] : undefined}
+          limits={ruleLimits} texts={ruleTexts} roles={roles} channels={channels} botOnline={botOnline}
+        >
+          {kind === 'keywords' && (
+            <div class="mt-4">
+              <div class="flex flex-wrap gap-2 mb-3" id="keywords-display">
+                {status.keywords.map((kw) => (
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 text-xs font-mono text-slate-300">{kw}</span>
+                ))}
+                {status.keywords.length === 0 && <span class="text-xs text-slate-400">{t('automod.no_keywords')}</span>}
+              </div>
 
-      <!-- Mention-Spam -->
-      <section class="rounded-xl glass-panel p-6">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h2 class="text-base font-bold text-white mb-1">{t('automod.mention_spam_title')}</h2>
-            <p class="text-sm text-slate-400">{t('automod.mention_spam_desc_prefix')} <strong>{MENTION_LIMIT}</strong> {t('automod.mention_spam_desc_suffix')}</p>
-          </div>
-          <Switch checked={status.mentions_enabled} data-automod-toggle="mentions" disabled={!botOnline} />
-        </div>
-      </section>
+              <button id="edit-keywords-btn" type="button" disabled={!botOnline} class="text-xs font-medium text-primary-400 hover:underline disabled:opacity-50">{t('automod.edit_keywords_btn')}</button>
 
-      <!-- Keyword-Filter -->
-      <section class="rounded-xl glass-panel p-6">
-        <div class="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <h2 class="text-base font-bold text-white mb-1">{t('automod.keyword_filter_title')}</h2>
-            <p class="text-sm text-slate-400">{t('automod.keyword_filter_desc')}</p>
-          </div>
-          <Switch checked={status.keywords_enabled} data-automod-toggle="keywords" disabled={!botOnline} />
-        </div>
+              <div id="keywords-form" class="hidden mt-3 pt-3 border-t border-slate-800">
+                <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('automod.blocked_words_label')}</label>
+                <textarea id="keywords-textarea" rows="5" maxlength="1000" class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none">{status.keywords.join('\n')}</textarea>
+                <div class="flex gap-2 mt-3">
+                  <button id="confirm-keywords-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors">{t('common.save')}</button>
+                  <button id="cancel-keywords-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">{t('common.cancel')}</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </RuleCard>
+      ))}
+    </div>
 
-        <div class="flex flex-wrap gap-2 mb-3" id="keywords-display">
-          {status.keywords.map((kw) => (
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 text-xs font-mono text-slate-300">{kw}</span>
-          ))}
-          {status.keywords.length === 0 && <span class="text-xs text-slate-400">{t('automod.no_keywords')}</span>}
-        </div>
-
-        <button id="edit-keywords-btn" type="button" disabled={!botOnline} class="text-xs font-medium text-primary-400 hover:underline disabled:opacity-50">{t('automod.edit_keywords_btn')}</button>
-
-        <div id="keywords-form" class="hidden mt-3 pt-3 border-t border-slate-800">
-          <label class="block text-xs font-medium text-slate-300 mb-1.5">{t('automod.blocked_words_label')}</label>
-          <textarea id="keywords-textarea" rows="5" maxlength="1000" class="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none">{status.keywords.join('\n')}</textarea>
-          <div class="flex gap-2 mt-3">
-            <button id="confirm-keywords-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors">{t('common.save')}</button>
-            <button id="cancel-keywords-btn" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">{t('common.cancel')}</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Anti-Nuke Shield -->
+    <!-- Tab: Shield (Anti-Nuke) — eigener Tab, damit er später eigene Einstellungen bekommen kann -->
+    <div role="tabpanel" id="tab-panel-shield" aria-labelledby="tab-shield" data-tab-panel="shield" class="hidden space-y-6">
       <section class="rounded-xl glass-panel p-6">
         <div class="flex items-start justify-between gap-4">
           <div>

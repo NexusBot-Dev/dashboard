@@ -1,0 +1,187 @@
+---
+// Eine AutoMod-Regel als aufklappbare Karte (Seite: src/pages/server/[guildId]/automod/index.astro,
+// Verhalten: src/scripts/pages/automod.ts). Mit AutoMod 2.0 (v2) klappen Einstellungen und Inhalt auf;
+// ohne v2 nur Schalter (und beim Wortfilter die Wortliste) wie bisher.
+import Switch from '../Switch.astro';
+import { partnerLink, PRESETS, ruleSummary, timeoutLabel, timeoutOptions, type RuleData, type RuleKind, type RuleLimits, type RuleTexts } from '../../lib/automodRules';
+
+interface Props {
+  kind: RuleKind;
+  title: string;
+  description: string;
+  rule: RuleData | null;
+  enabled: boolean;
+  v2: boolean;
+  foreignName?: string;
+  limits: RuleLimits;
+  texts: RuleTexts;
+  roles: { id: string; name: string }[];
+  channels: { id: string; name: string }[];
+  botOnline: boolean;
+}
+
+const { kind, title, description, rule, enabled, v2, foreignName, limits, texts, roles, channels, botOnline } = Astro.props;
+const t = Astro.locals.t;
+const panelId = `rule-panel-${kind}`;
+const summary = v2 && rule ? ruleSummary(kind, rule, texts) : '';
+const hasTimeout = limits.timeout_kinds.includes(kind);
+const isNames = kind === 'names';
+
+const labelClass = 'block text-xs font-medium text-slate-300 mb-1.5';
+const inputClass = 'w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50';
+const listClass = 'max-h-44 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 space-y-1';
+const checkClass = 'flex items-center gap-2 px-2 py-1 rounded text-sm text-slate-300 hover:bg-slate-800/60 cursor-pointer';
+const saveBtnClass = 'px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+const lines = (values: string[] | undefined) => (values ?? []).join('\n');
+// In Discord ausgenommene Rollen/Channels, die das Dashboard nicht kennt (z. B. Kategorien, Voice):
+// mit ID anzeigen, damit sie beim Speichern nicht verloren gehen
+const roleOptions = rule ? [...roles, ...rule.exempt_role_ids.filter((id) => !roles.some((r) => r.id === id)).map((id) => ({ id, name: id }))] : roles;
+const channelOptions = rule ? [...channels, ...rule.exempt_channel_ids.filter((id) => !channels.some((c) => c.id === id)).map((id) => ({ id, name: id }))] : channels;
+---
+
+<section class="rounded-xl glass-panel p-6" data-rule-card={kind} data-has-rule={rule ? 'true' : 'false'} data-rule={rule ? JSON.stringify(rule) : ''}>
+  <div class="flex items-start justify-between gap-4">
+    <div class="min-w-0">
+      <h2 class="text-base font-bold text-white mb-1">{title}</h2>
+      <p class="text-sm text-slate-400">{description}</p>
+      <p class:list={['text-xs text-slate-400 mt-1.5', { hidden: !summary }]} data-rule-summary>{summary}</p>
+    </div>
+    {foreignName ? (
+      <button type="button" data-automod-adopt={kind} data-name={foreignName} disabled={!botOnline}
+        class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border border-primary-500/50 text-primary-400 hover:bg-primary-500/10 transition-colors disabled:opacity-50">
+        {t('automod.adopt_btn')}
+      </button>
+    ) : (
+      <Switch checked={enabled} data-automod-toggle={kind} disabled={!botOnline} />
+    )}
+  </div>
+
+  {foreignName && <p class="mt-3 text-xs text-amber-400" data-rule-foreign>{t('automod.foreign_taken', { name: foreignName })}</p>}
+
+  <slot />
+
+  {v2 && !rule && !foreignName && <p class="mt-3 text-xs text-slate-400" data-rule-setup-hint>{t('automod.setup_hint')}</p>}
+
+  {v2 && rule && (
+    <>
+      <button type="button" data-rule-expand aria-expanded="false" aria-controls={panelId}
+        class="mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary-400 hover:underline">
+        {t('automod.settings_toggle')}
+        <svg class="w-3.5 h-3.5 transition-transform" data-rule-chevron viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+      </button>
+
+      <div id={panelId} class="hidden mt-4 pt-4 border-t border-slate-800 space-y-6">
+        {/* Inhalt: fertige Wortlisten, Namensfilter, Link-Filter (rule-content) */}
+        {(kind === 'presets' || kind === 'names' || kind === 'links') && (
+          <div data-rule-form="content" class="space-y-4">
+            {kind === 'presets' && (
+              <>
+                <fieldset>
+                  <legend class={labelClass}>{t('automod.presets_label')}</legend>
+                  <div class="flex flex-wrap gap-x-5 gap-y-2" data-field="presets" data-type="checks">
+                    {PRESETS.map((p) => (
+                      <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                        <input type="checkbox" value={p} checked={rule.presets?.includes(p)} class="accent-primary-500" />
+                        {texts.presets[p]}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <div>
+                  <label for={`allow-list-${kind}`} class={labelClass}>{t('automod.allow_list_label')}</label>
+                  <textarea id={`allow-list-${kind}`} rows="3" data-field="allow_list" data-type="lines" class={`${inputClass} font-mono resize-y`}>{lines(rule.allow_list)}</textarea>
+                  <p class="mt-1 text-xs text-slate-400">{t('automod.allow_list_hint', { max: limits.allow_list })}</p>
+                </div>
+              </>
+            )}
+            {kind === 'names' && (
+              <div>
+                <label for="names-words" class={labelClass}>{t('automod.names_words_label')}</label>
+                <textarea id="names-words" rows="4" data-field="keywords" data-type="lines" class={`${inputClass} font-mono resize-y`}>{lines(rule.keywords)}</textarea>
+                <p class="mt-1 text-xs text-slate-400">{t('automod.names_hint')}</p>
+              </div>
+            )}
+            {kind === 'links' && (
+              <>
+                <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                  <input type="checkbox" data-field="block_invites" data-type="bool" checked={rule.block_invites} class="accent-primary-500" />
+                  {t('automod.block_invites_label')}
+                </label>
+                <label class="flex items-start gap-2 text-sm text-slate-300 cursor-pointer">
+                  <input type="checkbox" data-field="allow_support" data-type="bool" checked={rule.allow_support} class="accent-primary-500 mt-0.5" />
+                  <span>{t('automod.allow_support_label')}<span class="block text-xs text-slate-400">{t('automod.allow_support_hint')}</span></span>
+                </label>
+                <div>
+                  <label for="links-partners" class={labelClass}>{t('automod.partners_label')}</label>
+                  <textarea id="links-partners" rows="3" data-field="partner_links" data-type="lines" class={`${inputClass} font-mono resize-y`}>{(rule.partner_codes ?? []).map(partnerLink).join('\n')}</textarea>
+                  <p class="mt-1 text-xs text-slate-400">{t('automod.partners_hint', { max: limits.partners })}</p>
+                </div>
+                <div>
+                  <label for="links-domains" class={labelClass}>{t('automod.domains_label')}</label>
+                  <textarea id="links-domains" rows="3" data-field="blocked_domains" data-type="lines" class={`${inputClass} font-mono resize-y`}>{lines(rule.blocked_domains)}</textarea>
+                  <p class="mt-1 text-xs text-slate-400">{t('automod.domains_hint')}</p>
+                </div>
+                <p class="text-xs text-slate-400" data-links-usage data-max={String(limits.link_allow_list)}>
+                  {t('automod.allow_list_usage', { count: rule.allow_list_count ?? 0, max: limits.link_allow_list })}
+                </p>
+              </>
+            )}
+            <button type="button" data-rule-save disabled class={saveBtnClass}>{t('common.save')}</button>
+          </div>
+        )}
+
+        {/* Einstellungen: Hinweis, Ausnahmen, Timeout, Mention-Limit (rule-settings) */}
+        <div data-rule-form="settings" class="space-y-4">
+          {kind === 'mentions' && (
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label for="mention-limit" class={labelClass}>{t('automod.mention_limit_label')}</label>
+                <input id="mention-limit" type="number" min="1" max={limits.mention_limit} value={rule.mention_limit} data-field="mention_limit" data-type="int" class={inputClass} />
+              </div>
+              <label class="flex items-start gap-2 text-sm text-slate-300 cursor-pointer sm:mt-6">
+                <input type="checkbox" data-field="raid_protection" data-type="bool" checked={rule.raid_protection} class="accent-primary-500 mt-0.5" />
+                <span>{t('automod.raid_protection_label')}<span class="block text-xs text-slate-400">{t('automod.raid_protection_hint')}</span></span>
+              </label>
+            </div>
+          )}
+          {!isNames && (
+            <div>
+              <label for={`custom-message-${kind}`} class={labelClass}>{t('automod.custom_message_label')}</label>
+              <textarea id={`custom-message-${kind}`} rows="2" maxlength={limits.custom_message} data-field="custom_message" data-type="text" class={`${inputClass} resize-y`}>{rule.custom_message ?? ''}</textarea>
+              <p class="mt-1 text-xs text-slate-400">{t('automod.custom_message_hint', { max: limits.custom_message })}</p>
+            </div>
+          )}
+          {hasTimeout && (
+            <div>
+              <label for={`timeout-${kind}`} class={labelClass}>{t('automod.timeout_label')}</label>
+              <select id={`timeout-${kind}`} data-field="timeout_minutes" data-type="int" class={inputClass}>
+                {timeoutOptions(rule.timeout_minutes).map((m) => <option value={String(m)} selected={m === rule.timeout_minutes}>{timeoutLabel(m, texts)}</option>)}
+              </select>
+            </div>
+          )}
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p class={labelClass}>{t('automod.exempt_roles_label', { max: limits.exempt_roles })}</p>
+              <div class={listClass} data-field="exempt_role_ids" data-type="checks">
+                {roleOptions.map((r) => (
+                  <label class={checkClass}><input type="checkbox" value={r.id} checked={rule.exempt_role_ids.includes(r.id)} class="accent-primary-500" />@{r.name}</label>
+                ))}
+              </div>
+            </div>
+            {!isNames && (
+              <div>
+                <p class={labelClass}>{t('automod.exempt_channels_label', { max: limits.exempt_channels })}</p>
+                <div class={listClass} data-field="exempt_channel_ids" data-type="checks">
+                  {channelOptions.map((c) => (
+                    <label class={checkClass}><input type="checkbox" value={c.id} checked={rule.exempt_channel_ids.includes(c.id)} class="accent-primary-500" />#{c.name}</label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <button type="button" data-rule-save disabled class={saveBtnClass}>{t('common.save')}</button>
+        </div>
+      </div>
+    </>
+  )}
+</section>

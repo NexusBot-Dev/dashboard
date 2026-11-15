@@ -108,6 +108,7 @@ test.describe('Regeln und Shield', () => {
 
   test('Shield: der Schalter zeigt, was der Bot zurückmeldet', async ({ page }) => {
     await page.goto(PAGE);
+    await page.getByRole('tab', { name: t('automod.tab_shield') }).click();   // Shield hat einen eigenen Tab
     await shieldSwitch(page).click();
     await waitForBotCall('automod/toggle-shield');
     await expectOn(shieldSwitch(page), true);

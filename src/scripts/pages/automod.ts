@@ -6,10 +6,15 @@ import { isSwitchOn, setSwitch } from '../switch';
 import { setupTabs } from '../tabs';
 import { setupMarkdownToolbars } from '../markdown-toolbar';
 import { renderDiscordMarkdown } from '../../lib/discordMarkdown';
+import { partnerLink, ruleSummary, type RuleData, type RuleKind, type RuleTexts } from '../../lib/automodRules';
 
 interface AutomodConfig {
   guildId: string;
+  v2?: boolean;
+  ruleTexts?: RuleTexts;
   i18n: ApiMessages & {
+    confirmAdoptTemplate: string;
+    allowListUsageTemplate: string;
     noKeywords: string;
     alertHoneypotRequired: string;
     confirmDeleteHoneypot: string;
@@ -35,7 +40,14 @@ function setupSwitches(root: HTMLElement, api: DashboardApi) {
         const result = await api.callModuleAction<{ enabled?: boolean }>('automod', 'toggle-rule', { rule_key: btn.dataset.automodToggle });
         // Neuer Bot meldet den Zustand mit (die Regel kann inzwischen in Discord geändert worden sein);
         // ältere Bot-Versionen nicht — dann die Anzeige umdrehen
-        setSwitch(btn, result?.enabled ?? !previous);
+        const enabled = result?.enabled ?? !previous;
+        setSwitch(btn, enabled);
+        // AutoMod 2.0: Regel neu angelegt — neu laden, damit ihre Einstellungen erscheinen
+        const card = btn.closest<HTMLElement>('[data-rule-card]');
+        if (enabled && card?.dataset.hasRule === 'false' && root.querySelector('[data-rule-expand], [data-rule-setup-hint]')) {
+          window.location.reload();
+          return;
+        }
       } catch (err) {
         alert(errorMessage(err));
       } finally {
@@ -261,6 +273,111 @@ function setupHoneypot(api: DashboardApi, i18n: I18n) {
   });
 }
 
+// ── AutoMod 2.0: Karten mit Einstellungen (src/components/automod/RuleCard.astro) ─────────────────
+
+const fill = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (match, key) => (key in values ? String(values[key]) : match));
+
+type FieldValue = string | number | boolean | string[];
+
+/** Wert eines Feldes nach data-type: text, int, bool, lines (eine Zeile pro Eintrag), checks (angehakte Werte) */
+function readField(el: HTMLElement): FieldValue {
+  const type = el.dataset.type;
+  if (type === 'checks') return [...el.querySelectorAll<HTMLInputElement>('input[type=checkbox]:checked')].map((c) => c.value);
+  if (type === 'bool') return (el as HTMLInputElement).checked;
+  const value = (el as HTMLInputElement).value;
+  if (type === 'int') return Number(value);
+  if (type === 'lines') return value.split('\n').map((l) => l.trim()).filter(Boolean);
+  return value.trim();
+}
+
+function writeField(el: HTMLElement, value: FieldValue | undefined) {
+  if (value === undefined) return;
+  const type = el.dataset.type;
+  if (type === 'checks') {
+    const values = new Set(value as string[]);
+    el.querySelectorAll<HTMLInputElement>('input[type=checkbox]').forEach((c) => { c.checked = values.has(c.value); });
+  } else if (type === 'bool') (el as HTMLInputElement).checked = Boolean(value);
+  else if (type === 'lines') (el as HTMLTextAreaElement).value = (value as string[]).join('\n');
+  else (el as HTMLInputElement).value = value === null ? '' : String(value);
+}
+
+const readForm = (form: HTMLElement) =>
+  Object.fromEntries([...form.querySelectorAll<HTMLElement>('[data-field]')].map((el) => [el.dataset.field!, readField(el)]));
+
+/** Antwort des Bots in Formularwerte übersetzen (Partnerlinks speichert der Bot als Codes) */
+function formValues(data: Record<string, unknown>): Record<string, FieldValue> {
+  const values = { ...data } as Record<string, FieldValue>;
+  if (Array.isArray(data.partner_codes)) values.partner_links = (data.partner_codes as string[]).map(partnerLink);
+  if (data.custom_message === null) values.custom_message = '';
+  return values;
+}
+
+function setupRuleCards(root: HTMLElement, api: DashboardApi, config: AutomodConfig) {
+  const { i18n, ruleTexts } = config;
+
+  root.querySelectorAll<HTMLButtonElement>('[data-rule-expand]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const panel = byId(btn.getAttribute('aria-controls')!);
+      const open = btn.getAttribute('aria-expanded') !== 'true';
+      btn.setAttribute('aria-expanded', String(open));
+      panel?.classList.toggle('hidden', !open);
+      btn.querySelector('[data-rule-chevron]')?.classList.toggle('rotate-180', open);
+    });
+  });
+
+  root.querySelectorAll<HTMLButtonElement>('[data-automod-adopt]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(fill(i18n.confirmAdoptTemplate, { name: btn.dataset.name ?? '' }))) return;
+      btn.disabled = true;
+      try {
+        await api.callModuleAction('automod', 'adopt-rule', { rule_key: btn.dataset.automodAdopt });
+        window.location.reload();   // ab jetzt eine Nexus-Regel mit Schalter und Einstellungen
+      } catch (err) {
+        alert(errorMessage(err));
+        btn.disabled = false;
+      }
+    });
+  });
+
+  root.querySelectorAll<HTMLElement>('[data-rule-card]').forEach((card) => {
+    const kind = card.dataset.ruleCard as RuleKind;
+    card.querySelectorAll<HTMLElement>('[data-rule-form]').forEach((form) => {
+      const saveBtn = form.querySelector<HTMLButtonElement>('[data-rule-save]')!;
+      const action = form.dataset.ruleForm === 'content' ? 'rule-content' : 'rule-settings';
+      let initial = readForm(form);
+      // Nur geänderte Felder — was seit dem Laden in Discord geändert wurde, bleibt sonst erhalten
+      const changed = () => Object.fromEntries(
+        Object.entries(readForm(form)).filter(([name, value]) => JSON.stringify(value) !== JSON.stringify(initial[name])),
+      );
+      // Speichern nur mit Änderung — auch für Eingaben, die vor dem Verdrahten gemacht wurden
+      const refresh = () => { saveBtn.disabled = Object.keys(changed()).length === 0; };
+      form.addEventListener('input', refresh);
+      form.addEventListener('change', refresh);
+      refresh();
+
+      saveBtn.addEventListener('click', () => withBusyButton(saveBtn, i18n, async () => {
+        const result = await api.callModuleAction<Record<string, unknown>>('automod', action, { rule_key: kind, ...changed() });
+        // Stand des Bots übernehmen (bereinigte Wörter, Domains, Codes …)
+        const values = formValues(result);
+        form.querySelectorAll<HTMLElement>('[data-field]').forEach((el) => writeField(el, values[el.dataset.field!]));
+        initial = readForm(form);
+        const rule = { ...(JSON.parse(card.dataset.rule || '{}') as RuleData), ...(result as Partial<RuleData>) };
+        card.dataset.rule = JSON.stringify(rule);
+        const summary = card.querySelector<HTMLElement>('[data-rule-summary]');
+        if (summary && ruleTexts) {
+          summary.textContent = ruleSummary(kind, rule, ruleTexts);
+          summary.classList.toggle('hidden', !summary.textContent);
+        }
+        const usage = form.querySelector<HTMLElement>('[data-links-usage]');
+        if (usage && typeof result.allow_list_count === 'number') {
+          usage.textContent = fill(i18n.allowListUsageTemplate, { count: result.allow_list_count, max: usage.dataset.max ?? '' });
+        }
+      }).finally(refresh));
+    });
+  });
+}
+
 function setupAutomodPage() {
   // Auf anderen Seiten (oder ohne Bot-Daten) gibt es das Element nicht — dann ist nichts zu tun
   const root = byId('automod-page');
@@ -268,13 +385,15 @@ function setupAutomodPage() {
   root.dataset.bound = 'true';
 
   // Konfiguration bei jedem Aufruf neu lesen: nach einem Serverwechsel gilt die neue guildId
-  const { guildId, i18n } = readPageConfig<AutomodConfig>(root);
+  const config = readPageConfig<AutomodConfig>(root);
+  const { guildId, i18n } = config;
   const api = createDashboardApi(guildId, i18n);
 
   setupTabs(root);
   setupMarkdownToolbars();
   setupSwitches(root, api);
   setupKeywords(root, api, i18n);
+  setupRuleCards(root, api, config);
   setupHoneypot(api, i18n);
 }
 

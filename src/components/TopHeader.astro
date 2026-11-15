@@ -302,7 +302,9 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
         </div>
       ) : (
         <a
-          href="/auth/login"
+          href="/auth/login/"
+          data-astro-prefetch="false"
+          data-astro-reload
           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-900 btn-primary-surface hover:bg-primary-400 transition-colors shadow-sm"
         >
           <span>{t('common.login')}</span>

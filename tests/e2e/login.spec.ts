@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { test, expect, type APIResponse } from '@playwright/test';
+import { test, expect, devices, type APIResponse } from '@playwright/test';
 import { dbQuery, t, SESSION_COOKIE } from './support/helpers';
 
 // Login über Discord (auth/login.ts, auth/callback.ts). Discord selbst ist hier nicht im Spiel:
@@ -18,6 +18,69 @@ function callback(request: import('@playwright/test').APIRequestContext, query: 
     maxRedirects: 0,
   });
 }
+
+test.describe('Start des Logins', () => {
+  test('Handy: Tippen auf „Mit Discord anmelden“ – Cookie und State für Discord passen zusammen', async ({ browser }) => {
+    // Der ClientRouter lädt Links vorab (prefetchAll). Beim Tippen kam das ~80 ms nach dem Klick und
+    // überschrieb das State-Cookie mit einem neuen Wert: „Ungültiger OAuth-State“ auf jedem Handy.
+    // Dazu holt er bei einem Klick die Seite erst per fetch – auch das wäre ein zweiter Aufruf.
+    const { defaultBrowserType: _, ...pixel } = devices['Pixel 5'];
+    const ctx = await browser.newContext({ ...pixel, locale: 'de-DE' });
+    const page = await ctx.newPage();
+    const loginRequests: string[] = [];
+    page.on('request', (r) => {
+      if (new URL(r.url()).pathname.startsWith('/auth/login')) loginRequests.push(`${r.resourceType()} ${r.url()}`);
+    });
+    // Echte Login-Antwort holen, State aus der Weiterleitung lesen und dort anhalten (Discord wird nie geladen).
+    // Das Set-Cookie der Antwort bleibt erhalten, der Browser speichert das State-Cookie also wie sonst auch.
+    let discordState = '';
+    await ctx.route('**/auth/login/**', async (route) => {
+      const response = await route.fetch({ maxRedirects: 0 });
+      const headers = response.headers();
+      discordState = new URL(headers['location']).searchParams.get('state') ?? '';
+      delete headers['location'];
+      await route.fulfill({ status: 200, headers: { ...headers, 'content-type': 'text/html' }, body: '<p>weiter zu Discord</p>' });
+    });
+
+    await page.goto('/');
+    await page.getByRole('link', { name: t('landing.login_with_discord') }).tap();
+    await expect(page.getByText('weiter zu Discord')).toBeVisible();
+    await page.waitForTimeout(1000); // ein verspätetes Vorabladen hätte jetzt zugeschlagen
+
+    expect(loginRequests).toHaveLength(1);
+    const cookie = (await ctx.cookies()).find((c) => c.name === STATE_COOKIE)?.value;
+    expect(discordState).toMatch(/^[0-9a-f]{64}$/);
+    expect(cookie).toBe(discordState);
+    await ctx.close();
+  });
+
+  test('Login-Links: kein Vorabladen, kein fetch durch den ClientRouter', async ({ page }) => {
+    await page.goto('/');
+    const links = page.locator('a[href^="/auth/login"]');
+    await expect(links).toHaveCount(2); // Kopfzeile und Login-Karte
+    for (const link of await links.all()) {
+      await expect(link).toHaveAttribute('data-astro-prefetch', 'false');
+      await expect(link).toHaveAttribute('data-astro-reload', '');
+    }
+  });
+
+  test('zweiter Aufruf im selben Browser verwendet denselben State', async ({ request }) => {
+    const first = await request.get('/auth/login/', { maxRedirects: 0 });
+    expect(first.headers()['cache-control']).toBe('no-store');
+    const state = new URL(location(first)).searchParams.get('state')!;
+
+    const again = await request.get('/auth/login/', { headers: { Cookie: `${STATE_COOKIE}=${state}` }, maxRedirects: 0 });
+    expect(new URL(location(again)).searchParams.get('state')).toBe(state);
+
+    // Ein ungültiger Wert im Cookie wird nicht übernommen
+    const junk = await request.get('/auth/login/', { headers: { Cookie: `${STATE_COOKIE}=evil` }, maxRedirects: 0 });
+    expect(new URL(location(junk)).searchParams.get('state')).toMatch(/^[0-9a-f]{64}$/);
+
+    // Der Neustart braucht einen markierten State, ein normaler wird dafür nicht weiterverwendet
+    const retry = await request.get('/auth/login/?retry=1', { headers: { Cookie: `${STATE_COOKIE}=${state}` }, maxRedirects: 0 });
+    expect(new URL(location(retry)).searchParams.get('state')).toMatch(/^[0-9a-f]{64}\.retry$/);
+  });
+});
 
 test.describe('Rückkehr von Discord', () => {
   test('passender State: Session wird angelegt, weiter zur Startseite', async ({ request }) => {

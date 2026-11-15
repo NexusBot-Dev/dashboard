@@ -524,7 +524,7 @@ test.describe('Tab „Streamplan“', () => {
     await expect(scheduleSwitch(page, 11)).toHaveAttribute('aria-checked', 'true');
     await expect(scheduleSwitch(page, 11)).toBeEnabled();   // ausschalten geht immer
     await expect(limitNote(page)).toHaveText(t('stream_alerts.schedule_limit_premium', { limit: 1, max: 5 }));
-    await expect(page.locator('#schedule-permission-warning')).toHaveCount(0);
+    await expect(page.locator('#schedule-permission-warning')).toBeHidden();
     await expect(page.locator('#no-schedule-msg')).toBeHidden();
   });
 
@@ -569,6 +569,22 @@ test.describe('Tab „Streamplan“', () => {
     await expect(scheduleRow(page, 14).locator('[data-field="status"]')).toHaveText(t('stream_alerts.inactive_limit'));
     await expect(scheduleRow(page, 14).locator('[data-field="error"]')).toBeHidden();
     await expect(page.locator('#schedule-permission-warning')).toHaveText(t('stream_alerts.schedule_missing_permission'));
+  });
+
+  test('Recht fällt weg, während die Seite offen ist: Hinweis nach dem Umschalten, verschwindet wieder', async ({ page }) => {
+    await openSchedule(page);
+    await expect(page.locator('#schedule-permission-warning')).toBeHidden();
+
+    // Der Bot meldet beim Einschalten: Recht fehlt, der Abgleich hat deshalb nichts angelegt
+    const missing = { ...SCHEDULE, entries: [{ ...SCHEDULE.entries[0], enabled: false, events: 0 }], can_create_events: false };
+    await resetBot({ 'stream_alerts/schedule-toggle': { data: missing } });
+    await scheduleSwitch(page, 11).click();
+    await expect(page.locator('#schedule-permission-warning')).toBeVisible();
+    await expect(page.locator('#schedule-permission-warning')).toHaveText(t('stream_alerts.schedule_missing_permission'));
+
+    await resetBot({ 'stream_alerts/schedule-toggle': { data: SCHEDULE } });   // Recht wieder da
+    await scheduleSwitch(page, 11).click();
+    await expect(page.locator('#schedule-permission-warning')).toBeHidden();
   });
 
   test('ohne Twitch-Kanal ein Hinweis, ohne Antwort des Bots eine Meldung', async ({ page }) => {

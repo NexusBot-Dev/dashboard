@@ -349,11 +349,14 @@ const pageConfig = {
             {!schedule.premium_active && schedule.premium_limit > schedule.limit && (
               <p class="text-sm text-slate-400 mt-1">{t('stream_alerts.schedule_premium_hint', { max: schedule.premium_limit })}</p>
             )}
-            {!schedule.can_create_events && (
-              <div class="rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 mt-4" id="schedule-permission-warning">
-                <p class="text-sm text-amber-400">{t('stream_alerts.schedule_missing_permission')}</p>
-              </div>
-            )}
+            <!-- Immer da, damit renderSchedule ihn nach jeder Antwort des Bots ein- oder ausblenden kann
+                 (das Recht kann sich ändern, während die Seite offen ist) -->
+            <div
+              id="schedule-permission-warning"
+              class:list={['rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 mt-4', schedule.can_create_events && 'hidden']}
+            >
+              <p class="text-sm text-amber-400">{t('stream_alerts.schedule_missing_permission')}</p>
+            </div>
             <div id="schedule-list" class="space-y-2 mt-5">
               {schedule.entries.map((entry) => (
                 <ScheduleRow entry={entry} texts={scheduleTexts} disabled={!botOnline || !scheduleCanToggle(entry, schedule)} botOnline={botOnline} premium={schedule.premium_active} imageLabel={t('stream_alerts.schedule_image_label')} />

@@ -209,6 +209,7 @@ function renderSchedule(overview: ScheduleOverview, config: StreamAlertsConfig) 
     noteEl.classList.toggle('hidden', !note);
   }
   byId('no-schedule-msg')?.classList.toggle('hidden', overview.entries.length > 0);
+  byId('schedule-permission-warning')?.classList.toggle('hidden', overview.can_create_events);
   onScheduleRendered?.();
 }
 

@@ -557,7 +557,13 @@
     "headline_suffix": "Hub",
     "intro": "Manage your Discord servers, set up modules, and keep track of all activity.",
     "login_with_discord": "Log in with Discord",
-    "privacy_note": "We only request read access to your identity and server list."
+    "privacy_note": "We only request read access to your identity and server list.",
+    "login_error": {
+      "state": "The login couldn't be completed. Please start it again – ideally in the same browser, without switching to the Discord app in between.",
+      "denied": "You cancelled the login on Discord.",
+      "failed": "Logging in with Discord failed. Please try again in a moment.",
+      "close": "Close"
+    }
   },
   "server_picker": {
     "title": "My Servers",

@@ -3,6 +3,17 @@ import { CLIENT_ID, CLIENT_SECRET } from './secrets';
 // __Host-: andere Subdomains können den State nicht vorgeben (sonst Login in ein fremdes Konto möglich)
 export const OAUTH_STATE_COOKIE = '__Host-nexus_oauth_state';
 
+// Endung am State für den einen automatischen Neuversuch (siehe auth/callback.ts)
+export const OAUTH_RETRY_SUFFIX = '.retry';
+
+// Fehlercodes, die der Callback per ?login_error= an die Startseite gibt (Texte: landing.login_error.*)
+export const LOGIN_ERRORS = ['state', 'denied', 'failed'] as const;
+export type LoginError = (typeof LOGIN_ERRORS)[number];
+
+export function isLoginError(value: string | null): value is LoginError {
+  return (LOGIN_ERRORS as readonly string[]).includes(value ?? '');
+}
+
 // Basis-URL der Discord-API für Server-Aufrufe. Nur die Tests setzen DISCORD_API_BASE
 // (Fake-Discord); die Login-Weiterleitung unten zeigt immer auf das echte Discord.
 const DISCORD_API = process.env.DISCORD_API_BASE ?? 'https://discord.com/api';

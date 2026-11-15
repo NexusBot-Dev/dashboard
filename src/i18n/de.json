@@ -557,7 +557,13 @@
     "headline_suffix": "Hub",
     "intro": "Verwalte deine Discord-Server, richte Module ein und behalte die Übersicht über alle Aktivitäten.",
     "login_with_discord": "Mit Discord anmelden",
-    "privacy_note": "Wir fordern nur Lesezugriff auf deine Identität und deine Serverliste an."
+    "privacy_note": "Wir fordern nur Lesezugriff auf deine Identität und deine Serverliste an.",
+    "login_error": {
+      "state": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte starte den Login erneut – am besten im selben Browser, ohne zwischendurch in die Discord-App zu wechseln.",
+      "denied": "Du hast die Anmeldung bei Discord abgebrochen.",
+      "failed": "Die Anmeldung bei Discord ist fehlgeschlagen. Bitte versuch es gleich noch einmal.",
+      "close": "Schließen"
+    }
   },
   "server_picker": {
     "title": "Meine Server",

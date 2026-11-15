@@ -5,7 +5,7 @@
 //   POST /__test/reset   { overrides?: { "<module>/<action>": { status, error } | { data } } }
 //   GET  /__test/calls   -> alle seit dem letzten Reset empfangenen Bot-Aufrufe
 import http from 'node:http';
-import { BOT_PORT, DISCORD_PORT, DASHBOARD_SECRET, GUILD_ID, FOREIGN_GUILD_ID } from './env.mjs';
+import { BOT_PORT, DISCORD_PORT, DASHBOARD_SECRET, GUILD_ID, FOREIGN_GUILD_ID, USER_ID } from './env.mjs';
 import { defaultBotData } from './fixtures.mjs';
 
 let calls = [];
@@ -64,8 +64,24 @@ const bot = http.createServer(async (req, res) => {
 
 // ─── Fake-Discord ────────────────────────────────────────────────────────────
 const OWNER_PERMS = '2147483647';
-const discord = http.createServer((req, res) => {
+const discord = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  // Login (auth/callback.ts): Code gegen Token tauschen, dann das Profil holen. Code „bad-code“ lehnt Discord ab.
+  if (url.pathname === '/api/oauth2/token' && req.method === 'POST') {
+    let raw = '';
+    for await (const chunk of req) raw += chunk;
+    const params = new URLSearchParams(raw);
+    if (params.get('grant_type') === 'authorization_code' && params.get('code') === 'bad-code') {
+      return send(res, 400, { error: 'invalid_grant' });
+    }
+    return send(res, 200, {
+      access_token: 'e2e-login-access-token', refresh_token: 'e2e-login-refresh-token',
+      expires_in: 604800, token_type: 'Bearer', scope: 'identify guilds',
+    });
+  }
+  if (url.pathname === '/api/users/@me') {
+    return send(res, 200, { id: USER_ID, username: 'e2e-user', global_name: 'E2E User', avatar: null });
+  }
   if (url.pathname === '/api/users/@me/guilds') {
     return send(res, 200, [
       { id: GUILD_ID, name: 'Testserver', icon: null, owner: true, permissions: OWNER_PERMS },

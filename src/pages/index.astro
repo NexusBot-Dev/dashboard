@@ -1,6 +1,7 @@
 ---
 import DashboardLayout from '../layouts/DashboardLayout.astro';
 import { getSession } from '../lib/session';
+import { isLoginError } from '../lib/oauth';
 
 const t = Astro.locals.t;
 
@@ -8,10 +9,14 @@ const session = await getSession(Astro.cookies);
 if (session) {
   return Astro.redirect('/server');
 }
+
+// Vom OAuth-Callback (auth/callback.ts): Fehler beim Login als Hinweis über der Login-Karte
+const loginErrorParam = Astro.url.searchParams.get('login_error');
+const loginError = isLoginError(loginErrorParam) ? loginErrorParam : null;
 ---
 
 <DashboardLayout title={t('landing.page_title')}>
-  <div class="min-h-[75vh] flex flex-col items-center justify-center relative">
+  <div class="min-h-[75vh] flex flex-col items-center justify-center relative overflow-x-clip">
 
     <!-- Subtiler Ambient Glow im Hintergrund -->
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#5865F2]/10 blur-[120px] pointer-events-none -z-10 rounded-full"></div>
@@ -27,6 +32,32 @@ if (session) {
           {t('landing.intro')}
         </p>
       </div>
+
+      {loginError && (
+        <div
+          id="login-error"
+          role="alert"
+          data-login-error={loginError}
+          class={`flex items-start gap-3 p-4 rounded-xl border text-left text-sm bg-slate-900 shadow-2xl ${
+            loginError === 'denied' ? 'border-slate-700 text-slate-300' : 'border-red-500/60 text-red-200 shadow-red-950/30'
+          }`}
+        >
+          <svg class={`w-5 h-5 shrink-0 mt-0.5 ${loginError === 'denied' ? 'text-slate-400' : 'text-red-400'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path>
+          </svg>
+          <p class="flex-1 leading-6">{t(`landing.login_error.${loginError}`)}</p>
+          <button
+            type="button"
+            data-login-error-close
+            class="shrink-0 -m-1 p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            aria-label={t('landing.login_error.close')}
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+      )}
 
       <!-- Login Card -->
       <div class="p-6 rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md shadow-2xl space-y-4">
@@ -47,3 +78,17 @@ if (session) {
     </div>
   </div>
 </DashboardLayout>
+
+<script>
+  // Hinweis schließen und ?login_error aus der Adresse nehmen (sonst käme er beim Neuladen wieder)
+  document.addEventListener('astro:page-load', () => {
+    const banner = document.getElementById('login-error');
+    if (!banner) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('login_error')) {
+      url.searchParams.delete('login_error');
+      history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+    }
+    banner.querySelector('[data-login-error-close]')?.addEventListener('click', () => banner.remove());
+  });
+</script>

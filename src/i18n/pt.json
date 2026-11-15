@@ -557,7 +557,13 @@
     "headline_suffix": "Hub",
     "intro": "Gerencie seus servidores do Discord, configure módulos e acompanhe toda a atividade em um só lugar.",
     "login_with_discord": "Entrar com o Discord",
-    "privacy_note": "Solicitamos apenas acesso de leitura à sua identidade e à sua lista de servidores."
+    "privacy_note": "Solicitamos apenas acesso de leitura à sua identidade e à sua lista de servidores.",
+    "login_error": {
+      "state": "Não foi possível concluir o login. Inicie-o novamente – de preferência no mesmo navegador, sem mudar para o app do Discord no meio do caminho.",
+      "denied": "Você cancelou o login no Discord.",
+      "failed": "O login com o Discord falhou. Tente novamente em instantes.",
+      "close": "Fechar"
+    }
   },
   "server_picker": {
     "title": "Meus servidores",

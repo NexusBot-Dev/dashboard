@@ -557,7 +557,13 @@
     "headline_suffix": "Hub",
     "intro": "Administra tus servidores de Discord, configura módulos y mantén una visión general de toda la actividad.",
     "login_with_discord": "Iniciar sesión con Discord",
-    "privacy_note": "Solo solicitamos acceso de lectura a tu identidad y a tu lista de servidores."
+    "privacy_note": "Solo solicitamos acceso de lectura a tu identidad y a tu lista de servidores.",
+    "login_error": {
+      "state": "No se pudo completar el inicio de sesión. Vuelve a iniciarlo, a ser posible en el mismo navegador y sin cambiar a la app de Discord entre medias.",
+      "denied": "Has cancelado el inicio de sesión en Discord.",
+      "failed": "El inicio de sesión con Discord ha fallado. Inténtalo de nuevo en un momento.",
+      "close": "Cerrar"
+    }
   },
   "server_picker": {
     "title": "Mis servidores",

@@ -4,6 +4,7 @@ import ModuleToggle from '../../../../components/ModuleToggle.astro';
 import { getModuleStates } from '../../../../lib/modules';
 import Switch from '../../../../components/Switch.astro';
 import RuleCard from '../../../../components/automod/RuleCard.astro';
+import ShieldWhitelist, { type ShieldWhitelistData } from '../../../../components/automod/ShieldWhitelist.astro';
 import { DEFAULT_LIMITS, LEGACY_KINDS, PRESETS, RULE_KINDS, type RuleData, type RuleKind, type RuleLimits, type RuleTexts } from '../../../../lib/automodRules';
 import Tabs from '../../../../components/Tabs.astro';
 import MarkdownToolbar from '../../../../components/MarkdownToolbar.astro';
@@ -24,6 +25,8 @@ let roles: { id: string; name: string }[] = [];
 let status: {
   spam_enabled: boolean; mentions_enabled: boolean; keywords_enabled: boolean;
   keywords: string[]; shield_enabled: boolean; honeypot_channel_id: string | null;
+  // Ausschalten nur durch den Owner (ältere Bot-Versionen liefern es nicht → jeder)
+  shield_can_disable?: boolean;
   honeypot_timeout_days: number; honeypot_catches?: number;
   // Seit /honeypot: Warn-Texte und Bestrafung (ältere Bot-Versionen liefern sie nicht)
   honeypot_title?: string; honeypot_text?: string;
@@ -34,6 +37,8 @@ let status: {
   foreign_rules?: Partial<Record<RuleKind, string>>;
   rule_limits?: RuleLimits;
 } | null = null;
+// Shield-Whitelist: eigene Aktion (lädt im Bot beim ersten Mal die Mitgliederliste). null: älterer Bot oder Fehler
+let shieldWhitelist: ShieldWhitelistData | null = null;
 let botOnline = true;
 let premiumActive = false;
 
@@ -46,12 +51,13 @@ async function getPremiumInfo(id: string) {
 }
 
 try {
-  const [premium, info, channelsResult, rolesResult, statusResult] = await Promise.all([
+  const [premium, info, channelsResult, rolesResult, statusResult, whitelistResult] = await Promise.all([
     getPremiumInfo(guildId!),
     callGuildAction(Astro, 'guild', 'info', guildId!),
     callGuildAction(Astro, 'guild', 'channels', guildId!),
     callGuildAction(Astro, 'guild', 'roles', guildId!),
     callGuildAction(Astro, 'automod', 'status', guildId!),
+    callGuildAction(Astro, 'automod', 'shield-whitelist', guildId!).catch(() => null),
   ]);
 
   premiumActive = Boolean(premium);
@@ -60,6 +66,7 @@ try {
   channels = channelsResult.channels;
   roles = rolesResult.roles;
   status = statusResult;
+  shieldWhitelist = whitelistResult;
 } catch {
   botOnline = false;
 }
@@ -144,7 +151,8 @@ const tabs = [
 ];
 
 // Liest src/scripts/pages/automod.ts aus data-config
-const pageConfig = { guildId, i18n, v2, ruleTexts };
+const shieldLocked = Boolean(status?.shield_enabled && status.shield_can_disable === false);
+const pageConfig = { guildId, i18n, v2, ruleTexts, shieldCanDisable: status?.shield_can_disable ?? true };
 ---
 
 <DashboardLayout title={t('automod.title')} guildName={guildName} guildIconUrl={guildIconUrl ?? undefined} premiumActive={premiumActive} guildId={guildId}>
@@ -205,9 +213,12 @@ const pageConfig = { guildId, i18n, v2, ruleTexts };
             <p class="text-sm text-slate-400 mb-2">{t('automod.anti_nuke_desc')}</p>
             <p class="text-xs text-slate-400">{t('automod.shield_threshold', { score: SHIELD_SCORE_LIMIT, seconds: SHIELD_WINDOW_SECONDS })}</p>
           </div>
-          <Switch checked={status.shield_enabled} id="shield-toggle" disabled={!botOnline} />
+          <Switch checked={status.shield_enabled} id="shield-toggle" disabled={!botOnline || shieldLocked} />
         </div>
+        <p id="shield-owner-hint" class:list={['mt-3 text-xs text-amber-400', { hidden: !shieldLocked }]}>{t('automod.shield_owner_only_hint')}</p>
       </section>
+
+      {shieldWhitelist && <ShieldWhitelist data={shieldWhitelist} roles={roles} botOnline={botOnline} />}
     </div>
 
     <!-- Tab: Honeypot -->

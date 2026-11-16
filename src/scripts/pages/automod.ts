@@ -12,6 +12,7 @@ interface AutomodConfig {
   guildId: string;
   v2?: boolean;
   ruleTexts?: RuleTexts;
+  shieldCanDisable?: boolean;   // false: nur der Owner darf das Shield ausschalten
   i18n: ApiMessages & {
     confirmAdoptTemplate: string;
     allowListUsageTemplate: string;
@@ -31,7 +32,7 @@ const errorMessage = (err: unknown) => (err instanceof Error ? err.message : Str
 
 const KEYWORD_CLASS = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 text-xs font-mono text-slate-300';
 
-function setupSwitches(root: HTMLElement, api: DashboardApi) {
+function setupSwitches(root: HTMLElement, api: DashboardApi, canDisable?: boolean) {
   root.querySelectorAll<HTMLButtonElement>('[data-automod-toggle]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const previous = isSwitchOn(btn);
@@ -59,13 +60,91 @@ function setupSwitches(root: HTMLElement, api: DashboardApi) {
   const shieldToggle = byId<HTMLButtonElement>('shield-toggle');
   shieldToggle?.addEventListener('click', async () => {
     shieldToggle.disabled = true;
+    let enabled = isSwitchOn(shieldToggle);
     try {
       const result = await api.callModuleAction<{ shield_enabled: boolean }>('automod', 'toggle-shield');
-      setSwitch(shieldToggle, result.shield_enabled);
+      enabled = result.shield_enabled;
+      setSwitch(shieldToggle, enabled);
     } catch (err) {
       alert(errorMessage(err));
     } finally {
-      shieldToggle.disabled = false;
+      // Wer nicht Owner ist, kann das eingeschaltete Shield nicht wieder ausschalten (der Bot lehnt ab)
+      const locked = enabled && canDisable === false;
+      shieldToggle.disabled = locked;
+      byId('shield-owner-hint')?.classList.toggle('hidden', !locked);
+    }
+  });
+}
+
+// ── Shield-Whitelist (src/components/automod/ShieldWhitelist.astro) ──────────────────────────────
+
+interface ShieldWhitelistResult {
+  bots: { id: string; whitelisted: boolean }[];
+  roles: string[];
+}
+
+function setupShieldWhitelist(api: DashboardApi) {
+  const botSection = byId('shield-bots');
+  const roleSection = byId('shield-roles');
+
+  function showWhitelist(result: ShieldWhitelistResult) {
+    const listed = new Set(result.bots.filter((b) => b.whitelisted).map((b) => b.id));
+    botSection?.querySelectorAll<HTMLButtonElement>('[data-shield-bot]').forEach((sw) => setSwitch(sw, listed.has(sw.dataset.shieldBot!)));
+    const botCount = botSection?.querySelector('[data-shield-bot-count]');
+    if (botCount) botCount.textContent = `${listed.size} / ${botSection!.dataset.max}`;
+    const roleCount = roleSection?.querySelector('[data-shield-role-count]');
+    if (roleCount) roleCount.textContent = `${result.roles.length} / ${roleSection!.dataset.max}`;
+  }
+
+  // Bots: jeder Schalter speichert sofort
+  botSection?.querySelectorAll<HTMLButtonElement>('[data-shield-bot]').forEach((sw) => {
+    sw.addEventListener('click', async () => {
+      sw.disabled = true;
+      try {
+        showWhitelist(await api.callModuleAction<ShieldWhitelistResult>('automod', 'shield-bot', {
+          bot_id: sw.dataset.shieldBot, whitelisted: !isSwitchOn(sw),
+        }));
+      } catch (err) {
+        alert(errorMessage(err));
+      } finally {
+        sw.disabled = false;
+      }
+    });
+  });
+
+  // Suche nach Name oder ID
+  const search = byId<HTMLInputElement>('shield-bot-search');
+  search?.addEventListener('input', () => {
+    const query = search.value.trim().toLowerCase();
+    let visible = 0;
+    botSection!.querySelectorAll<HTMLElement>('[data-shield-bot-row]').forEach((row) => {
+      const match = !query || row.dataset.search!.includes(query);
+      row.classList.toggle('hidden', !match);
+      if (match) visible++;
+    });
+    botSection!.querySelector('[data-shield-no-results]')?.classList.toggle('hidden', visible > 0);
+  });
+
+  // Rollen: Auswahl ändern, dann speichern
+  const saveRoles = byId<HTMLButtonElement>('shield-roles-save');
+  const boxes = [...(roleSection?.querySelectorAll<HTMLInputElement>('[data-shield-roles] input') ?? [])];
+  const changed = () => boxes.some((box) => box.checked !== box.defaultChecked);
+  boxes.forEach((box) => box.addEventListener('change', () => {
+    if (saveRoles) saveRoles.disabled = !changed();
+  }));
+  saveRoles?.addEventListener('click', async () => {
+    saveRoles.disabled = true;
+    try {
+      const result = await api.callModuleAction<ShieldWhitelistResult>('automod', 'shield-roles', {
+        role_ids: boxes.filter((box) => box.checked).map((box) => box.value),
+      });
+      const saved = new Set(result.roles);
+      boxes.forEach((box) => (box.defaultChecked = box.checked = saved.has(box.value)));
+      showWhitelist(result);
+    } catch (err) {
+      alert(errorMessage(err));
+    } finally {
+      saveRoles.disabled = !changed();
     }
   });
 }
@@ -391,10 +470,11 @@ function setupAutomodPage() {
 
   setupTabs(root);
   setupMarkdownToolbars();
-  setupSwitches(root, api);
+  setupSwitches(root, api, config.shieldCanDisable);
   setupKeywords(root, api, i18n);
   setupRuleCards(root, api, config);
   setupHoneypot(api, i18n);
+  setupShieldWhitelist(api);
 }
 
 document.addEventListener('astro:page-load', setupAutomodPage);

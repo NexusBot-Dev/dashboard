@@ -53,6 +53,19 @@ export const SCHEDULE = {
 // Gespeichertes eigenes Bild (stream_alerts/schedule-custom-image): ein kleines JPEG als Base64
 export const STORED_IMAGE = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDl6KKK+4PBP//Z';
 
+// Shield-Whitelist (automod/shield-whitelist): Carl-bot eingetragen, Dyno mit Mod-Rechten nicht, Musikbot harmlos
+export const SHIELD_WHITELIST = {
+  bots: [
+    { id: '400000000000000001', name: 'Carl-bot', avatar: null, mod_permissions: true, whitelisted: true },
+    { id: '400000000000000002', name: 'Dyno', avatar: null, mod_permissions: true, whitelisted: false },
+    { id: '400000000000000003', name: 'Musikbot', avatar: null, mod_permissions: false, whitelisted: false },
+  ],
+  roles: ['300000000000000002'],
+  can_manage_bots: true,
+  is_owner: true,
+  limits: { bots: 25, roles: 10 },
+};
+
 export const defaultBotData = {
   'guild/info': {
     name: 'Testserver', icon_url: null, member_count: 42, bot_nickname: 'Nexus',
@@ -197,6 +210,13 @@ export const defaultBotData = {
   'automod/toggle-rule': (body) => ({ rule_key: body.rule_key }),
   'automod/set-keywords': (body) => ({ keywords: body.keywords }),
   'automod/toggle-shield': { shield_enabled: true },
+  'automod/shield-whitelist': SHIELD_WHITELIST,
+  // Wie der Bot: antwortet mit der ganzen Übersicht
+  'automod/shield-bot': (body) => ({
+    ...SHIELD_WHITELIST,
+    bots: SHIELD_WHITELIST.bots.map((b) => (b.id === body.bot_id ? { ...b, whitelisted: body.whitelisted } : b)),
+  }),
+  'automod/shield-roles': (body) => ({ ...SHIELD_WHITELIST, roles: body.role_ids }),
   // Wie der Bot: leerer Titel → Standardtitel in der Server-Sprache
   'automod/create-honeypot': (body) => ({
     channel_id: '200000000000000009', channel_name: 'honeypot-falle', title: body.title || '⚠️ Achtung', text: body.warn_text,

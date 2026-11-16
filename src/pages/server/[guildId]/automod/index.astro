@@ -5,7 +5,8 @@ import { getModuleStates } from '../../../../lib/modules';
 import Switch from '../../../../components/Switch.astro';
 import RuleCard from '../../../../components/automod/RuleCard.astro';
 import ShieldWhitelist, { type ShieldWhitelistData } from '../../../../components/automod/ShieldWhitelist.astro';
-import { DEFAULT_LIMITS, LEGACY_KINDS, PRESETS, RULE_KINDS, type RuleData, type RuleKind, type RuleLimits, type RuleTexts } from '../../../../lib/automodRules';
+import EscalationCard from '../../../../components/automod/EscalationCard.astro';
+import { DEFAULT_LIMITS, LEGACY_KINDS, PRESETS, RULE_KINDS, type EscalationData, type RuleData, type RuleKind, type RuleLimits, type RuleTexts } from '../../../../lib/automodRules';
 import Tabs from '../../../../components/Tabs.astro';
 import MarkdownToolbar from '../../../../components/MarkdownToolbar.astro';
 import pool from '../../../../lib/db';
@@ -36,6 +37,8 @@ let status: {
   rules?: Partial<Record<RuleKind, RuleData | null>>;
   foreign_rules?: Partial<Record<RuleKind, string>>;
   rule_limits?: RuleLimits;
+  // Eskalation (null: Testphase; ältere Bot-Versionen liefern es nicht)
+  escalation?: EscalationData | null;
 } | null = null;
 // Shield-Whitelist: eigene Aktion (lädt im Bot beim ersten Mal die Mitgliederliste). null: älterer Bot oder Fehler
 let shieldWhitelist: ShieldWhitelistData | null = null;
@@ -202,6 +205,7 @@ const pageConfig = { guildId, i18n, v2, ruleTexts, shieldCanDisable: status?.shi
           )}
         </RuleCard>
       ))}
+      {v2 && status.escalation && <EscalationCard data={status.escalation} texts={ruleTexts} botOnline={botOnline} />}
     </div>
 
     <!-- Tab: Shield (Anti-Nuke) — eigener Tab, damit er später eigene Einstellungen bekommen kann -->

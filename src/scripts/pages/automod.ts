@@ -6,7 +6,7 @@ import { isSwitchOn, setSwitch } from '../switch';
 import { setupTabs } from '../tabs';
 import { setupMarkdownToolbars } from '../markdown-toolbar';
 import { renderDiscordMarkdown } from '../../lib/discordMarkdown';
-import { partnerLink, ruleSummary, type RuleData, type RuleKind, type RuleTexts } from '../../lib/automodRules';
+import { partnerLink, ruleSummary, type EscalationStep, type RuleData, type RuleKind, type RuleTexts } from '../../lib/automodRules';
 
 interface AutomodConfig {
   guildId: string;
@@ -74,6 +74,95 @@ function setupSwitches(root: HTMLElement, api: DashboardApi, canDisable?: boolea
       byId('shield-owner-hint')?.classList.toggle('hidden', !locked);
     }
   });
+}
+
+// ── Eskalation (src/components/automod/EscalationCard.astro) ─────────────────────────────────────
+
+interface EscalationResult {
+  enabled: boolean;
+  steps: EscalationStep[];
+}
+
+function readStep(row: HTMLElement): EscalationStep {
+  const get = (name: string) => row.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-step-field="${name}"]`)!.value;
+  const step: EscalationStep = {
+    strikes: Number(get('strikes')),
+    window_minutes: Number(get('window_minutes')),
+    action: get('action') as EscalationStep['action'],
+  };
+  if (step.action === 'timeout') step.timeout_minutes = Number(get('timeout_minutes'));
+  return step;
+}
+
+function setupEscalation(api: DashboardApi) {
+  const card = byId('escalation-card');
+  if (!card) return;
+  const list = card.querySelector<HTMLElement>('[data-escalation-steps]')!;
+  const template = byId<HTMLTemplateElement>('escalation-step-template')!;
+  const addBtn = card.querySelector<HTMLButtonElement>('[data-escalation-add]')!;
+  const saveBtn = card.querySelector<HTMLButtonElement>('[data-escalation-save]')!;
+  const toggle = byId<HTMLButtonElement>('escalation-toggle')!;
+  const maxSteps = Number(card.dataset.maxSteps);
+  let saved = card.dataset.saved ?? '[]';
+
+  const rows = () => [...list.querySelectorAll<HTMLElement>('[data-escalation-step]')];
+  const current = () => JSON.stringify(rows().map(readStep));
+
+  // Nummern, Timeout-Feld, Hinweise und Knöpfe nach jeder Änderung neu setzen
+  function refresh() {
+    const all = rows();
+    all.forEach((row, i) => {
+      const number = row.querySelector('[data-step-number]')!;
+      number.textContent = number.textContent!.replace(/\d+/, String(i + 1));
+      const action = row.querySelector<HTMLSelectElement>('[data-step-field="action"]')!.value;
+      row.querySelector('[data-step-timeout]')!.classList.toggle('hidden', action !== 'timeout');
+    });
+    card!.querySelector('[data-escalation-empty]')!.classList.toggle('hidden', all.length > 0);
+    card!.querySelector('[data-escalation-limit]')!.classList.toggle('hidden', all.length < maxSteps);
+    card!.querySelector('[data-escalation-downgrade]')!.classList.toggle('hidden', all.length <= maxSteps);
+    addBtn.disabled = all.length >= maxSteps;
+    saveBtn.disabled = current() === saved;
+  }
+
+  list.addEventListener('input', refresh);
+  list.addEventListener('change', refresh);
+  list.addEventListener('click', (event) => {
+    const remove = (event.target as HTMLElement).closest('[data-step-remove]');
+    if (!remove) return;
+    remove.closest('[data-escalation-step]')!.remove();
+    refresh();
+  });
+  addBtn.addEventListener('click', () => {
+    list.append(template.content.cloneNode(true));
+    refresh();
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    try {
+      const result = await api.callModuleAction<EscalationResult>('automod', 'escalation', { steps: rows().map(readStep) });
+      saved = JSON.stringify(result.steps);
+      setSwitch(toggle, result.enabled);
+    } catch (err) {
+      alert(errorMessage(err));
+    } finally {
+      refresh();
+    }
+  });
+
+  toggle.addEventListener('click', async () => {
+    toggle.disabled = true;
+    try {
+      const result = await api.callModuleAction<EscalationResult>('automod', 'escalation', { enabled: !isSwitchOn(toggle) });
+      setSwitch(toggle, result.enabled);
+    } catch (err) {
+      alert(errorMessage(err));
+    } finally {
+      toggle.disabled = false;
+    }
+  });
+
+  refresh();
 }
 
 // ── Shield-Whitelist (src/components/automod/ShieldWhitelist.astro) ──────────────────────────────
@@ -475,6 +564,7 @@ function setupAutomodPage() {
   setupRuleCards(root, api, config);
   setupHoneypot(api, i18n);
   setupShieldWhitelist(api);
+  setupEscalation(api);
 }
 
 document.addEventListener('astro:page-load', setupAutomodPage);

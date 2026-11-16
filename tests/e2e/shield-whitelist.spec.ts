@@ -10,8 +10,8 @@ const status = defaultBotData['automod/status'];
 const whitelist = (values: Record<string, unknown>) => ({ 'automod/shield-whitelist': { data: { ...SHIELD_WHITELIST, ...values } } });
 
 const XSS = '<img src=x onerror="window.__xss=1">';
-const CARL = '400000000000000001';
-const DYNO = '400000000000000002';
+const MOD_BOT = '400000000000000001';
+const HELPER_BOT = '400000000000000002';
 const HELFER = '300000000000000002';
 const MODS = '300000000000000001';
 
@@ -30,39 +30,39 @@ test.beforeEach(async ({ context }) => {
 test('Bot-Liste: Mod-Rechte markiert, Zähler, Schalter speichert sofort', async ({ page }) => {
   await page.goto(PAGE);
   await expect(rows(page)).toHaveCount(3);
-  await expect(rows(page).nth(0)).toContainText('Carl-bot');
+  await expect(rows(page).nth(0)).toContainText('Mod-Bot');
   await expect(rows(page).nth(0)).toContainText(t('automod.shield_bot_mod_badge'));
   await expect(rows(page).nth(2)).not.toContainText(t('automod.shield_bot_mod_badge'));
   await expect(page.locator('[data-shield-bot-count]')).toHaveText('1 / 25');
-  await expectOn(botSwitch(page, CARL), true);
-  await expectOn(botSwitch(page, DYNO), false);
+  await expectOn(botSwitch(page, MOD_BOT), true);
+  await expectOn(botSwitch(page, HELPER_BOT), false);
 
-  await botSwitch(page, DYNO).click();
-  expect(payload(await waitForBotCall('automod/shield-bot'))).toEqual({ bot_id: DYNO, whitelisted: true });
-  await expectOn(botSwitch(page, DYNO), true);
+  await botSwitch(page, HELPER_BOT).click();
+  expect(payload(await waitForBotCall('automod/shield-bot'))).toEqual({ bot_id: HELPER_BOT, whitelisted: true });
+  await expectOn(botSwitch(page, HELPER_BOT), true);
   await expect(page.locator('[data-shield-bot-count]')).toHaveText('2 / 25');
 
-  await botSwitch(page, CARL).click();
-  expect(payload(await waitForBotCall('automod/shield-bot', 1))).toEqual({ bot_id: CARL, whitelisted: false });
-  await expectOn(botSwitch(page, CARL), false);
+  await botSwitch(page, MOD_BOT).click();
+  expect(payload(await waitForBotCall('automod/shield-bot', 1))).toEqual({ bot_id: MOD_BOT, whitelisted: false });
+  await expectOn(botSwitch(page, MOD_BOT), false);
 });
 
 test('Fehler beim Eintragen: Meldung, Schalter bleibt', async ({ page }) => {
   await resetBot({ 'automod/shield-bot': { status: 400, error: 'Höchstens 25 Bots auf der Whitelist.' } });
   const dialogs = collectDialogs(page);
   await page.goto(PAGE);
-  await botSwitch(page, DYNO).click();
+  await botSwitch(page, HELPER_BOT).click();
   await expect.poll(() => dialogs.join('\n')).toContain('Höchstens 25 Bots auf der Whitelist.');
-  await expectOn(botSwitch(page, DYNO), false);
-  await expect(botSwitch(page, DYNO)).toBeEnabled();
+  await expectOn(botSwitch(page, HELPER_BOT), false);
+  await expect(botSwitch(page, HELPER_BOT)).toBeEnabled();
 });
 
 test('Suche nach Name und ID', async ({ page }) => {
   await page.goto(PAGE);
   const search = page.locator('#shield-bot-search');
-  await search.fill('dyn');
+  await search.fill('helf');
   await expect(rows(page).filter({ visible: true })).toHaveCount(1);
-  await expect(rows(page).filter({ visible: true })).toContainText('Dyno');
+  await expect(rows(page).filter({ visible: true })).toContainText('Helfer-Bot');
 
   await search.fill('400000000000000003');
   await expect(rows(page).filter({ visible: true })).toContainText('Musikbot');
@@ -93,7 +93,7 @@ test('keine anderen Bots', async ({ page }) => {
 });
 
 test('Namen werden nicht als HTML ausgeführt', async ({ page }) => {
-  await resetBot(whitelist({ bots: [{ id: CARL, name: XSS, avatar: null, mod_permissions: false, whitelisted: false }] }));
+  await resetBot(whitelist({ bots: [{ id: MOD_BOT, name: XSS, avatar: null, mod_permissions: false, whitelisted: false }] }));
   await page.goto(PAGE);
   await expect(rows(page)).toContainText(XSS);
   expect(await page.evaluate(() => (window as any).__xss)).toBeUndefined();
@@ -131,7 +131,7 @@ test('Rollen: eingetragene, unbekannte Rolle bleibt beim Speichern erhalten', as
 test('Admin: Bots ja, Rollen nein', async ({ page }) => {
   await resetBot(whitelist({ is_owner: false }));
   await page.goto(PAGE);
-  await expect(botSwitch(page, DYNO)).toBeEnabled();
+  await expect(botSwitch(page, HELPER_BOT)).toBeEnabled();
   await expect(roleBox(page, MODS)).toBeDisabled();
   await expect(saveRoles(page)).toHaveCount(0);
   await expect(page.locator('#shield-roles')).toContainText(t('automod.shield_roles_owner_only'));
@@ -141,7 +141,7 @@ test('Admin: Bots ja, Rollen nein', async ({ page }) => {
 test('Nur „Server verwalten“: alles nur lesbar', async ({ page }) => {
   await resetBot(whitelist({ is_owner: false, can_manage_bots: false }));
   await page.goto(PAGE);
-  await expect(botSwitch(page, DYNO)).toBeDisabled();
+  await expect(botSwitch(page, HELPER_BOT)).toBeDisabled();
   await expect(page.locator('#shield-bots')).toContainText(t('automod.shield_bots_admin_only'));
   await expect(roleBox(page, MODS)).toBeDisabled();
 });

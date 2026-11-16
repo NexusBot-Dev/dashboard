@@ -1,0 +1,52 @@
+---
+// Eskalation für Nexus-AutoMod (Bot: systems/automod_escalation.py) im AutoMod-Tab: wiederholte Verstöße →
+// Verwarnung, Timeout, Kick, Bann. Free 1 Stufe, Premium mehr. Skript: setupEscalation in src/scripts/pages/automod.ts.
+import Switch from '../Switch.astro';
+import EscalationStep from './EscalationStep.astro';
+import type { EscalationData, RuleTexts } from '../../lib/automodRules';
+
+interface Props {
+  data: EscalationData;
+  texts: RuleTexts;
+  botOnline: boolean;
+}
+
+const { data, texts, botOnline } = Astro.props;
+const t = Astro.locals.t;
+const isPremium = data.max_steps >= data.premium_max_steps;
+const saveBtnClass = 'px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+---
+
+<section class="rounded-xl glass-panel p-6" id="escalation-card" data-max-steps={data.max_steps}
+  data-saved={JSON.stringify(data.steps)}>
+  <div class="flex items-start justify-between gap-4">
+    <div class="min-w-0">
+      <h2 class="text-base font-bold text-white mb-1">{t('automod.escalation_title')}</h2>
+      <p class="text-sm text-slate-400">{t('automod.escalation_desc')}</p>
+    </div>
+    <Switch checked={data.enabled} id="escalation-toggle" disabled={!botOnline}
+      aria-label={t('automod.escalation_title')} />
+  </div>
+
+  <div class="mt-4 space-y-3" data-escalation-steps>
+    {data.steps.map((step, i) => <EscalationStep step={step} number={i + 1} options={data} texts={texts} />)}
+  </div>
+  <p class:list={['text-sm text-slate-400', { hidden: data.steps.length > 0 }]} data-escalation-empty>{t('automod.escalation_empty')}</p>
+  <template id="escalation-step-template"><EscalationStep step={null} number={1} options={data} texts={texts} /></template>
+
+  <p class:list={['mt-3 text-xs text-amber-400', { hidden: data.steps.length <= data.max_steps }]} data-escalation-downgrade>
+    {t('automod.escalation_downgrade', { max: data.max_steps })}
+  </p>
+  <p class:list={['mt-3 text-xs text-slate-400', { hidden: data.steps.length < data.max_steps }]} data-escalation-limit>
+    {isPremium ? t('automod.escalation_limit', { max: data.max_steps }) : t('automod.escalation_limit_free', { max: data.premium_max_steps })}
+  </p>
+
+  <div class="flex flex-wrap items-center gap-3 mt-4">
+    <button type="button" data-escalation-add disabled={!botOnline || data.steps.length >= data.max_steps}
+      class="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+      + {t('automod.escalation_add')}
+    </button>
+    <button type="button" data-escalation-save disabled class={saveBtnClass}>{t('common.save')}</button>
+  </div>
+  <p class="mt-4 text-xs text-slate-400">{t('automod.escalation_note')}</p>
+</section>

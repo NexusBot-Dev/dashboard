@@ -119,3 +119,29 @@ export function ruleSummary(kind: RuleKind, rule: RuleData, texts: RuleTexts): s
 
 /** Partnerlink zum Anzeigen im Textfeld (der Bot speichert nur den Code) */
 export const partnerLink = (code: string) => `discord.gg/${code}`;
+
+// ── Eskalation (Bot: systems/automod_escalation.py) ────────────────────────────────────────────────
+
+export type EscalationAction = 'warn' | 'timeout' | 'kick' | 'ban';
+
+export interface EscalationStep {
+  strikes: number;
+  window_minutes: number;
+  action: EscalationAction;
+  timeout_minutes?: number;   // nur bei action = timeout
+}
+
+/** Auswahlwerte, die der Bot vorgibt */
+export interface EscalationOptions {
+  actions: EscalationAction[];
+  window_options: number[];
+  timeout_options: number[];
+  max_strikes: number;
+}
+
+export interface EscalationData extends EscalationOptions {
+  enabled: boolean;
+  steps: EscalationStep[];
+  max_steps: number;           // Free 1, Premium mehr (feature_limits)
+  premium_max_steps: number;
+}

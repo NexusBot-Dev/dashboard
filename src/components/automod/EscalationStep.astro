@@ -1,0 +1,51 @@
+---
+// Eine Stufe der Eskalation (src/components/automod/EscalationCard.astro). step = null: Vorlage für „Stufe
+// hinzufügen“ (3 Verstöße in 1 Std. → Verwarnung). Skript: setupEscalation in src/scripts/pages/automod.ts.
+import { timeoutLabel, type EscalationOptions, type EscalationStep, type RuleTexts } from '../../lib/automodRules';
+
+interface Props {
+  step: EscalationStep | null;
+  number: number;
+  options: EscalationOptions;
+  texts: RuleTexts;
+}
+
+const { step, number, options, texts } = Astro.props;
+const t = Astro.locals.t;
+const value: EscalationStep = step ?? { strikes: 3, window_minutes: 60, action: 'warn' };
+const timeoutMinutes = value.timeout_minutes ?? 60;
+
+const labelClass = 'block text-xs font-medium text-slate-300 mb-1.5';
+const inputClass = 'w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50';
+---
+
+<div data-escalation-step class="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+  <div class="flex items-center justify-between mb-2">
+    <p class="text-xs font-semibold text-slate-300" data-step-number>{t('automod.escalation_step', { n: number })}</p>
+    <button type="button" data-step-remove class="text-xs font-medium text-red-400 hover:underline">{t('automod.escalation_remove')}</button>
+  </div>
+  <div class="grid gap-3 grid-cols-2 sm:grid-cols-4">
+    <label>
+      <span class={labelClass}>{t('automod.escalation_strikes_label')}</span>
+      <input type="number" min="1" max={options.max_strikes} value={value.strikes} data-step-field="strikes" class={inputClass} />
+    </label>
+    <label>
+      <span class={labelClass}>{t('automod.escalation_window_label')}</span>
+      <select data-step-field="window_minutes" class={inputClass}>
+        {options.window_options.map((m) => <option value={String(m)} selected={m === value.window_minutes}>{timeoutLabel(m, texts)}</option>)}
+      </select>
+    </label>
+    <label>
+      <span class={labelClass}>{t('automod.escalation_action_label')}</span>
+      <select data-step-field="action" class={inputClass}>
+        {options.actions.map((a) => <option value={a} selected={a === value.action}>{t(`automod.escalation_action_${a}`)}</option>)}
+      </select>
+    </label>
+    <label class:list={{ hidden: value.action !== 'timeout' }} data-step-timeout>
+      <span class={labelClass}>{t('automod.escalation_timeout_label')}</span>
+      <select data-step-field="timeout_minutes" class={inputClass}>
+        {options.timeout_options.map((m) => <option value={String(m)} selected={m === timeoutMinutes}>{timeoutLabel(m, texts)}</option>)}
+      </select>
+    </label>
+  </div>
+</div>

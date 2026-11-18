@@ -37,11 +37,13 @@ const premiumNotice =
   : premiumExpiresInDays === 1 ? t('notifications.premium_expires_tomorrow')
   : t('notifications.premium_expires_soon', { days: premiumExpiresInDays });
 
-const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
-  de: { flag: '🇩🇪', short: 'DE' },
-  en: { flag: '🇬🇧', short: 'EN' },
-  es: { flag: '🇪🇸', short: 'ES' },
-  pt: { flag: '🇧🇷', short: 'PT' },
+// Flaggen als SVG (public/flags, aus flag-icons): Emoji-Flaggen zeigt Chrome unter Windows nur als Buchstaben.
+// Sprachnamen in der jeweiligen Sprache, damit man die eigene auch in einer fremden Oberfläche findet.
+const LANG_LABELS: Record<Lang, { flag: string; short: string; name: string }> = {
+  de: { flag: '/flags/de.svg', short: 'DE', name: 'Deutsch' },
+  en: { flag: '/flags/gb.svg', short: 'EN', name: 'English' },
+  es: { flag: '/flags/es.svg', short: 'ES', name: 'Español' },
+  pt: { flag: '/flags/br.svg', short: 'PT', name: 'Português' },
 };
 ---
 
@@ -125,28 +127,31 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string }> = {
         <button
           type="button"
           id="lang-switcher-btn"
+          aria-haspopup="true"
           aria-expanded="false"
+          aria-label={`${t('common.language')}: ${LANG_LABELS[lang]?.name}`}
           class="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
         >
-          <span>{LANG_LABELS[lang]?.flag}</span>
+          <img src={LANG_LABELS[lang]?.flag} alt="" width="20" height="15" class="rounded-sm" />
           <span class="hidden sm:inline">{LANG_LABELS[lang]?.short}</span>
         </button>
         <div
           id="lang-dropdown"
           data-text-error={t('common.lang_change_failed')}
-          class="hidden absolute right-0 mt-2 w-36 rounded-xl bg-slate-900 border border-slate-800 shadow-xl py-1.5 z-50 text-sm"
+          class="hidden absolute right-0 mt-2 w-40 rounded-xl bg-slate-900 border border-slate-800 shadow-xl py-1.5 z-50 text-sm"
         >
           {Object.entries(LANG_LABELS).map(([code, meta]) => (
             <button
               type="button"
               data-lang-option={code}
+              lang={code}
               class:list={[
                 "w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-800 transition-colors",
                 code === lang ? "text-primary-400 font-semibold" : "text-slate-300",
               ]}
             >
-              <span>{meta.flag}</span>
-              <span>{meta.short}</span>
+              <img src={meta.flag} alt="" width="20" height="15" loading="lazy" class="rounded-sm" />
+              <span>{meta.name}</span>
             </button>
           ))}
         </div>

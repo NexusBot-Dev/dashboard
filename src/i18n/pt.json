@@ -27,6 +27,7 @@
     "channel_id_placeholder": "ID do canal (bot offline, nomes indisponíveis)",
     "no_other_servers": "Nenhum outro servidor disponível",
     "all_servers": "Ver todos os servidores",
+    "language": "Idioma",
     "lang_change_failed": "Não foi possível alterar o idioma. Tente novamente."
   },
   "levels": {

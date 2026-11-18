@@ -2,6 +2,7 @@
 // Eine AutoMod-Regel als aufklappbare Karte (Seite: src/pages/server/[guildId]/automod/index.astro,
 // Verhalten: src/scripts/pages/automod.ts). Mit AutoMod 2.0 (v2) klappen Einstellungen und Inhalt auf;
 // ohne v2 nur Schalter (und beim Wortfilter die Wortliste) wie bisher.
+import CharCounter from '../CharCounter.astro';
 import Switch from '../Switch.astro';
 import { partnerLink, PRESETS, ruleSummary, timeoutLabel, timeoutOptions, type RuleData, type RuleKind, type RuleLimits, type RuleTexts } from '../../lib/automodRules';
 
@@ -148,7 +149,10 @@ const channelOptions = rule ? [...channels, ...rule.exempt_channel_ids.filter((i
             <div>
               <label for={`custom-message-${kind}`} class={labelClass}>{t('automod.custom_message_label')}</label>
               <textarea id={`custom-message-${kind}`} rows="2" maxlength={limits.custom_message} data-field="custom_message" data-type="text" class={`${inputClass} resize-y`}>{rule.custom_message ?? ''}</textarea>
-              <p class="mt-1 text-xs text-slate-400">{t('automod.custom_message_hint', { max: limits.custom_message })}</p>
+              <div class="mt-1 flex items-start gap-3">
+                <p class="text-xs text-slate-400">{t('automod.custom_message_hint')}</p>
+                <CharCounter for={`custom-message-${kind}`} max={limits.custom_message} value={rule.custom_message ?? ''} />
+              </div>
             </div>
           )}
           {hasTimeout && (

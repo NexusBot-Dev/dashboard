@@ -16,6 +16,8 @@ const stepField = (page: Page, index: number, name: string) => steps(page).nth(i
 const addBtn = (page: Page) => card(page).locator('[data-escalation-add]');
 const saveBtn = (page: Page) => card(page).locator('[data-escalation-save]');
 const toggle = (page: Page) => page.locator('#escalation-toggle');
+const count = (page: Page) => card(page).locator('[data-escalation-count]');
+const countLine = (page: Page) => count(page).locator('xpath=..');
 
 test.beforeEach(async ({ context }) => {
   await resetBot(withEscalation({}));
@@ -77,9 +79,11 @@ test('Timeout-Stufe speichern', async ({ page }) => {
 test('Free: nur eine Stufe, Hinweis auf Premium', async ({ page }) => {
   await page.goto(PAGE);
   await expect(addBtn(page)).toBeDisabled();
+  await expect(countLine(page)).toHaveText(`1 / 1 ${t('automod.escalation_count_label')}`);
   await expect(card(page).locator('[data-escalation-limit]')).toBeVisible();
   await expect(card(page).locator('[data-escalation-limit]')).toHaveText(t('automod.escalation_limit_free', { max: 5 }));
   await steps(page).first().locator('[data-step-remove]').click();
+  await expect(countLine(page)).toHaveText(`0 / 1 ${t('automod.escalation_count_label')}`);
   await expect(card(page).locator('[data-escalation-limit]')).toBeHidden();
 });
 
@@ -87,8 +91,10 @@ test('Premium: Stufen hinzufügen und entfernen', async ({ page }) => {
   await resetBot(withEscalation({ max_steps: 5 }));
   await page.goto(PAGE);
   await expect(card(page).locator('[data-escalation-limit]')).toBeHidden();
+  await expect(countLine(page)).toHaveText(`1 / 5 ${t('automod.escalation_count_label')}`);
   await addBtn(page).click();
   await expect(steps(page)).toHaveCount(2);
+  await expect(count(page)).toHaveText('2');
   await expect(steps(page).nth(1)).toContainText(t('automod.escalation_step', { n: 2 }));
   // Vorlage: 3 Verstöße in 1 Std. → Verwarnung
   await expect(stepField(page, 1, 'strikes')).toHaveValue('3');
@@ -109,6 +115,7 @@ test('Premium: Stufen hinzufügen und entfernen', async ({ page }) => {
 
   for (let i = 0; i < 4; i++) await addBtn(page).click();
   await expect(steps(page)).toHaveCount(5);
+  await expect(count(page)).toHaveText('5');
   await expect(addBtn(page)).toBeDisabled();
   await expect(card(page).locator('[data-escalation-limit]')).toBeVisible();
   await expect(card(page).locator('[data-escalation-limit]')).toHaveText(t('automod.escalation_limit', { max: 5 }));
@@ -128,9 +135,13 @@ test('Premium ausgelaufen: Hinweis, erst nach Entfernen speicherbar', async ({ p
   }));
   await page.goto(PAGE);
   await expect(card(page).locator('[data-escalation-downgrade]')).toBeVisible();
+  await expect(count(page)).toHaveText('2');
+  await expect(count(page)).toHaveClass(/text-amber-400/);
   await expect(addBtn(page)).toBeDisabled();
   await steps(page).nth(1).locator('[data-step-remove]').click();
   await expect(card(page).locator('[data-escalation-downgrade]')).toBeHidden();
+  await expect(count(page)).toHaveText('1');
+  await expect(count(page)).not.toHaveClass(/text-amber-400/);
   await expect(saveBtn(page)).toBeEnabled();
 });
 

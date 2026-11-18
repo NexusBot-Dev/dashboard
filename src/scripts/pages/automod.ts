@@ -5,6 +5,7 @@ import { byId, createDashboardApi, readPageConfig, type ApiMessages, type Dashbo
 import { isSwitchOn, setSwitch } from '../switch';
 import { setupTabs } from '../tabs';
 import { setupMarkdownToolbars } from '../markdown-toolbar';
+import { refreshCharCounters, setupCharCounters } from '../char-counter';
 import { renderDiscordMarkdown } from '../../lib/discordMarkdown';
 import { partnerLink, ruleSummary, type EscalationStep, type RuleData, type RuleKind, type RuleTexts } from '../../lib/automodRules';
 
@@ -120,6 +121,9 @@ function setupEscalation(api: DashboardApi) {
     card!.querySelector('[data-escalation-empty]')!.classList.toggle('hidden', all.length > 0);
     card!.querySelector('[data-escalation-limit]')!.classList.toggle('hidden', all.length < maxSteps);
     card!.querySelector('[data-escalation-downgrade]')!.classList.toggle('hidden', all.length <= maxSteps);
+    const count = card!.querySelector<HTMLElement>('[data-escalation-count]')!;
+    count.textContent = String(all.length);
+    count.classList.toggle('text-amber-400', all.length > maxSteps);
     addBtn.disabled = all.length >= maxSteps;
     saveBtn.disabled = current() === saved;
   }
@@ -264,6 +268,7 @@ function setupKeywords(root: HTMLElement, api: DashboardApi, i18n: I18n) {
   editBtn.addEventListener('click', () => form.classList.remove('hidden'));
   cancelBtn.addEventListener('click', () => {
     textarea.value = textarea.defaultValue;
+    refreshCharCounters(form);
     form.classList.add('hidden');
   });
 
@@ -274,6 +279,7 @@ function setupKeywords(root: HTMLElement, api: DashboardApi, i18n: I18n) {
       const result = await api.callModuleAction<{ enabled?: boolean }>('automod', 'set-keywords', { keywords });
       renderKeywords(keywords);
       textarea.defaultValue = textarea.value = keywords.join('\n');
+      refreshCharCounters(form);
       // Gab es noch keine Keyword-Regel, legt der Bot sie aktiv an
       if (typeof result?.enabled === 'boolean' && keywordsSwitch) setSwitch(keywordsSwitch, result.enabled);
       form.classList.add('hidden');
@@ -301,6 +307,7 @@ function trackChanges(fields: Field[], saveBtn: HTMLButtonElement) {
   /** Gespeicherten Stand übernehmen (Werte vom Bot) */
   const commit = (values: Map<Field, string>) => {
     values.forEach((value, f) => { f.value = value; f.dataset.initial = value; });
+    refreshCharCounters();
     refresh();
   };
   return { changed, refresh, commit };
@@ -529,6 +536,7 @@ function setupRuleCards(root: HTMLElement, api: DashboardApi, config: AutomodCon
         // Stand des Bots übernehmen (bereinigte Wörter, Domains, Codes …)
         const values = formValues(result);
         form.querySelectorAll<HTMLElement>('[data-field]').forEach((el) => writeField(el, values[el.dataset.field!]));
+        refreshCharCounters(form);
         initial = readForm(form);
         const rule = { ...(JSON.parse(card.dataset.rule || '{}') as RuleData), ...(result as Partial<RuleData>) };
         card.dataset.rule = JSON.stringify(rule);
@@ -559,6 +567,7 @@ function setupAutomodPage() {
 
   setupTabs(root);
   setupMarkdownToolbars();
+  setupCharCounters(root);
   setupSwitches(root, api, config.shieldCanDisable);
   setupKeywords(root, api, i18n);
   setupRuleCards(root, api, config);

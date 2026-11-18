@@ -47,6 +47,9 @@ const saveBtnClass = 'px-4 py-2 rounded-lg text-sm font-semibold btn-primary-sur
       + {t('automod.escalation_add')}
     </button>
     <button type="button" data-escalation-save disabled class={saveBtnClass}>{t('common.save')}</button>
+    <p class="ml-auto text-xs tabular-nums text-slate-400">
+      <span data-escalation-count class:list={{ 'text-amber-400': data.steps.length > data.max_steps }}>{data.steps.length}</span> / {data.max_steps} {t('automod.escalation_count_label')}
+    </p>
   </div>
   <p class="mt-4 text-xs text-slate-400">{t('automod.escalation_note')}</p>
 </section>

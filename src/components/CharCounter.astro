@@ -1,0 +1,15 @@
+---
+// Zeichenzähler „12 / 150“ unter einem Textfeld mit maxlength. Ab 90 % gelb, am Limit rot.
+// Skript: setupCharCounters in src/scripts/char-counter.ts (zählt beim Tippen mit).
+interface Props {
+  for: string;      // id des Textfelds
+  max: number;
+  value?: string;   // Startwert, damit der Zähler auch ohne Skript stimmt
+}
+
+const { for: target, max, value = '' } = Astro.props;
+---
+
+<span data-char-counter={target} aria-live="polite"
+  class="shrink-0 ml-auto text-xs tabular-nums text-slate-400 data-[level=warn]:text-amber-400 data-[level=full]:text-red-400"
+  data-level={value.length >= max ? 'full' : value.length >= max * 0.9 ? 'warn' : undefined}>{value.length} / {max}</span>

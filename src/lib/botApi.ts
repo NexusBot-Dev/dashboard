@@ -40,6 +40,14 @@ function isReadAction(module: string, action: string): boolean {
   );
 }
 
+// Modul und Aktion landen im Pfad der Bot-URL. Nur Kleinbuchstaben, Ziffern, _ und -: Schon ein „\“ (aus %5C)
+// würde fetch wie „/“ behandeln, und mit „..“ ginge die Anfrage an einen anderen Endpunkt des Bots.
+const NAME_PATTERN = /^[a-z0-9_-]+$/;
+
+export function isValidActionName(module: string, action: string): boolean {
+  return NAME_PATTERN.test(module) && NAME_PATTERN.test(action);
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function rawCall(
@@ -50,7 +58,7 @@ async function rawCall(
   actingUserId?: string,
   lang?: string
 ) {
-  const res = await fetch(`${BOT_INTERNAL_URL}/api/dashboard/module/${module}/${action}`, {
+  const res = await fetch(`${BOT_INTERNAL_URL}/api/dashboard/module/${encodeURIComponent(module)}/${encodeURIComponent(action)}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -109,6 +117,7 @@ export async function callBotModuleAction(
   actingUserId?: string,
   lang?: string
 ) {
+  if (!isValidActionName(module, action)) throw new BotApiError('invalid_request', 400);
   const cacheable = CACHEABLE.has(`${module}/${action}`) && Object.keys(extra).length === 0;
   if (!cacheable) {
     return callWithRetry(module, action, guildId, extra, actingUserId, lang);

@@ -1,4 +1,8 @@
+import { createHash } from 'node:crypto';
 import { getDiscordUserGuilds as fetchGuildsFromDiscord, DiscordApiError } from './oauth';
+
+// Schlüssel der Maps ist ein Hash des Tokens, nicht das Token selbst: so steht es nicht zusätzlich im Speicher
+const tokenKey = (accessToken: string) => createHash('sha256').update(accessToken).digest('hex');
 
 interface CacheEntry {
   guilds: any[];
@@ -20,7 +24,8 @@ export async function getCachedUserGuilds(
   allowStale = true
 ): Promise<any[]> {
   const now = Date.now();
-  const cached = cache.get(accessToken);
+  const key = tokenKey(accessToken);
+  const cached = cache.get(key);
   const age = cached ? now - cached.fetchedAt : Infinity;
 
   if (forceRefresh && age < MIN_FORCE_INTERVAL_MS) forceRefresh = false;
@@ -29,7 +34,7 @@ export async function getCachedUserGuilds(
   if (!forceRefresh && age < TTL_MS) return cached!.guilds;
 
   // 2. Discord drosselt dieses Token: nicht nachfragen, alten Stand nutzen
-  if ((blockedUntil.get(accessToken) ?? 0) > now) {
+  if ((blockedUntil.get(key) ?? 0) > now) {
     if (cached && age < MAX_STALE_MS) return cached.guilds;
     throw new DiscordApiError('Discord Rate-Limit', 429);
   }
@@ -53,15 +58,16 @@ export async function getCachedUserGuilds(
 }
 
 async function _fetchAndCacheGuilds(accessToken: string): Promise<any[]> {
-  const existing = pendingRequests.get(accessToken);
+  const key = tokenKey(accessToken);
+  const existing = pendingRequests.get(key);
   if (existing) return existing;
 
   const promise = (async () => {
     try {
       const guilds = await fetchGuildsFromDiscord(accessToken);
-      cache.delete(accessToken); // ans Ende der Einfüge-Reihenfolge
-      cache.set(accessToken, { guilds, fetchedAt: Date.now() });
-      blockedUntil.delete(accessToken);
+      cache.delete(key); // ans Ende der Einfüge-Reihenfolge
+      cache.set(key, { guilds, fetchedAt: Date.now() });
+      blockedUntil.delete(key);
       while (cache.size > MAX_ENTRIES) {
         const oldest = cache.keys().next().value;
         if (oldest === undefined) break;
@@ -72,18 +78,18 @@ async function _fetchAndCacheGuilds(accessToken: string): Promise<any[]> {
       if (err instanceof DiscordApiError) {
         if (err.status === 429) {
           const seconds = Math.min(Math.max(err.retryAfter ?? 5, 1), 900);
-          blockedUntil.set(accessToken, Date.now() + seconds * 1000);
+          blockedUntil.set(key, Date.now() + seconds * 1000);
           console.warn(`Discord 429 auf /users/@me/guilds, Abrufe für dieses Token pausiert (${seconds}s)`);
         } else if (err.status === 401) {
-          cache.delete(accessToken);
+          cache.delete(key);
         }
       }
       throw err;
     } finally {
-      pendingRequests.delete(accessToken);
+      pendingRequests.delete(key);
     }
   })();
 
-  pendingRequests.set(accessToken, promise);
+  pendingRequests.set(key, promise);
   return promise;
 }

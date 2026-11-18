@@ -7,7 +7,8 @@ on:
 
 jobs:
   check-and-e2e:
-    runs-on: ubuntu-latest
+    # Fest auf 24.04: ubuntu-latest ist inzwischen 26.04, das kennt Playwright erst ab 1.61 (wir: 1.60)
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     services:

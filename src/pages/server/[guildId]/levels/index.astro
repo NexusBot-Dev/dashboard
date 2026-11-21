@@ -32,6 +32,8 @@ let levelupChannelId = '';
 let excludedIds: string[] = [];
 let excludeTargets: { id: string; name: string; type: 'category' | 'channel'; category: string | null }[] = [];
 let excludeLimit = 25;
+let excludedRoleIds: string[] = [];
+let excludeRoleLimit = 25;
 let botOnline = true;
 let premiumActive = false;
 
@@ -72,6 +74,8 @@ try {
   excludedIds = excludedResult.excluded_ids;
   excludeTargets = excludedResult.targets;
   excludeLimit = excludedResult.limit;
+  excludedRoleIds = excludedResult.excluded_role_ids ?? [];
+  excludeRoleLimit = excludedResult.role_limit ?? 25;
 } catch {
   botOnline = false;
 }
@@ -100,6 +104,7 @@ const i18n = {
   excludeGroupCategories: t('levels.exclude_group_categories'),
   excludeGroupChannels: t('levels.exclude_group_channels'),
   excludeCountTemplate: t('levels.exclude_count'), // enthält "{count}" und "{limit}"
+  excludeRolesSelectPlaceholder: t('levels.exclude_roles_select_placeholder'),
 };
 
 // Liest src/scripts/pages/levels.ts aus data-config
@@ -107,6 +112,7 @@ const pageConfig = {
   guildId,
   botOnline,
   exclude: { ids: excludedIds, targets: excludeTargets, limit: excludeLimit },
+  excludeRoles: { ids: excludedRoleIds, roles: allRoles.map((r) => ({ id: r.id, name: r.name })), limit: excludeRoleLimit },
   i18n,
 };
 ---
@@ -199,6 +205,21 @@ const pageConfig = {
       <div class="flex flex-col sm:flex-row gap-3">
         <select id="xp-exclude-select" disabled class="w-full sm:w-80 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"></select>
         <button id="add-xp-exclude-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          {t('common.add')}
+        </button>
+      </div>
+    </section>
+
+    <!-- Rollen ohne XP -->
+    <section id="xp-exclude-role-section" class="rounded-xl glass-panel p-6 mb-6">
+      <h2 class="text-base font-bold text-white mb-1">{t('levels.exclude_roles_section_title')}</h2>
+      <p class="text-sm text-slate-400 mb-4">{t('levels.exclude_roles_section_desc')}</p>
+      <div id="xp-excluded-role-list" class="flex flex-wrap gap-2 mb-1"></div>
+      <p id="xp-excluded-role-empty" class="text-sm text-slate-400 mb-1">{t('levels.exclude_roles_none')}</p>
+      <p id="xp-exclude-role-count" class="text-xs text-slate-400 mb-4"></p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <select id="xp-exclude-role-select" disabled aria-label={t('levels.exclude_roles_select_placeholder')} class="w-full sm:w-80 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"></select>
+        <button id="add-xp-exclude-role-btn" type="button" disabled class="px-4 py-2 rounded-lg text-sm font-semibold btn-primary-surface hover:bg-primary-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           {t('common.add')}
         </button>
       </div>

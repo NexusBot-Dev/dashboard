@@ -11,10 +11,16 @@ interface ExcludeTarget {
   category: string | null;
 }
 
+interface ExcludeRole {
+  id: string;
+  name: string;
+}
+
 interface LevelsConfig {
   guildId: string;
   botOnline: boolean;
   exclude: { ids: string[]; targets: ExcludeTarget[]; limit: number };
+  excludeRoles: { ids: string[]; roles: ExcludeRole[]; limit: number };
   i18n: Omit<ApiMessages, 'unexpectedResponseTemplate'> & {
     save: string;
     saving: string;
@@ -32,6 +38,7 @@ interface LevelsConfig {
     excludeGroupCategories: string;
     excludeGroupChannels: string;
     excludeCountTemplate: string;       // enthält "{count}" und "{limit}"
+    excludeRolesSelectPlaceholder: string;
   };
 }
 
@@ -141,23 +148,39 @@ function setupLevelUpChannel(api: DashboardApi, i18n: I18n) {
 const CHIP_CLASS = 'inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700';
 const CHIP_REMOVE_CLASS = 'w-5 h-5 inline-flex items-center justify-center rounded-full text-slate-400 hover:text-red-400 hover:bg-slate-700 disabled:opacity-40';
 
-function setupXpExclude(api: DashboardApi, config: LevelsConfig) {
-  const select = byId<HTMLSelectElement>('xp-exclude-select');
-  const addBtn = byId<HTMLButtonElement>('add-xp-exclude-btn');
-  const list = byId('xp-excluded-list');
-  const emptyNote = byId('xp-excluded-empty');
-  const countNote = byId('xp-exclude-count');
+interface PickerItem {
+  id: string;
+  chip: string;     // Text im Chip
+  option: string;   // Text in der Auswahl
+  group?: string;   // Überschrift der optgroup; ohne: Einträge direkt in der Auswahl
+}
+
+interface PickerOptions {
+  elements: { select: string; add: string; list: string; empty: string; count: string };   // Element-IDs
+  items: PickerItem[];
+  groups?: string[];            // Reihenfolge der optgroups
+  ids: string[];
+  limit: number;
+  placeholder: string;
+  action: string;               // leveling/<action>
+  payloadKey: string;           // Feld im Request
+  resultKey: string;            // Feld in der Antwort
+}
+
+// Liste mit Chips + Auswahl zum Hinzufügen; jede Änderung speichert sofort die ganze Liste
+function setupExcludePicker(api: DashboardApi, config: LevelsConfig, opts: PickerOptions) {
+  const select = byId<HTMLSelectElement>(opts.elements.select);
+  const addBtn = byId<HTMLButtonElement>(opts.elements.add);
+  const list = byId(opts.elements.list);
+  const emptyNote = byId(opts.elements.empty);
+  const countNote = byId(opts.elements.count);
   if (!select || !addBtn || !list || !emptyNote || !countNote) return;
 
   const { i18n, botOnline } = config;
-  const { targets, limit } = config.exclude;
-  let ids = config.exclude.ids;
-  const targetById = new Map(targets.map((item) => [item.id, item]));
+  const { items, limit } = opts;
+  let ids = opts.ids;
+  const itemById = new Map(items.map((item) => [item.id, item]));
   let busy = false;
-
-  const chipText = (item: ExcludeTarget) => (item.type === 'category' ? '📁 ' : '#') + item.name;
-  const optionText = (item: ExcludeTarget) =>
-    item.type === 'category' ? item.name : `#${item.name}${item.category ? ` · ${item.category}` : ''}`;
 
   function refreshControls() {
     const full = ids.length >= limit;
@@ -169,12 +192,12 @@ function setupXpExclude(api: DashboardApi, config: LevelsConfig) {
   function renderChips() {
     list!.replaceChildren();
     ids.forEach((id) => {
-      const item = targetById.get(id);
+      const item = itemById.get(id);
       if (!item) return;
       const chip = document.createElement('span');
       chip.className = CHIP_CLASS;
       const label = document.createElement('span');
-      label.textContent = chipText(item);
+      label.textContent = item.chip;
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
       removeBtn.textContent = '×';
@@ -189,15 +212,20 @@ function setupXpExclude(api: DashboardApi, config: LevelsConfig) {
   }
 
   function renderSelect() {
-    select!.replaceChildren(new Option(i18n.excludeSelectPlaceholder, ''));
-    ([['category', i18n.excludeGroupCategories], ['channel', i18n.excludeGroupChannels]] as const).forEach(([type, groupLabel]) => {
-      const items = targets.filter((item) => item.type === type && !ids.includes(item.id));
-      if (items.length === 0) return;
-      const group = document.createElement('optgroup');
-      group.label = groupLabel;
-      items.forEach((item) => group.appendChild(new Option(optionText(item), item.id)));
-      select!.appendChild(group);
-    });
+    select!.replaceChildren(new Option(opts.placeholder, ''));
+    const free = items.filter((item) => !ids.includes(item.id));
+    if (opts.groups) {
+      opts.groups.forEach((groupLabel) => {
+        const inGroup = free.filter((item) => item.group === groupLabel);
+        if (inGroup.length === 0) return;
+        const group = document.createElement('optgroup');
+        group.label = groupLabel;
+        inGroup.forEach((item) => group.appendChild(new Option(item.option, item.id)));
+        select!.appendChild(group);
+      });
+    } else {
+      free.forEach((item) => select!.appendChild(new Option(item.option, item.id)));
+    }
     refreshControls();
   }
 
@@ -206,8 +234,8 @@ function setupXpExclude(api: DashboardApi, config: LevelsConfig) {
     busy = true;
     refreshControls();
     try {
-      const result = await api.callModuleAction<{ excluded_ids: string[] }>('leveling', 'set-excluded', { channel_ids: nextIds });
-      ids = result.excluded_ids;
+      const result = await api.callModuleAction<Record<string, string[]>>('leveling', opts.action, { [opts.payloadKey]: nextIds });
+      ids = result[opts.resultKey];
     } catch (err) {
       alert(errorMessage(err));
     } finally {
@@ -222,6 +250,39 @@ function setupXpExclude(api: DashboardApi, config: LevelsConfig) {
 
   renderChips();
   renderSelect();
+}
+
+function setupXpExclude(api: DashboardApi, config: LevelsConfig) {
+  const { i18n } = config;
+  setupExcludePicker(api, config, {
+    elements: { select: 'xp-exclude-select', add: 'add-xp-exclude-btn', list: 'xp-excluded-list', empty: 'xp-excluded-empty', count: 'xp-exclude-count' },
+    items: config.exclude.targets.map((item: ExcludeTarget) => ({
+      id: item.id,
+      chip: (item.type === 'category' ? '📁 ' : '#') + item.name,
+      option: item.type === 'category' ? item.name : `#${item.name}${item.category ? ` · ${item.category}` : ''}`,
+      group: item.type === 'category' ? i18n.excludeGroupCategories : i18n.excludeGroupChannels,
+    })),
+    groups: [i18n.excludeGroupCategories, i18n.excludeGroupChannels],
+    ids: config.exclude.ids,
+    limit: config.exclude.limit,
+    placeholder: i18n.excludeSelectPlaceholder,
+    action: 'set-excluded',
+    payloadKey: 'channel_ids',
+    resultKey: 'excluded_ids',
+  });
+  setupExcludePicker(api, config, {
+    elements: {
+      select: 'xp-exclude-role-select', add: 'add-xp-exclude-role-btn', list: 'xp-excluded-role-list',
+      empty: 'xp-excluded-role-empty', count: 'xp-exclude-role-count',
+    },
+    items: config.excludeRoles.roles.map((role) => ({ id: role.id, chip: `@${role.name}`, option: role.name })),
+    ids: config.excludeRoles.ids,
+    limit: config.excludeRoles.limit,
+    placeholder: i18n.excludeRolesSelectPlaceholder,
+    action: 'set-excluded-roles',
+    payloadKey: 'role_ids',
+    resultKey: 'excluded_role_ids',
+  });
 }
 
 function setupLevelRoles(api: DashboardApi, i18n: I18n) {

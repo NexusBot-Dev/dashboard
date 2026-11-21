@@ -18,6 +18,9 @@ const saveLevelupBtn = (page: Page) => page.locator('#save-levelup-btn');
 const chips = (page: Page) => page.locator('#xp-excluded-list > span');
 const excludeSelect = (page: Page) => page.locator('#xp-exclude-select');
 const addExcludeBtn = (page: Page) => page.locator('#add-xp-exclude-btn');
+const roleChips = (page: Page) => page.locator('#xp-excluded-role-list > span');
+const excludeRoleSelect = (page: Page) => page.locator('#xp-exclude-role-select');
+const addExcludeRoleBtn = (page: Page) => page.locator('#add-xp-exclude-role-btn');
 const roleRow = (page: Page, level: number) => page.locator(`[data-level-role-row="${level}"]`);
 const roleRows = (page: Page) => page.locator('[data-level-role-row]');
 const roleForm = (page: Page) => page.locator('#level-role-form');
@@ -274,6 +277,54 @@ test.describe('Channels ohne XP', () => {
   });
 });
 
+
+test.describe('Rollen ohne XP', () => {
+  test('gespeicherte Rolle als Chip, hinzufügen schickt die ganze Liste', async ({ page }) => {
+    await page.goto(PAGE);
+    await expect(roleChips(page)).toHaveCount(1);
+    await expect(roleChips(page).first()).toContainText(`@${ROLES[1].name}`);
+    await expect(excludeRoleSelect(page).locator(`option[value="${ROLES[1].id}"]`)).toHaveCount(0);
+    await expect(page.locator('#xp-exclude-role-count')).toHaveText(t('levels.exclude_count', { count: 1, limit: 25 }));
+
+    await excludeRoleSelect(page).selectOption(ROLES[0].id);
+    await addExcludeRoleBtn(page).click();
+    expect((await waitForBotCall('leveling/set-excluded-roles')).role_ids).toEqual([ROLES[1].id, ROLES[0].id]);
+    await expect(roleChips(page)).toHaveCount(2);
+    await expect(excludeRoleSelect(page)).toBeDisabled();   // keine Rolle mehr übrig
+    expect(await botCalls('leveling/set-excluded')).toHaveLength(0);   // Channels bleiben unberührt
+  });
+
+  test('entfernen: Payload ohne die Rolle, danach Leer-Hinweis', async ({ page }) => {
+    await page.goto(PAGE);
+    await expect(page.locator('#xp-excluded-role-empty')).toBeHidden();
+    await roleChips(page).first().getByRole('button').click();
+    expect((await waitForBotCall('leveling/set-excluded-roles')).role_ids).toEqual([]);
+    await expect(roleChips(page)).toHaveCount(0);
+    await expect(page.locator('#xp-excluded-role-empty')).toBeVisible();
+    await expect(excludeRoleSelect(page).locator(`option[value="${ROLES[1].id}"]`)).toHaveCount(1);
+  });
+
+  test('zeigt die Liste aus der Antwort des Bots (z. B. ohne gelöschte Rolle)', async ({ page }) => {
+    await resetBot({ 'leveling/set-excluded-roles': { data: { excluded_role_ids: [ROLES[0].id] } } });
+    await page.goto(PAGE);
+    await excludeRoleSelect(page).selectOption(ROLES[0].id);
+    await addExcludeRoleBtn(page).click();
+    await waitForBotCall('leveling/set-excluded-roles');
+    await expect(roleChips(page)).toHaveCount(1);
+    await expect(roleChips(page).first()).toContainText(`@${ROLES[0].name}`);
+    await expect(excludeRoleSelect(page).locator(`option[value="${ROLES[1].id}"]`)).toHaveCount(1);
+  });
+
+  test('Fehler des Bots: Meldung, Chips bleiben wie vorher', async ({ page }) => {
+    await resetBot({ 'leveling/set-excluded-roles': { status: 400, error: 'Rolle existiert nicht (mehr)' } });
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await excludeRoleSelect(page).selectOption(ROLES[0].id);
+    await addExcludeRoleBtn(page).click();
+    await expect.poll(() => dialogs.join('\n')).toContain('Rolle existiert nicht (mehr)');
+    await expect(roleChips(page)).toHaveCount(1);
+  });
+});
 test.describe('Level-Rollen', () => {
   test('hinzufügen: Pflichtfelder, Payload, Zeile wird nach Level einsortiert', async ({ page }) => {
     const dialogs = collectDialogs(page);

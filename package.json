@@ -40,9 +40,12 @@
     "@fontsource-variable/space-grotesk": "^5.2.10",
     "@tailwindcss/vite": "^4.3.0",
     "astro": "^7.4.13",
+    "emoji-picker-element": "^1.29.1",
+    "emoji-picker-element-data": "^1.8.0",
     "mysql2": "^3.23.3",
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.0",
+    "twemoji-colr-font": "^15.0.3",
     "typescript": "^6.0.3"
   },
   "devDependencies": {

@@ -6,6 +6,8 @@ import Badge from '../../../../components/Badge.astro';
 import MarkdownToolbar from '../../../../components/MarkdownToolbar.astro';
 import { callGuildAction } from '../../../../lib/botApi';
 import { renderDiscordMarkdown } from '../../../../lib/discordMarkdown';
+import EmojiPicker from '../../../../components/EmojiPicker.astro';
+import { customEmojiName, customEmojiUrl, type ServerEmoji } from '../../../../lib/emoji';
 
 const { guildId } = Astro.params;
 const moduleEnabled = (await getModuleStates(guildId!).catch(() => null))?.reaction_roles ?? false;
@@ -22,7 +24,7 @@ let messages: {
   display_mode: 'reaction' | 'dropdown';
   entries: { id: number; emoji: string; role_id: string; role_name: string; mode: string; group_id: number | null }[];
 }[] = [];
-let customEmojis: { name: string; id: string; animated: boolean; url: string }[] = [];
+let customEmojis: ServerEmoji[] = [];
 let premiumActive = false;
 let botOnline = true;
 
@@ -139,15 +141,15 @@ const i18n = {
     <div id="messages-list">
       {messages.map((msg) => (
         <div class="mb-5 last:mb-0" data-message-block={msg.message_id} data-title={msg.title} data-description={msg.description}>
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-2">
+            <div class="flex flex-wrap items-center gap-2 min-w-0">
               <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">#{msg.channel_name ?? t('reaction_roles.channel_deleted')}</span>
               <span class="text-xs text-slate-400 font-mono">{msg.message_id}</span>
               <Badge variant={msg.display_mode === 'dropdown' ? 'primary' : 'neutral'}>
                 {msg.display_mode === 'dropdown' ? t('reaction_roles.display_mode_dropdown_option') : t('reaction_roles.display_mode_reaction_option')}
               </Badge>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <button type="button" data-edit-message={msg.message_id} disabled={!botOnline} class="text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline disabled:opacity-50">{t('common.edit')}</button>
               <button type="button" data-add-entry-to={msg.message_id} data-channel-id={msg.channel_id} disabled={!botOnline} class="text-xs font-medium text-primary-400 hover:underline disabled:opacity-50">+ {t('reaction_roles.add_entry_btn')}</button>
               <button type="button" data-delete-message={msg.message_id} data-channel-id={msg.channel_id} disabled={!botOnline} class="text-xs font-medium text-red-400 hover:underline disabled:opacity-50">{t('reaction_roles.delete_message_btn')}</button>
@@ -159,9 +161,13 @@ const i18n = {
           </div>
           <div class="space-y-2" data-entries-list={msg.message_id}>
             {msg.entries.map((entry) => (
-              <div class="flex items-center gap-4 p-3 rounded-lg border border-slate-800" data-entry-row={entry.id} data-emoji={entry.emoji}>
-                <span class="text-lg flex-shrink-0 w-8 text-center">{entry.emoji.startsWith('<') ? '🔹' : entry.emoji}</span>
-                <div class="flex items-center gap-2 flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 rounded-lg border border-slate-800" data-entry-row={entry.id} data-emoji={entry.emoji}>
+                <span class="text-lg flex-shrink-0 w-8 flex justify-center" data-entry-emoji>
+                  {customEmojiUrl(entry.emoji)
+                    ? <img src={customEmojiUrl(entry.emoji)} alt={customEmojiName(entry.emoji)} class="w-6 h-6 object-contain" />
+                    : <span class="emoji-twemoji">{entry.emoji}</span>}
+                </span>
+                <div class="flex items-center gap-2 flex-1 min-w-24">
                   <span class="text-sm font-medium text-white truncate">{entry.role_name}</span>
                 </div>
                 <Badge variant={entry.mode === 'unique' ? 'primary' : 'neutral'}>
@@ -231,28 +237,13 @@ const i18n = {
       </div>
 
       <div class="mb-3">
-        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+        <label for="entry-emoji-input" class="block text-xs font-medium text-slate-300 mb-1.5">
           {t('reaction_roles.emoji_label')}
         </label>
-        <input type="text" id="entry-emoji-input" maxlength="64" placeholder={t('reaction_roles.emoji_placeholder')} class="w-full max-w-sm px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-
-        {customEmojis.length > 0 && (
-          <div class="mt-2">
-            <p class="text-xs text-slate-400 mb-1.5">{t('reaction_roles.server_emojis_label')}:</p>
-            <div class="flex flex-wrap gap-1.5" id="custom-emoji-picker">
-              {customEmojis.slice(0, 30).map((e) => (
-                <button
-                  type="button"
-                  data-custom-emoji={`<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`}
-                  title={e.name}
-                  class="w-8 h-8 rounded-md border border-slate-700 hover:bg-slate-800 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <img src={e.url} alt={e.name} class="w-5 h-5" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <div class="flex items-center gap-2 max-w-sm">
+          <input type="text" id="entry-emoji-input" maxlength="64" placeholder={t('reaction_roles.emoji_placeholder')} class="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          <EmojiPicker target="entry-emoji-input" serverEmojis={customEmojis} />
+        </div>
       </div>
 
       <div class="mb-4">

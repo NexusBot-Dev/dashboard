@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { login, resetBot, waitForBotCall, botCalls, collectDialogs, guildPath, t } from './support/helpers';
 import { CHANNELS, ROLES, defaultBotData } from './support/fixtures.mjs';
 import { GUILD_ID } from './support/env.mjs';
@@ -22,11 +22,31 @@ async function openEntryForm(page: Page, messageId: string) {
   await expect(entryForm(page)).toBeVisible();
 }
 
+const pickerToggle = (page: Page) => page.locator('[data-emoji-picker-toggle]');
+const pickerPopover = (page: Page) => page.locator('[data-emoji-picker-popover]');
+const pickerPreview = (page: Page) => page.locator('[data-emoji-picker-preview]');
+const pickerSearch = (page: Page) => page.getByRole('combobox', { name: 'Suchen' });
+// Name eines Emoji-Buttons im Picker: „😀, grinsendes Gesicht, grinsendes_gesicht“
+const pickerEmoji = (page: Page, label: string) =>
+  page.getByRole('option', { name: new RegExp(`(^|, )${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(,|$)`) });
+
+/** Text steht vollständig da: nicht auf null gedrückt und nicht mit „…“ abgeschnitten */
+const isFullyShown = (locator: Locator) =>
+  locator.evaluate((el) => el.clientWidth > 0 && el.scrollWidth <= el.clientWidth + 1);
+
+async function openPicker(page: Page) {
+  await pickerToggle(page).click();
+  await expect(pickerPopover(page)).toBeVisible();
+  await expect(pickerSearch(page)).toBeVisible();
+}
+
 async function expectNoXss(page: Page) {
   expect(await page.evaluate(() => (window as any).__xss)).toBeUndefined();
 }
 
 test.beforeEach(async ({ context }) => {
+  await context.route('https://cdn.discordapp.com/**', (route) =>
+    route.fulfill({ contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAAAAACw=', 'base64') }));
   await resetBot();
   await login(context);
 });
@@ -59,18 +79,159 @@ test.describe('Übersicht', () => {
     await expect(page.locator('#new-message-btn')).toBeDisabled();
   });
 
-  test('ohne Premium sind Dropdown und Unique gesperrt, Server-Emojis nicht', async ({ page }) => {
+  test('ohne Premium sind Dropdown und Unique gesperrt, die Emoji-Auswahl nicht', async ({ page }) => {
     await page.goto(PAGE);
     await expect(page.locator('#new-msg-display-mode option[value="dropdown"]')).toBeDisabled();
     await expect(page.locator('#entry-mode-select option[value="unique"]')).toBeDisabled();
-    await expect(page.locator('[data-custom-emoji]')).toBeEnabled();
+    await openEntryForm(page, MSG_REACTION);
+    await expect(pickerToggle(page)).toBeEnabled();
   });
 
-  test('ohne Premium übernimmt ein Klick auf ein Server-Emoji dessen Code', async ({ page }) => {
+  test('Server-Emojis erscheinen als Bild, Standard-Emojis als Twemoji', async ({ page }) => {
+    await page.goto(PAGE);
+    const block = messageBlock(page, MSG_REACTION);
+    const custom = block.locator('[data-entry-row="12"] [data-entry-emoji] img');
+    await expect(custom).toHaveAttribute('src', 'https://cdn.discordapp.com/emojis/400000000000000001.png');
+    await expect(custom).toHaveAttribute('alt', 'blau');
+    const unicode = block.locator('[data-entry-row="11"] [data-entry-emoji] .emoji-twemoji');
+    await expect(unicode).toHaveText('🔴');
+    await expect(unicode).toHaveCSS('font-family', /^Twemoji/);
+  });
+});
+
+// Auf dem Handy darf sich die Seite nicht seitlich verschieben lassen (früher: Kopfzeile jeder Nachricht
+// mit drei Buttons ragte bis zu 210 px heraus) — auch nicht bei einer neu angelegten Nachricht
+for (const width of [320, 360, 390]) {
+  test(`Seite passt bei ${width} px in die Breite, auch mit neuer Nachricht`, async ({ page }) => {
+    collectDialogs(page);
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(PAGE);
+    const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+    expect(await overflow()).toBe(0);
+    // Langes Abzeichen („Unique - Farben“) darf den Rollennamen nicht wegdrücken
+    for (const row of await page.locator('[data-entry-row]').all()) {
+      const name = row.locator('span.truncate').first();
+      expect(await isFullyShown(name), await name.textContent() ?? '').toBe(true);
+    }
+
+    await page.locator('#new-message-btn').click();
+    await page.locator('#new-msg-channel').selectOption(CHANNELS[1].id);
+    await page.locator('#new-msg-title').fill('Neu');
+    await page.locator('#new-msg-desc').fill('Text');
+    await page.locator('#confirm-new-message-btn').click();
+    await expect(messageBlock(page, '700000000000000009')).toBeVisible();
+    expect(await overflow()).toBe(0);
+  });
+}
+
+test.describe('Emoji-Auswahl', () => {
+  test.beforeEach(async ({ page }) => {
     await page.goto(PAGE);
     await openEntryForm(page, MSG_REACTION);
-    await page.locator('[data-custom-emoji]').click();
-    await expect(page.locator('#entry-emoji-input')).toHaveValue('<:blau:400000000000000001>');
+  });
+
+  test('Standard-Emoji über die Suche wählen: Feld, Vorschau, Auswahl schließt', async ({ page }) => {
+    await expect(pickerPreview(page)).toHaveClass(/opacity-40/);
+    await openPicker(page);
+    await pickerSearch(page).fill('grinsendes');
+    await pickerEmoji(page, 'grinsendes Gesicht').click();
+    await expect(page.locator('#entry-emoji-input')).toHaveValue('😀');
+    await expect(pickerPopover(page)).toBeHidden();
+    await expect(pickerToggle(page)).toHaveAttribute('aria-expanded', 'false');
+    await expect(pickerPreview(page)).toHaveText('😀');
+    await expect(pickerPreview(page)).not.toHaveClass(/opacity-40/);
+    await expect(page.locator('#entry-emoji-input')).toBeFocused();
+  });
+
+  test('alle Server-Emojis sind auswählbar und ergeben ihren Code', async ({ page }) => {
+    await openPicker(page);
+    await pickerSearch(page).fill('emoji_40');
+    await pickerEmoji(page, 'emoji_40').click();
+    await expect(page.locator('#entry-emoji-input')).toHaveValue('<:emoji_40:400000000000000040>');
+
+    await openPicker(page);
+    await pickerSearch(page).fill('party');
+    await pickerEmoji(page, 'party').click();
+    await expect(page.locator('#entry-emoji-input')).toHaveValue('<a:party:400000000000000002>');
+    await expect(pickerPreview(page).locator('img')).toHaveAttribute('src', 'https://cdn.discordapp.com/emojis/400000000000000002.gif');
+  });
+
+  test('Server-Emojis haben eine eigene Kategorie mit allen 40', async ({ page }) => {
+    await openPicker(page);
+    await page.getByRole('tab', { name: t('emoji_picker.server_emojis') }).click();
+    await expect(page.getByRole('menu', { name: t('emoji_picker.server_emojis') }).getByRole('menuitem')).toHaveCount(40);
+  });
+
+  test('Emojis neuer als Version 15 werden nicht angeboten', async ({ page }) => {
+    await openPicker(page);
+    await pickerSearch(page).fill('zitterndes Doppelgesicht'); // Version 15
+    await expect(pickerEmoji(page, 'zitterndes Doppelgesicht')).toBeVisible();
+    await pickerSearch(page).fill('Augenringen'); // 🫩 Gesicht mit Augenringen, Version 16
+    await expect(page.getByRole('option', { name: /Augenringen/ })).toHaveCount(0);
+    // Die Grenze muss fest gesetzt sein: ohne sie richtet sich der Picker nach den Emojis des Browsers,
+    // und ein aktueller Browser würde Emojis zeigen, die Twemoji (und oft Discord) nicht kennt
+    expect(await page.locator('emoji-picker').evaluate((el) => (el as any).emojiVersion)).toBe(15);
+  });
+
+  // Popover liegt ganz im Bild und wird von nichts verdeckt (früher: abgeschnitten von der Karte,
+  // auf dem Handy links aus dem Bildschirm)
+  for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 360, height: 640 }]) {
+    test(`Auswahl liegt sichtbar im Bild bei ${viewport.width} px`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await openPicker(page);
+      await expect(page.getByRole('menuitem').first()).toBeVisible();
+      const check = () => page.locator('[data-emoji-picker-popover]').evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const points = [[r.left + 4, r.top + 4], [r.right - 4, r.top + 4], [r.left + 4, r.bottom - 4], [r.right - 4, r.bottom - 4]];
+        return {
+          inView: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+          onTop: points.every(([x, y]) => el.contains(document.elementFromPoint(x, y))),
+        };
+      });
+      await expect.poll(check).toEqual({ inView: true, onTop: true });
+
+      // Alle Kategorie-Tabs passen in die Zeile, auch der letzte (Flaggen)
+      const popoverBox = (await pickerPopover(page).boundingBox())!;
+      const tabs = page.getByRole('tab');
+      await expect(tabs).toHaveCount(10);
+      const last = (await tabs.last().boundingBox())!;
+      expect(last.x + last.width).toBeLessThanOrEqual(popoverBox.x + popoverBox.width);
+    });
+  }
+
+  test('Escape und Klick daneben schließen die Auswahl', async ({ page }) => {
+    await openPicker(page);
+    await page.keyboard.press('Escape');
+    await expect(pickerPopover(page)).toBeHidden();
+    await expect(pickerToggle(page)).toBeFocused();
+
+    await openPicker(page);
+    // Das Textfeld liegt neben dem Button und wird von der Auswahl nie verdeckt
+    await page.locator('#entry-emoji-input').click();
+    await expect(pickerPopover(page)).toBeHidden();
+  });
+
+  test('Emoji-Daten und Schrift kommen vom Dashboard selbst', async ({ page }) => {
+    const external: string[] = [];
+    page.on('request', (req) => {
+      const host = new URL(req.url()).host;
+      if (host !== new URL(page.url()).host && host !== 'cdn.discordapp.com') external.push(req.url());
+    });
+    const data = page.waitForResponse((res) => /data[^/]*\.json/.test(res.url()));
+    await openPicker(page);
+    expect((await data).ok()).toBe(true);
+    await pickerSearch(page).fill('grinsendes');
+    await expect(pickerEmoji(page, 'grinsendes Gesicht')).toBeVisible();
+    expect(external).toEqual([]);
+  });
+
+  test('eingefügtes Emoji aktualisiert die Vorschau, neues Formular setzt sie zurück', async ({ page }) => {
+    await page.locator('#entry-emoji-input').fill('<:blau:400000000000000001>');
+    await expect(pickerPreview(page).locator('img')).toHaveAttribute('alt', 'blau');
+    await page.locator('#cancel-entry-btn').click();
+    await openEntryForm(page, MSG_REACTION);
+    await expect(page.locator('#entry-emoji-input')).toHaveValue('');
+    await expect(pickerPreview(page)).toHaveClass(/opacity-40/);
   });
 });
 
@@ -313,6 +474,29 @@ test.describe('Nachricht bearbeiten', () => {
 });
 
 test.describe('Zuordnungen', () => {
+  test('neue Zuordnung zeigt ihr Emoji wie die Seite: Server-Emoji als Bild, sonst Twemoji', async ({ page }) => {
+    await page.goto(PAGE);
+    await openEntryForm(page, MSG_DROPDOWN);
+    await openPicker(page);
+    await pickerSearch(page).fill('party');
+    await pickerEmoji(page, 'party').click();
+    await page.locator('#confirm-entry-btn').click();
+    expect(await waitForBotCall('reaction_roles/add-entry')).toMatchObject({ emoji: '<a:party:400000000000000002>' });
+    const img = messageBlock(page, MSG_DROPDOWN).locator('[data-entry-row="99"] [data-entry-emoji] img');
+    await expect(img).toHaveAttribute('src', 'https://cdn.discordapp.com/emojis/400000000000000002.gif');
+    await expect(img).toHaveAttribute('alt', 'party');
+  });
+
+  test('neue Zuordnung mit Standard-Emoji nutzt Twemoji', async ({ page }) => {
+    await page.goto(PAGE);
+    await openEntryForm(page, MSG_DROPDOWN);
+    await page.locator('#entry-emoji-input').fill('👍🏽');
+    await page.locator('#confirm-entry-btn').click();
+    await waitForBotCall('reaction_roles/add-entry');
+    const emoji = messageBlock(page, MSG_DROPDOWN).locator('[data-entry-row="99"] [data-entry-emoji] .emoji-twemoji');
+    await expect(emoji).toHaveText('👍🏽');
+  });
+
   test('Toggle-Zuordnung hinzufügen und wieder entfernen', async ({ page }) => {
     collectDialogs(page);
     await page.goto(PAGE);
@@ -359,6 +543,32 @@ test.describe('Zuordnungen', () => {
       .toContainText(t('reaction_roles.unique_group_badge', { group: 'Farben' }));
   });
 
+  test('mit Premium auf dem Handy: neue Unique-Zuordnung zeigt den Rollennamen', async ({ page }) => {
+    await resetBot(withPremium);
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto(PAGE);
+    await openEntryForm(page, MSG_DROPDOWN);
+    await page.locator('#entry-role-select').selectOption(ROLES[1].id);
+    await page.locator('#entry-mode-select').selectOption('unique');
+    await page.locator('#entry-group-select').selectOption('5');
+    await page.locator('#entry-emoji-input').fill('🔵');
+    await page.locator('#confirm-entry-btn').click();
+    const name = messageBlock(page, MSG_DROPDOWN).locator('[data-entry-row="99"] [data-role-name]');
+    await expect(name).toBeVisible();
+    expect(await isFullyShown(name)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+  });
+
+  for (const emoji of ['1️⃣', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', '👍🏽', '🇩🇪']) {
+    test(`${emoji} wird als Emoji akzeptiert`, async ({ page }) => {
+      await page.goto(PAGE);
+      await openEntryForm(page, MSG_REACTION);
+      await page.locator('#entry-emoji-input').fill(emoji);
+      await page.locator('#confirm-entry-btn').click();
+      expect(await waitForBotCall('reaction_roles/add-entry')).toMatchObject({ emoji });
+    });
+  }
+
   test('ungültiges oder fehlendes Emoji wird abgelehnt, ohne den Bot zu fragen', async ({ page }) => {
     const dialogs = collectDialogs(page);
     await page.goto(PAGE);
@@ -366,9 +576,13 @@ test.describe('Zuordnungen', () => {
     await page.locator('#confirm-entry-btn').click();
     await expect.poll(() => dialogs).toContain(t('reaction_roles.alert_emoji_required'));
 
-    await page.locator('#entry-emoji-input').fill(`abc${XSS}`);
-    await page.locator('#confirm-entry-btn').click();
-    await expect.poll(() => dialogs).toContain(t('reaction_roles.alert_invalid_emoji'));
+    // Ziffern und # allein sind kein Emoji, erst mit Keycap (1️⃣)
+    for (const value of [`abc${XSS}`, '1', '#']) {
+      dialogs.length = 0;
+      await page.locator('#entry-emoji-input').fill(value);
+      await page.locator('#confirm-entry-btn').click();
+      await expect.poll(() => dialogs, value).toContain(t('reaction_roles.alert_invalid_emoji'));
+    }
     expect(await botCalls('reaction_roles/add-entry')).toHaveLength(0);
   });
 

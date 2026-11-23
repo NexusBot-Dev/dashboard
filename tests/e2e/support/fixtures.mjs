@@ -118,8 +118,13 @@ export const defaultBotData = {
     deletion_delay_hours: body.deletion_delay_hours ?? 48,
   }),
 
+  // Mehr als die früher angezeigten 30, eins davon animiert
   'guild/emojis': {
-    emojis: [{ name: 'blau', id: '400000000000000001', animated: false, url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }],
+    emojis: Array.from({ length: 40 }, (_, i) => {
+      const id = String(400000000000000001n + BigInt(i));
+      const [name, animated] = i === 0 ? ['blau', false] : i === 1 ? ['party', true] : [`emoji_${i + 1}`, false];
+      return { name, id, animated, url: `https://cdn.discordapp.com/emojis/${id}.${animated ? 'gif' : 'png'}` };
+    }),
   },
 
   'reaction_roles/list-groups': { groups: [{ id: 5, name: 'Farben' }] },

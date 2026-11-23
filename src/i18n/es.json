@@ -336,7 +336,8 @@
     "all_rights_reserved": "Todos los derechos reservados.",
     "link_imprint": "Aviso legal",
     "link_privacy": "Política de privacidad",
-    "link_terms": "Términos de servicio"
+    "link_terms": "Términos de servicio",
+    "emoji_credit": "Gráficos de emoji"
   },
   "reaction_roles": {
     "title": "Roles por reacción",
@@ -363,8 +364,7 @@
     "new_entry_form_title": "Nueva asignación",
     "role_label": "Rol",
     "emoji_label": "Emoji",
-    "emoji_placeholder": "😀 (Consejo: Win+. o Cmd+Ctrl+Espacio para el selector de emojis de tu sistema)",
-    "server_emojis_label": "Emojis del servidor",
+    "emoji_placeholder": "Elige o pega un emoji",
     "mode_label": "Modo",
     "premium_unique_hint": "(Unique solo con Premium)",
     "toggle_option": "Toggle",
@@ -724,5 +724,9 @@
     "internal_error": "Se produjo un error interno en Nexus. Inténtalo de nuevo más tarde.",
     "invalid_request": "Solicitud no válida. Recarga la página e inténtalo de nuevo.",
     "unknown": "Error desconocido ({code})"
+  },
+  "emoji_picker": {
+    "open": "Elegir emoji",
+    "server_emojis": "Emojis del servidor"
   }
 }

@@ -1,0 +1,44 @@
+---
+// Emoji-Auswahl neben einem Textfeld: Standard-Emojis (Twemoji wie in Discord) und optional
+// die Emojis des Servers. Ein Klick trägt das Emoji ins Feld ein (<:name:id> bei Server-Emojis).
+// Verhalten aus src/scripts/emoji-picker.ts — die Seite ruft setupEmojiPickers() auf.
+import 'twemoji-colr-font/twemoji.css';
+import { customEmojiCode, type ServerEmoji } from '../lib/emoji';
+
+interface Props {
+  target: string; // id des <input>
+  serverEmojis?: ServerEmoji[];
+  disabled?: boolean;
+}
+
+const { target, serverEmojis = [], disabled = false } = Astro.props;
+const t = Astro.locals.t;
+
+const config = {
+  lang: Astro.locals.lang,
+  serverCategory: t('emoji_picker.server_emojis'),
+  serverEmojis: serverEmojis.map((e) => ({ name: e.name, url: e.url, code: customEmojiCode(e) })),
+};
+---
+
+<div class="relative shrink-0" data-emoji-picker={target} data-config={JSON.stringify(config)}>
+  <button
+    type="button"
+    data-emoji-picker-toggle
+    disabled={disabled}
+    aria-haspopup="dialog"
+    aria-expanded="false"
+    aria-label={t('emoji_picker.open')}
+    title={t('emoji_picker.open')}
+    class="w-10 h-10 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    <span data-emoji-picker-preview class="emoji-twemoji leading-none" aria-hidden="true"></span>
+  </button>
+  <div
+    data-emoji-picker-popover
+    popover="manual"
+    role="dialog"
+    aria-label={t('emoji_picker.open')}
+    class="fixed inset-auto m-0 p-0 border-0 bg-transparent overflow-visible rounded-xl shadow-2xl"
+  ></div>
+</div>

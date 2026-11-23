@@ -4,6 +4,8 @@
 import { renderDiscordMarkdown } from '../../lib/discordMarkdown';
 import { byId, createDashboardApi, readPageConfig, type ApiMessages, type DashboardApi } from '../dashboard-api';
 import { setupMarkdownToolbars } from '../markdown-toolbar';
+import { refreshEmojiPreview, setupEmojiPickers } from '../emoji-picker';
+import { customEmojiName, customEmojiUrl, isValidEmojiInput } from '../../lib/emoji';
 
 interface ReactionRolesConfig {
   guildId: string;
@@ -37,10 +39,6 @@ interface ReactionRolesConfig {
 
 type I18n = ReactionRolesConfig['i18n'];
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
-
-const EMOJI_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|[‍️⃣])+$/u;
-const CUSTOM_EMOJI_REGEX = /^<a?:\w+:\d+>$/;
-const isValidEmojiInput = (value: string) => CUSTOM_EMOJI_REGEX.test(value) || EMOJI_REGEX.test(value);
 
 const BADGE_PRIMARY = 'bg-primary-900/30 text-primary-300 border border-primary-800';
 const BADGE_NEUTRAL = 'bg-slate-800 text-slate-300 border border-slate-700';
@@ -204,13 +202,13 @@ function setupNewMessage(api: DashboardApi, i18n: I18n) {
     block.dataset.title = title;
     block.dataset.description = description;
     block.innerHTML = `
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-2">
+        <div class="flex flex-wrap items-center gap-2 min-w-0">
           <span class="text-xs font-semibold uppercase tracking-wider text-slate-400" data-channel-label></span>
           <span class="text-xs text-slate-400 font-mono" data-message-id-label></span>
           <span class="${BADGE_BASE} ${modeBadgeClass}">${modeLabel}</span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
           <button type="button" data-edit-message class="text-xs font-medium text-slate-400 hover:text-primary-400 hover:underline">${i18n.editBtn}</button>
           <button type="button" data-add-entry-to class="text-xs font-medium text-primary-400 hover:underline">+ ${i18n.addEntryBtn}</button>
           <button type="button" data-delete-message class="text-xs font-medium text-red-400 hover:underline">${i18n.deleteMessageBtn}</button>
@@ -259,6 +257,22 @@ function setupNewMessage(api: DashboardApi, i18n: I18n) {
 }
 
 // ─── Zuordnungen hinzufügen ──────────────────────────────────────────────────
+/** Emoji einer Zuordnung: Bild bei Server-Emojis, sonst Twemoji-Text (wie die Server-Ausgabe der Seite) */
+function emojiElement(emoji: string): HTMLElement {
+  const url = customEmojiUrl(emoji);
+  if (url) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = customEmojiName(emoji) ?? '';
+    img.className = 'w-6 h-6 object-contain';
+    return img;
+  }
+  const span = document.createElement('span');
+  span.className = 'emoji-twemoji';
+  span.textContent = emoji;
+  return span;
+}
+
 function setupEntryForm(api: DashboardApi, i18n: I18n) {
   const entryForm = byId('entry-form');
   const list = byId('messages-list')!;
@@ -279,19 +293,13 @@ function setupEntryForm(api: DashboardApi, i18n: I18n) {
     groupWrap.classList.toggle('hidden', modeSelect.value !== 'unique');
   });
 
-  document.querySelectorAll<HTMLButtonElement>('[data-custom-emoji]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      if (btn.disabled) return;
-      emojiInput.value = btn.dataset.customEmoji ?? '';
-    });
-  });
-
   // Delegiert, damit auch Buttons neu angelegter Nachrichten funktionieren
   list.addEventListener('click', (event) => {
     const addBtn = (event.target as HTMLElement).closest<HTMLElement>('[data-add-entry-to]');
     if (!addBtn) return;
     target = { messageId: addBtn.dataset.addEntryTo!, channelId: addBtn.dataset.channelId! };
     emojiInput.value = '';
+    refreshEmojiPreview(emojiInput.id);
     modeSelect.value = 'toggle';
     groupWrap.classList.add('hidden');
     entryForm.classList.remove('hidden');
@@ -327,18 +335,18 @@ function setupEntryForm(api: DashboardApi, i18n: I18n) {
 
         const groupName = groupSelect.selectedOptions[0]?.textContent ?? '?';
         const row = document.createElement('div');
-        row.className = 'flex items-center gap-4 p-3 rounded-lg border border-slate-800';
+        row.className = 'flex flex-wrap items-center gap-x-4 gap-y-2 p-3 rounded-lg border border-slate-800';
         row.dataset.entryRow = String(result.entry_id ?? Date.now());
         row.dataset.emoji = emoji;
-        // emoji ist durch isValidEmojiInput auf Emoji-Zeichen bzw. <:name:id> beschränkt
         row.innerHTML = `
-          <span class="text-lg flex-shrink-0 w-8 text-center">${emoji.startsWith('<') ? '🔹' : emoji}</span>
-          <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="text-lg flex-shrink-0 w-8 flex justify-center" data-entry-emoji></span>
+          <div class="flex items-center gap-2 flex-1 min-w-24">
             <span class="text-sm font-medium text-white truncate" data-role-name></span>
           </div>
           <span data-mode-label class="${BADGE_BASE} ${mode === 'unique' ? BADGE_PRIMARY : BADGE_NEUTRAL}"></span>
           <button type="button" data-remove-entry class="text-xs font-medium text-red-400 hover:underline flex-shrink-0">${i18n.remove}</button>
         `;
+        row.querySelector<HTMLElement>('[data-entry-emoji]')!.append(emojiElement(emoji));
         row.querySelector<HTMLElement>('[data-role-name]')!.textContent = result.role_name;
         row.querySelector<HTMLElement>('[data-mode-label]')!.textContent =
           mode === 'unique' ? i18n.uniqueGroupBadgeTemplate.replace('{group}', () => groupName) : i18n.toggleOption;
@@ -413,6 +421,7 @@ function setupReactionRolesPage() {
   const api = createDashboardApi(config.guildId, config.i18n);
 
   setupMarkdownToolbars();
+  setupEmojiPickers();
   setupDescPreview();
   setupGroups(api, config.i18n);
   setupNewMessage(api, config.i18n);

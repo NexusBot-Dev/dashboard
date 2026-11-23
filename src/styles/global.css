@@ -131,3 +131,20 @@ textarea::-webkit-scrollbar-corner {
 textarea::-webkit-resizer {
   background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M11 4 4 11M11 8l-3 3' stroke='%2394a3b8' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E") no-repeat center / 16px;
 }
+/* Emojis wie in Discord (Twemoji). Die Schrift bindet src/components/EmojiPicker.astro ein. */
+.emoji-twemoji {
+  font-family: Twemoji, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+}
+
+/* Emoji-Auswahl: breit genug für alle 10 Kategorie-Tabs (Server-Emojis + 9 Standard) */
+emoji-picker.nexus-emoji-picker {
+  width: min(24.5rem, calc(100vw - 16px));
+  height: min(25rem, calc(100dvh - 16px));
+}
+/* Schmale Handys: etwas kleinere Emojis, damit die Tabs trotzdem in eine Zeile passen */
+@media (max-width: 420px) {
+  emoji-picker.nexus-emoji-picker {
+    --emoji-size: 1.25rem;
+    --emoji-padding: 0.375rem;
+  }
+}

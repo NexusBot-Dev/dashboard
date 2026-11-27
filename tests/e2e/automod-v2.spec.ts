@@ -125,6 +125,23 @@ test.describe('Einstellungen', () => {
     for (const kind of ['keywords', 'mentions', 'links']) await expect(field(page, kind, 'timeout_minutes')).toHaveCount(1);
   });
 
+  test('Zeitangaben in Einzahl und Mehrzahl, ohne „Tag(e)“', async ({ page }) => {
+    // 2 Tage hat ein Admin in Discord gesetzt – der Wert bleibt wählbar
+    await resetBot(withV2({ keywords: { ...AUTOMOD_V2.rules.keywords, timeout_minutes: 2880 } }));
+    await page.goto(PAGE);
+    await expand(page, 'keywords');
+    const option = (minutes: number) => field(page, 'keywords', 'timeout_minutes').locator(`option[value="${minutes}"]`);
+    await expect(option(1440)).toHaveText(t('automod.duration_day_one'));
+    await expect(option(2880)).toHaveText(t('automod.duration_days', { n: 2 }));
+    await expect(option(10080)).toHaveText(t('automod.duration_week_one'));
+    await expect(card(page, 'keywords').locator('[data-rule-summary]')).toContainText(
+      t('automod.summary_timeout', { duration: t('automod.duration_days', { n: 2 }) }),
+    );
+    for (const text of await field(page, 'keywords', 'timeout_minutes').locator('option').allTextContents()) {
+      expect(text).not.toMatch(/\(/);
+    }
+  });
+
   test('Fehler des Bots: Meldung, Eingabe bleibt, Speichern wieder möglich', async ({ page }) => {
     await resetBot({ ...withV2(), 'automod/rule-settings': { status: 400, error: 'Der Hinweis ist zu lang.' } });
     await page.goto(PAGE);

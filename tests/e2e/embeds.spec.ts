@@ -241,6 +241,19 @@ test.describe('Bearbeiten', () => {
     await expect(form(page)).toBeHidden();
     await expect(row(page, 1)).toContainText('Neu');
   });
+
+  test('eine nicht aktualisierte Nachricht: Meldung in Einzahl', async ({ page }) => {
+    await resetBot({ 'embeds/edit': { data: { id: 1, posts_updated: 0, posts_removed: 0, posts_failed: 1 } } });
+    const dialogs = collectDialogs(page);
+    await page.goto(PAGE);
+    await row(page, 1).locator('[data-edit-embed]').click();
+    await fillForm(page, { description: 'Neu' });
+    await page.locator('#confirm-embed-btn').click();
+    await waitForBotCall('embeds/edit');
+    await expect.poll(() => dialogs.length, { timeout: 2000 }).toBe(1);
+    expect(dialogs[0]).toBe(t('embeds.alert_posts_failed_one'));
+    expect(dialogs[0]).not.toMatch(/\(/);
+  });
 });
 
 test.describe('Löschen, Posten, Zeitplan', () => {

@@ -24,6 +24,18 @@ test.beforeEach(async ({ context }) => {
   await login(context);
 });
 
+test('Zeitangaben in Einzahl und Mehrzahl, ohne „Tag(e)“', async ({ page }) => {
+  await page.goto(PAGE);
+  const option = (field: string, minutes: number) => stepField(page, 0, field).locator(`option[value="${minutes}"]`);
+  await expect(option('window_minutes', 1440)).toHaveText(t('automod.duration_day_one'));
+  await expect(option('window_minutes', 10080)).toHaveText(t('automod.duration_week_one'));
+  await expect(option('window_minutes', 43200)).toHaveText(t('automod.duration_days', { n: 30 }));
+  await expect(option('timeout_minutes', 40320)).toHaveText(t('automod.duration_weeks', { n: 4 }));
+  for (const field of ['window_minutes', 'timeout_minutes']) {
+    for (const text of await stepField(page, 0, field).locator('option').allTextContents()) expect(text).not.toMatch(/\(/);
+  }
+});
+
 test('nicht in der Testphase und ohne AutoMod 2.0', async ({ page }) => {
   await resetBot(withEscalation(null));
   await page.goto(PAGE);

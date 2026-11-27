@@ -58,6 +58,9 @@ export interface RuleTexts {
   hours: string;
   days: string;
   week: string;
+  /** Einzahl („1 Tag“, „1 Woche“) – Minuten und Stunden sind abgekürzt und brauchen keine */
+  dayOne: string;
+  weekOne: string;
   timeoutOff: string;
   summaryWords: string;
   summaryAllowed: string;
@@ -80,8 +83,8 @@ const fill = (template: string, values: Record<string, string | number>) =>
 
 export function timeoutLabel(minutes: number, texts: RuleTexts): string {
   if (!minutes) return texts.timeoutOff;
-  if (minutes % 10080 === 0) return fill(texts.week, { n: minutes / 10080 });
-  if (minutes % 1440 === 0) return fill(texts.days, { n: minutes / 1440 });
+  if (minutes % 10080 === 0) return minutes === 10080 ? texts.weekOne : fill(texts.week, { n: minutes / 10080 });
+  if (minutes % 1440 === 0) return minutes === 1440 ? texts.dayOne : fill(texts.days, { n: minutes / 1440 });
   if (minutes % 60 === 0) return fill(texts.hours, { n: minutes / 60 });
   return fill(texts.minutes, { n: minutes });
 }

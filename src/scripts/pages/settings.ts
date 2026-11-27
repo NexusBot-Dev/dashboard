@@ -46,6 +46,7 @@ function setupSettingsPage() {
   const announcementsToggle = byId<HTMLButtonElement>('announcements-toggle');
   const colorInput = byId<HTMLInputElement>('accent-color-input');
   const colorHex = byId('accent-color-hex');
+  const colorReset = byId<HTMLButtonElement>('accent-color-reset');
   const saveStatus = byId('save-status')!;
 
   const fields = () => Array.from(form.querySelectorAll<FieldElement>('[data-field]'));
@@ -53,6 +54,8 @@ function setupSettingsPage() {
   const refreshSaveBar = () => saveBar.classList.toggle('hidden', !isDirty());
   const syncColorLabel = () => {
     if (colorInput && colorHex) colorHex.textContent = colorInput.value.toUpperCase();
+    // „Standard“ nur zeigen, solange eine eigene Farbe gewählt ist
+    if (colorInput && colorReset) colorReset.classList.toggle('hidden', colorInput.value === colorReset.dataset.default);
   };
 
   form.querySelectorAll<FieldElement>('input[data-field], select[data-field]').forEach((el) => {
@@ -61,6 +64,12 @@ function setupSettingsPage() {
   });
 
   colorInput?.addEventListener('input', syncColorLabel);
+  // Zurück auf die Standardfarbe – wie eine normale Änderung: erst Speichern übernimmt sie, Verwerfen holt die alte zurück
+  colorReset?.addEventListener('click', () => {
+    if (!colorInput) return;
+    colorInput.value = colorReset.dataset.default!;
+    colorInput.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   // Sofort einmal prüfen: Änderungen vor dem Verdrahten (astro:page-load kommt erst nach dem Laden) lösen kein Ereignis aus
   syncColorLabel();
   refreshSaveBar();

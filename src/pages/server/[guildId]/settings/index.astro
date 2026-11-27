@@ -95,8 +95,9 @@ function discordColorToHex(color: number | string | null): string {
   if (!n || n < 0 || n > 0xffffff) return '#00f5d4';
   return '#' + n.toString(16).padStart(6, '0');
 }
-// Ohne Premium nutzt der Bot (get_color) die Standardfarbe
-const accentColor = premiumActive ? discordColorToHex(settings.color) : '#00f5d4';
+// Ohne Premium nutzt der Bot (get_color) die Standardfarbe – gespeichert als #00f5d4 heißt dort ebenfalls „keine eigene Farbe“
+const DEFAULT_ACCENT = '#00f5d4';
+const accentColor = premiumActive ? discordColorToHex(settings.color) : DEFAULT_ACCENT;
 
 function daysUntil(date: Date | string): number {
   const target = new Date(date).getTime();
@@ -213,6 +214,15 @@ const i18n = {
             class="h-9 w-12 p-1 rounded-lg border border-slate-700 bg-slate-900 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <span id="accent-color-hex" class="text-sm font-mono text-slate-400">{accentColor.toUpperCase()}</span>
+          {premiumActive && (
+            <button
+              type="button"
+              id="accent-color-reset"
+              data-default={DEFAULT_ACCENT}
+              title={t('settings.accent_color_reset_title', { color: DEFAULT_ACCENT.toUpperCase() })}
+              class:list={['text-xs font-medium text-slate-400 hover:text-primary-400 underline underline-offset-2 transition-colors', { hidden: accentColor === DEFAULT_ACCENT }]}
+            >{t('settings.accent_color_reset')}</button>
+          )}
           {!premiumActive && <span class="text-xs text-slate-400">{t('settings.premium_custom_color_hint')}</span>}
         </div>
       </div>

@@ -163,6 +163,52 @@ test.describe('Bearbeiten', () => {
     expect((await waitForBotCall('settings')).fields).toEqual({ color: '#123abc' });
   });
 
+  test('mit Premium: „Standard“ setzt die Akzentfarbe zurück, erst Speichern übernimmt', async ({ page }) => {
+    await setSettings({ color: 0xff0000 });
+    await setPremium({ expires_at: null, source: 'manual' });
+    await page.goto(PAGE);
+    const reset = page.locator('#accent-color-reset');
+    await expect(reset).toBeVisible();
+    await expect(reset).toHaveText(t('settings.accent_color_reset'));
+    await expect(saveBar(page)).toBeHidden();
+
+    await reset.click();
+    await expect(page.locator('#accent-color-hex')).toHaveText('#00F5D4');
+    await expect(page.locator('#accent-color-input')).toHaveValue('#00f5d4');
+    await expect(reset).toBeHidden();
+    await expect(saveBar(page)).toBeVisible();
+    await page.locator('#save-btn').click();
+    expect((await waitForBotCall('settings')).fields).toEqual({ color: '#00f5d4' });
+    await expect(saveBar(page)).toBeHidden();
+  });
+
+  test('„Standard“ und dann Verwerfen: eigene Farbe ist wieder da', async ({ page }) => {
+    await setSettings({ color: 0xff0000 });
+    await setPremium({ expires_at: null, source: 'manual' });
+    await page.goto(PAGE);
+    await page.locator('#accent-color-reset').click();
+    await page.locator('#discard-btn').click();
+    await expect(page.locator('#accent-color-hex')).toHaveText('#FF0000');
+    await expect(page.locator('#accent-color-reset')).toBeVisible();
+    await expect(saveBar(page)).toBeHidden();
+    expect(await botCalls('settings')).toEqual([]);
+  });
+
+  test('„Standard“ nur bei eigener Farbe; ohne Premium gar nicht', async ({ page }) => {
+    await setSettings({ color: 0x00f5d4 });
+    await setPremium({ expires_at: null, source: 'manual' });
+    await page.goto(PAGE);
+    await expect(page.locator('#accent-color-reset')).toBeHidden();
+    // Eigene Farbe gewählt → „Standard“ erscheint sofort
+    await page.locator('#accent-color-input').fill('#123abc');
+    await expect(page.locator('#accent-color-reset')).toBeVisible();
+
+    await setPremium(null);
+    await setSettings({ color: 0xff0000 });
+    await page.goto(PAGE);
+    await expect(page.locator('#accent-color-reset')).toHaveCount(0);
+  });
+
   test('Warnungen des Bots werden angezeigt, gespeichert ist trotzdem', async ({ page }) => {
     await resetBot({ settings: { data: { updated_fields: ['log_channel_id'], warnings: ['Bot darf dort nicht schreiben'] } } });
     const dialogs = collectDialogs(page);

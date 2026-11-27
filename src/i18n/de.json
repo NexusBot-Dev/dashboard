@@ -262,6 +262,8 @@
     "bot_section_title": "Bot",
     "nickname_label": "Nickname auf diesem Server",
     "accent_color_label": "Akzentfarbe",
+    "accent_color_reset": "Standard",
+    "accent_color_reset_title": "Standardfarbe {color} wiederherstellen",
     "premium_custom_color_hint": "(Premium für individuelle Farbe)",
     "language_label": "Sprache",
     "timezone_label": "Zeitzone",

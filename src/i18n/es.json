@@ -262,6 +262,8 @@
     "bot_section_title": "Bot",
     "nickname_label": "Apodo en este servidor",
     "accent_color_label": "Color de acento",
+    "accent_color_reset": "Predeterminado",
+    "accent_color_reset_title": "Restablecer el color predeterminado {color}",
     "premium_custom_color_hint": "(Premium para un color personalizado)",
     "language_label": "Idioma",
     "timezone_label": "Zona horaria",

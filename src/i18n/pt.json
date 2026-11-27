@@ -262,6 +262,8 @@
     "bot_section_title": "Bot",
     "nickname_label": "Apelido neste servidor",
     "accent_color_label": "Cor de destaque",
+    "accent_color_reset": "Padrão",
+    "accent_color_reset_title": "Restaurar a cor padrão {color}",
     "premium_custom_color_hint": "(Premium para uma cor personalizada)",
     "language_label": "Idioma",
     "timezone_label": "Fuso horário",

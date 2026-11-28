@@ -1,0 +1,88 @@
+---
+// Dezente Bitte um einen Vote auf top.gg (Server-Übersicht). Hat der eingeloggte User gerade gevotet
+// (Bot: /webhooks/topgg → Tabelle topgg_votes), steht stattdessen ein Dank da, bis er wieder voten kann.
+// Mit × für 30 Tage ausblendbar — pro Browser (localStorage). Ohne JavaScript bleibt der Kasten weg.
+import { TOPGG_VOTE_URL } from '../config';
+
+interface Props {
+  minutesLeft: number | null;   // bis zum nächsten möglichen Vote; null = kein gültiger Vote
+}
+
+const { minutesLeft } = Astro.props;
+const t = Astro.locals.t;
+const voted = minutesLeft !== null;
+const hoursLeft = voted ? Math.max(1, Math.ceil(minutesLeft / 60)) : 0;
+---
+
+<section
+  data-vote-box
+  data-state={voted ? 'thanks' : 'ask'}
+  hidden
+  class="mt-6 rounded-xl glass-panel p-4 flex items-start sm:items-center gap-4"
+>
+  <span class="text-2xl flex-shrink-0" aria-hidden="true">{voted ? '🙏' : '⭐'}</span>
+  <!-- Auf dem Handy steht der Button unter dem Text, sonst daneben -->
+  <div class="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-semibold text-white">{voted ? t('overview.vote_thanks_title') : t('overview.vote_title')}</p>
+      <p class="text-sm text-slate-400 mt-0.5">
+        {voted ? t('overview.vote_thanks_text', { hours: hoursLeft }) : t('overview.vote_text')}
+      </p>
+    </div>
+    {!voted && (
+      <a
+        href={TOPGG_VOTE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-vote-link
+        class="self-start sm:self-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-primary-600 hover:bg-primary-500 text-white transition-colors"
+      >
+        {t('overview.vote_button')}
+      </a>
+    )}
+  </div>
+  <button
+    type="button"
+    data-vote-dismiss
+    class="flex-shrink-0 p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+    aria-label={t('overview.vote_dismiss')}
+    title={t('overview.vote_dismiss')}
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  </button>
+</section>
+
+<script>
+  const STORAGE_KEY = 'nexus-vote-box-hidden-until';
+  const HIDE_FOR_MS = 30 * 24 * 60 * 60 * 1000;
+
+  function hiddenUntil(): number {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEY)) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function initVoteBox() {
+    const box = document.querySelector<HTMLElement>('[data-vote-box]');
+    if (!box || box.dataset.bound === 'true') return;
+    box.dataset.bound = 'true';
+
+    if (Date.now() < hiddenUntil()) return;
+    box.hidden = false;
+
+    box.querySelector('[data-vote-dismiss]')?.addEventListener('click', () => {
+      box.hidden = true;
+      try {
+        localStorage.setItem(STORAGE_KEY, String(Date.now() + HIDE_FOR_MS));
+      } catch {}
+    });
+  }
+
+  document.addEventListener('astro:page-load', initVoteBox);
+  initVoteBox();
+</script>

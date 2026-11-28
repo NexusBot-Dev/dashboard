@@ -2,6 +2,7 @@
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { parseModules } from '../../../lib/modules';
 import Badge from '../../../components/Badge.astro';
+import VoteBox from '../../../components/VoteBox.astro';
 import pool from '../../../lib/db';
 import { callGuildAction } from '../../../lib/botApi';
 
@@ -40,10 +41,28 @@ async function getGuildData(id: string) {
   return { settings, premiumActive: Boolean(premium), moduleStates };
 }
 
+// Hat der eingeloggte User gerade auf top.gg gevotet? Minuten bis zum nächsten Vote (in SQL gerechnet: UTC wie beim Bot)
+async function getVoteMinutesLeft(userId: string | undefined): Promise<number | null> {
+  if (!userId) return null;
+  try {
+    const [rows] = await pool.query(
+      `SELECT TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), expires_at) AS minutes_left
+       FROM topgg_votes WHERE user_id = ? AND expires_at > UTC_TIMESTAMP()`,
+      [userId]
+    );
+    const row = (rows as any[])[0];
+    return row ? Number(row.minutes_left) : null;
+  } catch (err) {
+    console.error('Vote-Status konnte nicht gelesen werden:', err);   // dann eben die Bitte statt des Danks
+    return null;
+  }
+}
+
 // DB und Bot parallel — der Bot liefert Guild-Infos, Kennzahlen, Tickets und Top-Level in einem Aufruf
-const [{ settings, premiumActive, moduleStates }, overview] = await Promise.all([
+const [{ settings, premiumActive, moduleStates }, overview, voteMinutesLeft] = await Promise.all([
   getGuildData(guildId!),
   callGuildAction(Astro, 'guild', 'overview', guildId!).catch(() => null),
+  getVoteMinutesLeft(Astro.locals.session?.discordUserId),
 ]);
 
 if (!settings) {
@@ -258,6 +277,8 @@ const statusVariant: Record<string, 'success' | 'warning'> = { open: 'success', 
       )}
     </div>
   )}
+
+  <VoteBox minutesLeft={voteMinutesLeft} />
 
   <!-- "Letzte Aktivität" folgt mit dem Audit-Log -->
 </DashboardLayout>

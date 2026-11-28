@@ -651,7 +651,13 @@
     "no_open_tickets": "Keine offenen Tickets 🎉",
     "no_levels": "Noch keine Level vergeben.",
     "unknown_user": "Unbekannt",
-    "deleted_category": "Gelöschte Kategorie"
+    "deleted_category": "Gelöschte Kategorie",
+    "vote_title": "Gefällt dir Nexus?",
+    "vote_text": "Ein Vote auf top.gg hilft, dass mehr Server Nexus finden. Voten kannst du alle 12 Stunden.",
+    "vote_button": "Auf top.gg voten",
+    "vote_thanks_title": "Danke für deinen Vote!",
+    "vote_thanks_text": "Wieder voten kannst du in etwa {hours} Std.",
+    "vote_dismiss": "Für 30 Tage ausblenden"
   },
   "landing": {
     "page_title": "Willkommen | Nexus Hub",

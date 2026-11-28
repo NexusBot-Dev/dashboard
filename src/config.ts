@@ -81,6 +81,8 @@ export const SITE_LANGS = ['de', 'en'];
 export const DISCORD_APP_ID = '1510643364104765460';
 export const PREMIUM_SKU_ID = '1535637791466324080';
 export const PREMIUM_STORE_URL = `https://discord.com/application-directory/${DISCORD_APP_ID}/store/${PREMIUM_SKU_ID}`;
+// Vote-Seite auf top.gg (Kasten auf der Server-Übersicht)
+export const TOPGG_VOTE_URL = `https://top.gg/bot/${DISCORD_APP_ID}/vote`;
 export const BRAND_NAME = 'Nexus';
 export const BRAND_LOGO_TEXT = 'N';
 

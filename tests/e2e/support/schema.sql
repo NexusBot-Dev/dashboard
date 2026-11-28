@@ -2,6 +2,7 @@
 -- Entspricht dem Produktiv-Schema, nur ohne utf8mb4_uca1400_ai_ci (gibt es erst ab MariaDB 11).
 
 DROP TABLE IF EXISTS dashboard_sessions;
+DROP TABLE IF EXISTS topgg_votes;
 DROP TABLE IF EXISTS premium;
 DROP TABLE IF EXISTS guild_settings;
 
@@ -51,4 +52,11 @@ CREATE TABLE `dashboard_sessions` (
   PRIMARY KEY (`id`),
   KEY `idx_discord_user` (`discord_user_id`),
   KEY `idx_expires_at` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `topgg_votes` (
+  `user_id` bigint(20) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  PRIMARY KEY (`user_id`),
+  KEY `idx_topgg_votes_expires` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

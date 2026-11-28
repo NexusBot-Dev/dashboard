@@ -657,7 +657,8 @@
     "vote_button": "Vote on top.gg",
     "vote_thanks_title": "Thanks for your vote!",
     "vote_thanks_text": "You can vote again in about {hours} h.",
-    "vote_dismiss": "Hide for 30 days"
+    "vote_dismiss": "Hide for 30 days",
+    "vote_thanks_dismiss": "Hide until you can vote again"
   },
   "landing": {
     "page_title": "Welcome | Nexus Hub",

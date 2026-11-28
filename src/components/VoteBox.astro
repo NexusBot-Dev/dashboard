@@ -1,7 +1,8 @@
 ---
 // Dezente Bitte um einen Vote auf top.gg (Server-Übersicht). Hat der eingeloggte User gerade gevotet
 // (Bot: /webhooks/topgg → Tabelle topgg_votes), steht stattdessen ein Dank da, bis er wieder voten kann.
-// Mit × für 30 Tage ausblendbar — pro Browser (localStorage). Ohne JavaScript bleibt der Kasten weg.
+// Mit × ausblendbar, pro Browser (localStorage): die Bitte für 30 Tage, der Dank bis zum nächsten möglichen
+// Vote — danach kommt wieder die Bitte. Beide sind unabhängig voneinander. Ohne JavaScript bleibt der Kasten weg.
 import { TOPGG_VOTE_URL } from '../config';
 
 interface Props {
@@ -12,13 +13,15 @@ const { minutesLeft } = Astro.props;
 const t = Astro.locals.t;
 const voted = minutesLeft !== null;
 const hoursLeft = voted ? Math.max(1, Math.ceil(minutesLeft / 60)) : 0;
+const dismissLabel = voted ? t('overview.vote_thanks_dismiss') : t('overview.vote_dismiss');
 ---
 
 <section
   data-vote-box
   data-state={voted ? 'thanks' : 'ask'}
+  data-minutes-left={voted ? minutesLeft : undefined}
   hidden
-  class="mt-6 rounded-xl glass-panel p-4 flex items-start sm:items-center gap-4"
+  class="mb-6 rounded-xl glass-panel p-4 flex items-start sm:items-center gap-4"
 >
   <span class="text-2xl flex-shrink-0" aria-hidden="true">{voted ? '🙏' : '⭐'}</span>
   <!-- Auf dem Handy steht der Button unter dem Text, sonst daneben -->
@@ -45,8 +48,8 @@ const hoursLeft = voted ? Math.max(1, Math.ceil(minutesLeft / 60)) : 0;
     type="button"
     data-vote-dismiss
     class="flex-shrink-0 p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-    aria-label={t('overview.vote_dismiss')}
-    title={t('overview.vote_dismiss')}
+    aria-label={dismissLabel}
+    title={dismissLabel}
   >
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -56,12 +59,15 @@ const hoursLeft = voted ? Math.max(1, Math.ceil(minutesLeft / 60)) : 0;
 </section>
 
 <script>
-  const STORAGE_KEY = 'nexus-vote-box-hidden-until';
-  const HIDE_FOR_MS = 30 * 24 * 60 * 60 * 1000;
+  const STORAGE_KEYS: Record<string, string> = {
+    ask: 'nexus-vote-box-hidden-until',
+    thanks: 'nexus-vote-thanks-hidden-until',
+  };
+  const ASK_HIDE_FOR_MS = 30 * 24 * 60 * 60 * 1000;
 
-  function hiddenUntil(): number {
+  function hiddenUntil(key: string): number {
     try {
-      return Number(localStorage.getItem(STORAGE_KEY)) || 0;
+      return Number(localStorage.getItem(key)) || 0;
     } catch {
       return 0;
     }
@@ -72,13 +78,17 @@ const hoursLeft = voted ? Math.max(1, Math.ceil(minutesLeft / 60)) : 0;
     if (!box || box.dataset.bound === 'true') return;
     box.dataset.bound = 'true';
 
-    if (Date.now() < hiddenUntil()) return;
+    const state = box.dataset.state === 'thanks' ? 'thanks' : 'ask';
+    const key = STORAGE_KEYS[state];
+    if (Date.now() < hiddenUntil(key)) return;
     box.hidden = false;
 
     box.querySelector('[data-vote-dismiss]')?.addEventListener('click', () => {
       box.hidden = true;
+      // Dank: nur bis wieder gevotet werden kann (höchstens 12 h), dann soll die Bitte wieder erscheinen
+      const hideForMs = state === 'thanks' ? Number(box.dataset.minutesLeft || 0) * 60_000 : ASK_HIDE_FOR_MS;
       try {
-        localStorage.setItem(STORAGE_KEY, String(Date.now() + HIDE_FOR_MS));
+        localStorage.setItem(key, String(Date.now() + hideForMs));
       } catch {}
     });
   }

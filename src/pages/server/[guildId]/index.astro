@@ -205,6 +205,8 @@ const statusVariant: Record<string, 'success' | 'warning'> = { open: 'success', 
     </div>
   </div>
 
+  <VoteBox minutesLeft={voteMinutesLeft} />
+
   <!-- Kennzahlen -->
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
     {tiles.map((tile) => (
@@ -277,8 +279,6 @@ const statusVariant: Record<string, 'success' | 'warning'> = { open: 'success', 
       )}
     </div>
   )}
-
-  <VoteBox minutesLeft={voteMinutesLeft} />
 
   <!-- "Letzte Aktivität" folgt mit dem Audit-Log -->
 </DashboardLayout>

@@ -689,7 +689,12 @@
     "premium_expires_soon": "Premium expires in {days} days",
     "premium_expires_tomorrow": "Premium expires tomorrow",
     "premium_expires_today": "Premium expires today",
-    "diagnose_hint": "Tip: /diagnose shows the full report in Discord."
+    "diagnose_hint": "Tip: /diagnose shows the full report in Discord.",
+    "dismiss": "Mark as read",
+    "dismiss_title": "Hide until something about this notice changes – applies to all admins of this server",
+    "hidden": "Hidden ({count})",
+    "restore": "Show again",
+    "action_error": "That didn't work. Please try again."
   },
   "giveaways": {
     "title": "Giveaways",

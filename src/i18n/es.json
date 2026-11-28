@@ -689,7 +689,12 @@
     "premium_expires_soon": "Premium vence en {days} días",
     "premium_expires_tomorrow": "Premium vence mañana",
     "premium_expires_today": "Premium vence hoy",
-    "diagnose_hint": "Consejo: /diagnose muestra el análisis completo en Discord."
+    "diagnose_hint": "Consejo: /diagnose muestra el análisis completo en Discord.",
+    "dismiss": "Marcar como leído",
+    "dismiss_title": "Ocultar hasta que cambie algo en este aviso – se aplica a todos los administradores de este servidor",
+    "hidden": "Ocultos ({count})",
+    "restore": "Mostrar de nuevo",
+    "action_error": "No ha funcionado. Inténtalo de nuevo."
   },
   "giveaways": {
     "title": "Sorteos",

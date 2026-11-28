@@ -689,7 +689,12 @@
     "premium_expires_soon": "O Premium expira em {days} dias",
     "premium_expires_tomorrow": "O Premium expira amanhã",
     "premium_expires_today": "O Premium expira hoje",
-    "diagnose_hint": "Dica: /diagnose mostra a análise completa no Discord."
+    "diagnose_hint": "Dica: /diagnose mostra a análise completa no Discord.",
+    "dismiss": "Marcar como lido",
+    "dismiss_title": "Ocultar até que algo mude neste aviso – vale para todos os administradores deste servidor",
+    "hidden": "Ocultos ({count})",
+    "restore": "Mostrar novamente",
+    "action_error": "Não funcionou. Tente novamente."
   },
   "giveaways": {
     "title": "Sorteios",

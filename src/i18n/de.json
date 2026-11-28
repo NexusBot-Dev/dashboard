@@ -689,7 +689,12 @@
     "premium_expires_soon": "Premium läuft in {days} Tagen ab",
     "premium_expires_tomorrow": "Premium läuft morgen ab",
     "premium_expires_today": "Premium läuft heute ab",
-    "diagnose_hint": "Tipp: /diagnose zeigt die vollständige Auswertung in Discord."
+    "diagnose_hint": "Tipp: /diagnose zeigt die vollständige Auswertung in Discord.",
+    "dismiss": "Gelesen",
+    "dismiss_title": "Ausblenden, bis sich an diesem Hinweis etwas ändert – gilt für alle Admins dieses Servers",
+    "hidden": "Ausgeblendet ({count})",
+    "restore": "Wieder anzeigen",
+    "action_error": "Das hat nicht geklappt. Bitte versuche es erneut."
   },
   "giveaways": {
     "title": "Giveaways",

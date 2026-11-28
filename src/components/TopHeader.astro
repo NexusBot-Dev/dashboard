@@ -183,6 +183,11 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string; name: string }> =
               data-lang={lang}
               data-text-empty={t('notifications.empty')}
               data-text-error={t('notifications.load_error')}
+              data-text-dismiss={t('notifications.dismiss')}
+              data-text-dismiss-title={t('notifications.dismiss_title')}
+              data-text-hidden={t('notifications.hidden')}
+              data-text-restore={t('notifications.restore')}
+              data-text-action-error={t('notifications.action_error')}
             >
               <button
                 type="button"
@@ -468,24 +473,87 @@ const LANG_LABELS: Record<Lang, { flag: string; short: string; name: string }> =
       list.replaceChildren(p);
     }
 
+    function issueRow(issue, { dimmed, actionText, actionTitle, action }) {
+      const row = document.createElement('div');
+      row.className = 'flex items-start gap-2.5 px-4 py-2 ' + (dimmed ? 'text-slate-500' : 'text-slate-300');
+      row.dataset.issueKey = issue.key;
+      const icon = document.createElement('span');
+      icon.className = 'flex-shrink-0' + (dimmed ? ' opacity-60' : '');
+      icon.textContent = ICON[issue.severity] || '•';
+      const text = document.createElement('span');
+      text.className = 'flex-1 min-w-0';
+      renderText(text, issue.text);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'flex-shrink-0 text-[11px] text-slate-500 hover:text-slate-200 underline-offset-2 hover:underline';
+      button.textContent = actionText;
+      if (actionTitle) button.title = actionTitle;
+      button.addEventListener('click', () => changeIssue(action, issue.key, button));
+      row.append(icon, text, button);
+      return row;
+    }
+
+    // Ausgeblendete Hinweise („Gelesen“) zählen nicht mehr und stehen eingeklappt unten — mit „Wieder anzeigen“
     function render(issues) {
       list.replaceChildren();
-      for (const issue of issues) {
-        const row = document.createElement('div');
-        row.className = 'flex items-start gap-2.5 px-4 py-2 text-slate-300';
-        const icon = document.createElement('span');
-        icon.className = 'flex-shrink-0';
-        icon.textContent = ICON[issue.severity] || '•';
-        const text = document.createElement('span');
-        renderText(text, issue.text);
-        row.append(icon, text);
-        list.appendChild(row);
+      const visible = issues.filter((i) => !i.dismissed);
+      const hidden = issues.filter((i) => i.dismissed);
+      for (const issue of visible) {
+        list.appendChild(issueRow(issue, {
+          dimmed: false,
+          actionText: container.dataset.textDismiss,
+          actionTitle: container.dataset.textDismissTitle,
+          action: 'health-dismiss',
+        }));
       }
-      if (issues.length === 0 && baseCount === 0) {
-        showMessage(container.dataset.textEmpty);
+      if (visible.length === 0 && baseCount === 0) {
+        const p = document.createElement('p');
+        p.className = 'px-4 py-2 text-xs text-slate-400';
+        p.textContent = container.dataset.textEmpty;
+        list.appendChild(p);
+      }
+      if (hidden.length > 0) {
+        const details = document.createElement('details');
+        details.id = 'notifications-hidden';
+        details.className = 'border-t border-slate-800 mt-1';
+        if (openHidden) details.open = true;
+        details.addEventListener('toggle', () => { openHidden = details.open; });
+        const summary = document.createElement('summary');
+        summary.className = 'px-4 py-2 text-xs text-slate-500 cursor-pointer hover:text-slate-300 select-none';
+        summary.textContent = container.dataset.textHidden.replace('{count}', String(hidden.length));
+        details.appendChild(summary);
+        for (const issue of hidden) {
+          details.appendChild(issueRow(issue, {
+            dimmed: true,
+            actionText: container.dataset.textRestore,
+            action: 'health-restore',
+          }));
+        }
+        list.appendChild(details);
       }
       // "info" wird angezeigt, zählt aber nicht zum roten Zähler
-      setBadge(baseCount + issues.filter((i) => i.severity !== 'info').length);
+      setBadge(baseCount + visible.filter((i) => i.severity !== 'info').length);
+    }
+
+    let openHidden = false;
+
+    async function changeIssue(action, key, button) {
+      button.disabled = true;
+      try {
+        const res = await fetch(`/api/server/${guildId}/module/guild/${action}/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lang, key }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(`${action} failed`);
+        const issues = data.data?.issues || [];
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), issues })); } catch {}
+        render(issues);
+      } catch {
+        button.disabled = false;
+        alert(container.dataset.textActionError);
+      }
     }
 
     async function load() {
